@@ -1,0 +1,78 @@
+version: "3.5"
+
+services:
+  sim:
+    image: martenseemann/quic-network-simulator
+    container_name: sim
+    hostname: sim
+    stdin_open: true
+    tty: true
+    volumes:
+      - $SIM_LOGS:/logs
+    environment:
+      - SCENARIO=$SCENARIO
+    cap_add: 
+      - NET_ADMIN
+    expose:
+      - "57832"
+    networks:
+      leftnet:
+        ipv4_address: 193.167.0.2
+      rightnet:
+        ipv4_address: 193.167.100.2
+
+  server:
+    image: $SERVER
+    container_name: server
+    hostname: server
+    stdin_open: true
+    tty: true
+    volumes:
+      - $WWW:/www
+      - $SERVER_LOGS:/logs
+    environment:
+      - ROLE=server
+      - SERVER_PARAMS=$SERVER_PARAMS
+      - TESTCASE=$TESTCASE
+    depends_on:
+      - sim
+    cap_add: 
+      - NET_ADMIN
+    networks:
+      rightnet:
+        ipv4_address: 193.167.100.100
+
+  client:
+    image: $CLIENT
+    container_name: client
+    hostname: client
+    stdin_open: true
+    tty: true
+    volumes:
+      - $DOWNLOADS:/downloads
+      - $CLIENT_LOGS:/logs
+    environment:
+      - ROLE=client
+      - CLIENT_PARAMS=$CLIENT_PARAMS
+      - TESTCASE=$TESTCASE
+      - REQUESTS=$REQUESTS
+    depends_on:
+      - sim
+    cap_add: 
+      - NET_ADMIN
+    networks:
+      leftnet:
+        ipv4_address: 193.167.0.100
+
+networks:
+  leftnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 193.167.0.0/24
+  rightnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 193.167.100.0/24
+
