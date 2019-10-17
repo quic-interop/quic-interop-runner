@@ -67,8 +67,12 @@ class TestCase(abc.ABC):
       if not os.path.isfile(fp):
         logging.info("File %s does not exist.", fp)
         return False
-      if not filecmp.cmp(self.www_dir() + f, fp, shallow=False):
-        logging.info("File contents of %s do not match.", fp)
+      try:
+        if not filecmp.cmp(self.www_dir() + f, fp, shallow=False):
+          logging.info("File contents of %s do not match.", fp)
+          return False
+      except Exception as exception:
+        logging.info("Could not compoare files %s and %s: %s", self.www_dir() + f, fp, exception)
         return False
     logging.debug("Check of downloaded files succeeded.")
     return True
