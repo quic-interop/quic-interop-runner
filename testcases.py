@@ -193,7 +193,7 @@ class TestCaseHTTP3(TestCase):
     ]
     return self._files
 
-  def check(self):
+  def check(self, log_dir: tempfile.TemporaryDirectory):
     return self._check_files()
 
 
