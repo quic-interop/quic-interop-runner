@@ -6,4 +6,3 @@ IMPLEMENTATIONS = { # name => docker image
   "quant":  "ntap/quant:interop",
   "mvfst":  "lnicco/mvfst-qns:latest",
 }
-add mvfst image
