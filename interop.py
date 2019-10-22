@@ -1,5 +1,5 @@
 import os, random, shutil, subprocess, string, logging, tempfile, re
-from typing import List
+from typing import Callable, List
 from termcolor import colored
 from enum import Enum
 import prettytable
@@ -130,11 +130,12 @@ class InteropRunner:
       t.add_row(row)
     print(t)
 
-  def _run_testcase(self, server: str, client: str, testcase: testcases.TestCase) -> TestResult:
+  def _run_testcase(self, server: str, client: str, test: Callable[[], testcases.TestCase]) -> TestResult:
+    sim_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_sim_")
+    testcase = test(sim_log_dir=sim_log_dir)
     print("Server: " + server + ". Client: " + client + ". Running test case: " + str(testcase))
     server_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_server_")
     client_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_client_")
-    sim_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_sim_")
     log_file = tempfile.NamedTemporaryFile(dir="/tmp", prefix="output_log_")
     log_handler = logging.FileHandler(log_file.name)
     log_handler.setLevel(logging.DEBUG)
@@ -167,7 +168,7 @@ class InteropRunner:
     if self._is_unsupported(lines):
       status = TestResult.UNSUPPORTED
     elif any("client exited with code 0" in str(l) for l in lines):
-      if testcase.check(sim_log_dir):
+      if testcase.check():
         status = TestResult.SUCCEEDED
 
     # save logs

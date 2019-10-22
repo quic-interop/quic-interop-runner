@@ -54,9 +54,9 @@ def get_tests(arg) -> List[testcases.TestCase]:
     return TESTCASES
   tests = []
   for t in arg.split(","):
-    if t not in [ str(n) for n in TESTCASES ]:
+    if t not in [ tc.name() for tc in TESTCASES ]:
       sys.exit("Test case " + t + " not found.")
-    tests += [ n for n in TESTCASES if str(n)==t ]
+    tests += [ tc for tc in TESTCASES if tc.name()==t ]
   return tests 
     
 InteropRunner(
