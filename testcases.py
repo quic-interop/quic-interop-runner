@@ -12,17 +12,16 @@ def random_string(length: int):
   return ''.join(random.choice(letters) for i in range(length))
 
 class TestCase(abc.ABC):
-  _name = ""
-  _abbreviation = ""
   _files = []
   _www_dir = None
   _download_dir = None
+  _sim_log_dir = None
+
+  def __init__(self, sim_log_dir: tempfile.TemporaryDirectory):
+    self._sim_log_dir = sim_log_dir
 
   def __str__(self):
-    return self._name
-
-  def abbreviation(self):
-    return self._abbreviation
+    return self.name()
 
   def www_dir(self):
     if not self._www_dir:
@@ -44,8 +43,8 @@ class TestCase(abc.ABC):
     logging.debug("Generated random file: %s of size: %d", filename, size)
     return filename
 
-  def _retry_sent(self, log_dir: tempfile.TemporaryDirectory) -> bool:
-    tr = TraceAnalyzer(log_dir.name + "/trace_node_left.pcap")
+  def _retry_sent(self) -> bool:
+    tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
     cap = tr.get_retry()
     sent = True
     try: 
@@ -90,30 +89,38 @@ class TestCase(abc.ABC):
     pass
 
   @abc.abstractmethod
-  def check(self, log_dir: tempfile.TemporaryDirectory) -> bool:
+  def check(self) -> bool:
     pass
 
 class TestCaseHandshake(TestCase):
-  def __init__(self):
-    self._name = "handshake"
-    self._abbreviation = "H"
+  @staticmethod
+  def name():
+    return "handshake"
+
+  @staticmethod
+  def abbreviation():
+    return "H"
 
   def get_paths(self):
     self._files = [ self._generate_random_file(1*KB) ]
     return self._files
 
-  def check(self, log_dir: tempfile.TemporaryDirectory):
+  def check(self):
     if not self._check_files():
       return False
-    if self._retry_sent(log_dir):
+    if self._retry_sent():
       logging.info("Didn't expect a Retry to be sent.")
       return False
     return True
 
 class TestCaseTransfer(TestCase):
-  def __init__(self):
-    self._name = "transfer"
-    self._abbreviation = "DC"
+  @staticmethod
+  def name():
+    return "transfer"
+
+  @staticmethod
+  def abbreviation():
+    return "DC"
 
   def get_paths(self):
     self._files = [ 
@@ -123,21 +130,25 @@ class TestCaseTransfer(TestCase):
     ]
     return self._files
 
-  def check(self, log_dir: tempfile.TemporaryDirectory):
+  def check(self):
     return self._check_files()
 
 class TestCaseRetry(TestCase):
-  def __init__(self):
-    self._name = "retry"
-    self._abbreviation = "S"
+  @staticmethod
+  def name():
+    return "retry"
+
+  @staticmethod
+  def abbreviation():
+    return "S"
 
   def get_paths(self):
     self._files = [ self._generate_random_file(10*KB), ]
     return self._files
 
-  def _check_trace(self, log_dir: tempfile.TemporaryDirectory) -> bool:
+  def _check_trace(self) -> bool:
     # check that (at least) one Retry packet was actually sent
-    tr = TraceAnalyzer(log_dir.name + "/trace_node_left.pcap")
+    tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
     tokens = []
     cap_retry = tr.get_retry(Direction.FROM_SERVER)
     for p in cap_retry:
@@ -163,16 +174,20 @@ class TestCaseRetry(TestCase):
       logging.info("Didn't find any Initial packet using a Retry token.")
     return found
 
-  def check(self, log_dir: tempfile.TemporaryDirectory) -> bool:
+  def check(self) -> bool:
     if not self._check_files():
       return False
-    return self._check_trace(log_dir)
+    return self._check_trace()
     
 
 class TestCaseResumption(TestCase):
-  def __init__(self):
-    self._name = "resumption"
-    self._abbreviation = "R"
+  @staticmethod
+  def name():
+    return "resumption"
+
+  @staticmethod
+  def abbreviation():
+    return "R"
 
   def get_paths(self):
     self._files = [ 
@@ -181,13 +196,17 @@ class TestCaseResumption(TestCase):
     ]
     return self._files
 
-  def check(self, log_dir: tempfile.TemporaryDirectory):
+  def check(self):
     return self._check_files()
 
 class TestCaseHTTP3(TestCase):
-  def __init__(self):
-    self._name = "http3"
-    self._abbreviation = "3"
+  @staticmethod
+  def name():
+    return "http3"
+
+  @staticmethod
+  def abbreviation():
+    return "3"
 
   def get_paths(self):
     self._files = [ 
@@ -197,14 +216,14 @@ class TestCaseHTTP3(TestCase):
     ]
     return self._files
 
-  def check(self, log_dir: tempfile.TemporaryDirectory):
+  def check(self):
     return self._check_files()
 
 
 TESTCASES = [ 
-  TestCaseHandshake(),
-  TestCaseTransfer(),
-  TestCaseRetry(),
-  TestCaseResumption(),
-  TestCaseHTTP3(),
+  TestCaseHandshake,
+  TestCaseTransfer,
+  TestCaseRetry,
+  TestCaseResumption,
+  TestCaseHTTP3,
 ]
