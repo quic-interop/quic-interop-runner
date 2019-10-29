@@ -180,6 +180,12 @@ class InteropRunner:
       shutil.copytree(client_log_dir.name, log_dir + "/client")
       shutil.copytree(sim_log_dir.name, log_dir + "/sim")
       shutil.copyfile(log_file.name, log_dir + "/output.txt")
+      if status == TestResult.FAILED:
+        shutil.copytree(testcase.www_dir(), log_dir + "/www")
+        try:
+          shutil.copytree(testcase.download_dir(), log_dir + "/downloads")
+        except Exception as exception:
+          logging.info("Could not copy downloaded files: %s", exception)
 
     testcase.cleanup()
     server_log_dir.cleanup()
