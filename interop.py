@@ -54,7 +54,6 @@ class InteropRunner:
       logging.debug("%s already tested for compliance: %s", name, str(self.compliant))
       return self.compliant[name]
 
-    sim_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_sim_")
     client_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_client_")
     www_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="compliance_www_")
     downloads_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="compliance_downloads_")
@@ -65,7 +64,6 @@ class InteropRunner:
         "TESTCASE=" + random_string(6) + " "
         "SERVER_LOGS=/dev/null "
         "CLIENT_LOGS=" + client_log_dir.name + " " 
-        "SIM_LOGS=" + sim_log_dir.name + " "
         "WWW=" + www_dir.name + " "
         "DOWNLOADS=" + downloads_dir.name + " "
         "SCENARIO=\"simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25\" "
@@ -82,14 +80,11 @@ class InteropRunner:
 
     # check that the server is capable of returning UNSUPPORTED
     logging.debug("Checking compliance of %s server", name)
-    sim_log_dir.cleanup()
-    sim_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_sim_")
     server_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_server_")
     cmd = (
         "TESTCASE=" + random_string(6) + " "
         "SERVER_LOGS=" + server_log_dir.name + " "
         "CLIENT_LOGS=/dev/null "
-        "SIM_LOGS=" + sim_log_dir.name + " "
         "WWW=" + www_dir.name + " "
         "DOWNLOADS=" + downloads_dir.name + " "
         "SERVER=" + self._implementations[name] + " "
@@ -152,7 +147,6 @@ class InteropRunner:
       "DOWNLOADS=" + testcase.download_dir() + " "
       "SERVER_LOGS=" + server_log_dir.name + " "
       "CLIENT_LOGS=" + client_log_dir.name + " "
-      "SIM_LOGS=" + sim_log_dir.name + " "
       "SCENARIO=\"simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25\" "
       "CLIENT=" + self._implementations[client] + " "
       "SERVER=" + self._implementations[server] + " "
@@ -162,8 +156,13 @@ class InteropRunner:
     output = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     logging.debug("%s", output.stdout.decode('utf-8'))
 
-    lines = output.stdout.splitlines()
+    # copy the pcaps from the simulator
+    subprocess.run(
+      "docker cp \"$(docker-compose --log-level ERROR ps -q sim)\":/logs/. " + sim_log_dir.name,
+      shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+    )
 
+    lines = output.stdout.splitlines()
     status = TestResult.FAILED
     if self._is_unsupported(lines):
       status = TestResult.UNSUPPORTED
