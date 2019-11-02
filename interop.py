@@ -1,8 +1,9 @@
-import os, random, shutil, subprocess, string, logging, tempfile, re
+import io, os, random, shutil, subprocess, string, logging, tempfile, re, time, threading
 from typing import Callable, List
 from termcolor import colored
 from enum import Enum
 import prettytable
+import wait_for_it
 
 import testcases
 
@@ -22,6 +23,27 @@ class LogFileFormatter(logging.Formatter):
     msg = super(LogFileFormatter, self).format(record)
     # remove color control characters
     return re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]').sub('', msg)
+
+class SubprocessOutputter(threading.Thread):
+  reader = None
+  lines = []
+
+  def __init__(self, fd):
+    threading.Thread.__init__(self)
+    self.threadID = 1
+    self.reader = os.fdopen(fd)
+    self.start()
+
+  def run(self):
+    for line in iter(self.reader.readline, ''):
+      l = line.strip('\n')
+      logging.debug(l)
+      self.lines.append(l)
+
+  def get_output(self):
+    self.join()
+    return self.lines
+
 
 class InteropRunner:
   results = {}
@@ -49,6 +71,7 @@ class InteropRunner:
     return any("exited with code 127" in str(l) for l in lines) or any("exit status 127" in str(l) for l in lines)
 
   def _check_impl_is_compliant(self, name: str) -> bool:
+    return True
     """ check if an implementation return UNSUPPORTED for unknown test cases """
     if name in self.compliant:
       logging.debug("%s already tested for compliance: %s", name, str(self.compliant))
@@ -141,28 +164,57 @@ class InteropRunner:
 
     reqs = " ".join(["https://server:443/" + p for p in testcase.get_paths()])
     logging.debug("Requests: %s", reqs)
-    cmd = (
+
+    def run_cmd(cmd: str, output):
+      return subprocess.Popen(cmd, shell=True, stdout=output, stderr=subprocess.PIPE, universal_newlines=True)
+
+    fdRead, f = os.pipe()
+    t = SubprocessOutputter(fdRead)
+
+    proc_sim = run_cmd("SCENARIO=\"simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25\" docker-compose up sim", f)
+    proc_server = run_cmd(
       "TESTCASE=" + str(testcase) + " "
       "WWW=" + testcase.www_dir() + " "
-      "DOWNLOADS=" + testcase.download_dir() + " "
       "SERVER_LOGS=" + server_log_dir.name + " "
-      "CLIENT_LOGS=" + client_log_dir.name + " "
-      "SCENARIO=\"simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25\" "
-      "CLIENT=" + self._implementations[client] + " "
       "SERVER=" + self._implementations[server] + " "
-      "REQUESTS=\"" + reqs + "\" "
-      "docker-compose up --abort-on-container-exit --timeout 1"
+      "docker-compose up server",
+      f
     )
-    output = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    logging.debug("%s", output.stdout.decode('utf-8'))
+    proc_client = run_cmd(
+      "TESTCASE=" + str(testcase) + " "
+      "CLIENT_LOGS=" + client_log_dir.name + " "
+      "CLIENT=" + self._implementations[client] + " "
+      "DOWNLOADS=" + testcase.download_dir() + " "
+      "REQUESTS=\"" + reqs + "\" "
+      "docker-compose up client",
+      f
+    )
 
+    while True:
+      time.sleep(50/1000) # sleep 50ms
+      if proc_sim.poll() is not None:
+        run_cmd("docker-compose stop client server", f).wait()
+        os.close(f)
+        break
+      if proc_server.poll() is not None:
+        run_cmd("docker-compose stop sim client", f).wait()
+        os.close(f)
+        break
+      if proc_client.poll() is not None:
+        print("stopping sim")
+        run_cmd("docker-compose stop sim", f).wait()
+        print("stopping server")
+        run_cmd("docker-compose kill server", f).wait()
+        os.close(f)
+        break
+    
     # copy the pcaps from the simulator
     subprocess.run(
       "docker cp \"$(docker-compose --log-level ERROR ps -q sim)\":/logs/. " + sim_log_dir.name,
       shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
 
-    lines = output.stdout.splitlines()
+    lines = t.get_output()
     status = TestResult.FAILED
     if self._is_unsupported(lines):
       status = TestResult.UNSUPPORTED

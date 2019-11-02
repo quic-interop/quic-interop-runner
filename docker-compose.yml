@@ -2,11 +2,8 @@ version: "3.5"
 
 services:
   sim:
-    image: martenseemann/quic-network-simulator
+    image: sim
     container_name: sim
-    hostname: sim
-    stdin_open: true
-    tty: true
     environment:
       - SCENARIO=$SCENARIO
     cap_add: 
@@ -32,8 +29,10 @@ services:
       - ROLE=server
       - SERVER_PARAMS=$SERVER_PARAMS
       - TESTCASE=$TESTCASE
-    depends_on:
+    external_links:
       - sim
+    extra_hosts:
+      - "sim:193.167.0.2"
     cap_add: 
       - NET_ADMIN
     networks:
@@ -54,8 +53,10 @@ services:
       - CLIENT_PARAMS=$CLIENT_PARAMS
       - TESTCASE=$TESTCASE
       - REQUESTS=$REQUESTS
-    depends_on:
+    external_links:
       - sim
+    extra_hosts:
+      - "sim:193.167.0.2"
     cap_add: 
       - NET_ADMIN
     networks:
