@@ -34,7 +34,7 @@ class TestCase(abc.ABC):
     return self._download_dir.name + "/"
 
   # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
-  def _generate_random_file(self, size: int):
+  def _generate_random_file(self, size: int) -> str:
     filename = random_string(10)
     enc = AES.new(os.urandom(32), AES.MODE_OFB, b'a' * 16)
     f = open(self.www_dir() + filename, "wb")
@@ -91,6 +91,34 @@ class TestCase(abc.ABC):
   @abc.abstractmethod
   def check(self) -> bool:
     pass
+
+class TestCaseVersionNegotiation(TestCase):
+  @staticmethod
+  def name():
+    return "versionnegotiation"
+  
+  @staticmethod
+  def abbreviation():
+    return "V"
+
+  def get_paths(self):
+    return [ "" ]
+  
+  def check(self):
+    tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
+    cap_initial = tr.get_initial(Direction.FROM_CLIENT)
+    dcid = ""
+    for p in cap_initial:
+      dcid = p.quic.dcid
+    if dcid is "":
+      logging.info("Didn't find an Initial / a DCID.")
+      return False
+    cap_server = tr.get_vnp()
+    for p in cap_server:
+      if p.quic.scid == dcid:
+        return True
+    logging.info("Didn't find a Version Negotiation Packet with matching SCID.")
+    return False
 
 class TestCaseHandshake(TestCase):
   @staticmethod
@@ -221,6 +249,7 @@ class TestCaseHTTP3(TestCase):
 
 
 TESTCASES = [ 
+  TestCaseVersionNegotiation,
   TestCaseHandshake,
   TestCaseTransfer,
   TestCaseRetry,
