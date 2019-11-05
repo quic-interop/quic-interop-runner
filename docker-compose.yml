@@ -61,6 +61,8 @@ services:
     networks:
       leftnet:
         ipv4_address: 193.167.0.100
+    extra_hosts:
+      - "server:193.167.100.100"
 
 networks:
   leftnet:
