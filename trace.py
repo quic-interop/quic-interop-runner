@@ -21,6 +21,10 @@ class TraceAnalyzer:
     else:
       return ""
 
+  def get_vnp(self, direction: Direction = Direction.ALL) -> pyshark.FileCapture:
+    f = self._get_direction_filter(direction) + "quic.version==0"
+    return pyshark.FileCapture(self._filename, display_filter=f)
+
   def get_retry(self, direction: Direction = Direction.ALL) -> pyshark.FileCapture:
     f = self._get_direction_filter(direction) + "quic.long.packet_type==Retry"
     return pyshark.FileCapture(self._filename, display_filter=f)
