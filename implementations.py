@@ -5,5 +5,5 @@ IMPLEMENTATIONS = { # name => docker image
   "ngtcp2": "ngtcp2/ngtcp2-interop:latest",
   "quant":  "ntap/quant:interop",
   "mvfst":  "lnicco/mvfst-qns:latest",
-  "quiche":  "junhochoi/quiche-qns:latest",
+  "quiche":  "cloudflare/quiche-qns:latest",
 }
