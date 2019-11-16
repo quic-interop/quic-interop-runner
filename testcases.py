@@ -194,7 +194,7 @@ class TestCaseRetry(TestCase):
         continue
       token = p.quic.token.replace(":", "")
       if token in tokens:
-        logging.info("Check of Retry succeeded. Token used: %s", token)
+        logging.debug("Check of Retry succeeded. Token used: %s", token)
         found = True
         break
     cap_initial.close()
