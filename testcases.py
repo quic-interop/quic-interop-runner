@@ -110,15 +110,19 @@ class TestCaseVersionNegotiation(TestCase):
     dcid = ""
     for p in cap_initial:
       dcid = p.quic.dcid
+    cap_initial.close()
     if dcid is "":
       logging.info("Didn't find an Initial / a DCID.")
       return False
     cap_server = tr.get_vnp()
+    conn_id_matches = False
     for p in cap_server:
       if p.quic.scid == dcid:
-        return True
-    logging.info("Didn't find a Version Negotiation Packet with matching SCID.")
-    return False
+        conn_id_matches = True
+    cap_server.close()
+    if not conn_id_matches:
+      logging.info("Didn't find a Version Negotiation Packet with matching SCID.")
+    return conn_id_matches
 
 class TestCaseHandshake(TestCase):
   @staticmethod
