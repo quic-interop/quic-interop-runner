@@ -15,6 +15,7 @@ def get_args():
   parser.add_argument("-c", "--client", help="client implementations (comma-separated)")
   parser.add_argument("-t", "--test", help="test cases (comma-separatated)")
   parser.add_argument("-r", "--replace", help="replace path of implementation. Example: -r myquicimpl=dockertagname")
+  parser.add_argument("-j", "--json", help="output the matrix to file in json format")
   return parser.parse_args()
 
 
@@ -64,4 +65,5 @@ InteropRunner(
   servers=get_impls(get_args().server), 
   clients=get_impls(get_args().client),
   tests=get_tests(get_args().test),
+  output=get_args().json,
 ).run()

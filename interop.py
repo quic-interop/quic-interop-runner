@@ -1,4 +1,4 @@
-import os, random, shutil, subprocess, string, logging, tempfile, re
+import json, os, random, shutil, subprocess, string, logging, tempfile, time, re
 from typing import Callable, List
 from termcolor import colored
 from enum import Enum
@@ -30,12 +30,14 @@ class InteropRunner:
   _servers = {}
   _clients = {}
   _tests = []
+  _output = ""
 
-  def __init__(self, implementations: dict, servers: dict, clients: dict, tests: List[testcases.TestCase]):
+  def __init__(self, implementations: dict, servers: dict, clients: dict, tests: List[testcases.TestCase], output: string):
     self._tests = tests
     self._servers = servers
     self._clients = clients
     self._implementations = implementations
+    self._output = output
     for server in servers:
       self.results[server] = {}
       for client in clients:
@@ -124,6 +126,35 @@ class InteropRunner:
         row += [ res ]
       t.add_row(row)
     print(t)
+
+  def _export_results(self):
+    if not self._output:
+      return
+
+    def get_letters(testcases):
+      if len(testcases) == 0:
+        return ""
+      return "".join([ test.abbreviation() for test in testcases ])
+
+    out = {
+      "timestamp": time.time(),
+      "servers": [ name for name in self._servers ],
+      "clients": [ name for name in self._clients ],
+      "results": [],
+    }
+      
+    for client in self._clients:
+      for server in self._servers:
+        cell = self.results[server][client]
+        out["results"].append({
+          "succeeded": get_letters(cell[TestResult.SUCCEEDED]),
+          "unsupported": get_letters(cell[TestResult.UNSUPPORTED]),
+          "failed": get_letters(cell[TestResult.FAILED]),
+        })
+
+    f = open(self._output, "w")
+    json.dump(out, f)
+    f.close()
 
   def _run_testcase(self, server: str, client: str, test: Callable[[], testcases.TestCase]) -> TestResult:
     sim_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_sim_")
@@ -222,3 +253,4 @@ class InteropRunner:
           self.results[server][client][status] += [ testcase ]
 
     self._print_results()
+    self._export_results()
