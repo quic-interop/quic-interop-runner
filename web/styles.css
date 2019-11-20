@@ -1,0 +1,17 @@
+.lastrun {
+  margin-top: 50px;
+  text-align: right;
+}
+
+table#interop td {
+  vertical-align: middle;
+}
+
+table#interop tr:first-child td,
+table#interop tr td:first-child {
+  font-weight: bold;
+}
+
+table#interop .results div {
+  height: 1.4em;
+}
