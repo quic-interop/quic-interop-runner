@@ -41,14 +41,14 @@ if replace_arg:
       sys.exit("Implementation " + name + " not found.")
     implementations[name] = image
 
-def get_impls(arg) -> dict:
+def get_impls(arg) -> List[str]:
   if not arg:
-    return implementations
-  impls = {}
+    return implementations.keys()
+  impls = []
   for s in arg.split(","):
     if s not in implementations:
       sys.exit("Implementation " + s + " not found.")
-    impls[s] = implementations[s]
+    impls.append(s)
   return impls
 
 def get_tests(arg) -> List[testcases.TestCase]:
