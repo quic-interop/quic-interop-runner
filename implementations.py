@@ -6,4 +6,5 @@ IMPLEMENTATIONS = { # name => docker image
   "quant":  "ntap/quant:interop",
   "mvfst":  "lnicco/mvfst-qns:latest",
   "quiche":  "cloudflare/quiche-qns:latest",
+  "kwik":   "peterdoornbosch/kwik_n_flupke-interop",
 }
