@@ -4,7 +4,7 @@ from typing import List
 from interop import InteropRunner
 import testcases
 from testcases import TESTCASES, MEASUREMENTS
-from implementations import IMPLEMENTATIONS
+from implementations import IMPLEMENTATIONS, IMPLEMENTATION_ROLES
 
 def get_args():
   parser = argparse.ArgumentParser()
@@ -30,6 +30,11 @@ else:
 logger.addHandler(console)
 
 implementations = copy.deepcopy(IMPLEMENTATIONS)
+roles = IMPLEMENTATION_ROLES
+
+client_implementations = list(filter(lambda name: name not in roles or roles[name] == 0 or roles[name] == 2, implementations))
+server_implementations = list(filter(lambda name: name not in roles or roles[name] == 1 or roles[name] == 2, implementations))
+
 replace_arg = get_args().replace
 if replace_arg:
   for s in replace_arg.split(","):
@@ -41,13 +46,13 @@ if replace_arg:
       sys.exit("Implementation " + name + " not found.")
     implementations[name] = image
 
-def get_impls(arg) -> List[str]:
+def get_impls(arg, availableImpls, role) -> List[str]:
   if not arg:
-    return implementations.keys()
+    return availableImpls
   impls = []
   for s in arg.split(","):
-    if s not in implementations:
-      sys.exit("Implementation " + s + " not found.")
+    if s not in availableImpls:
+      sys.exit(role + " implementation " + s + " not found.")
     impls.append(s)
   return impls
 
@@ -77,8 +82,8 @@ def get_measurements(arg) -> List[testcases.TestCase]:
     
 InteropRunner(
   implementations=implementations,
-  servers=get_impls(get_args().server), 
-  clients=get_impls(get_args().client),
+  servers=get_impls(get_args().server, server_implementations, "Server"),
+  clients=get_impls(get_args().client, client_implementations, "Client"),
   tests=get_tests(get_args().test),
   measurements=get_measurements(get_args().measurement),
   output=get_args().json,

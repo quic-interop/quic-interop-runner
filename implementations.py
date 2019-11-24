@@ -8,3 +8,7 @@ IMPLEMENTATIONS = { # name => docker image
   "quiche":  "cloudflare/quiche-qns:latest",
   "kwik":   "peterdoornbosch/kwik_n_flupke-interop",
 }
+
+IMPLEMENTATION_ROLES = {  # name => role, 0 == 'client', 1 == 'server', 2 == both, default is 'both'
+  "kwik": 0,
+}
