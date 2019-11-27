@@ -153,8 +153,18 @@ class InteropRunner:
       "REQUESTS=\"" + reqs + "\" "
       "docker-compose up --abort-on-container-exit --timeout 1"
     )
-    output = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    logging.debug("%s", output.stdout.decode('utf-8'))
+
+    status = TestResult.FAILED
+    output = ""
+    expired = False
+    try:
+      r = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
+      output = r.stdout
+    except subprocess.TimeoutExpired as ex:
+      output = ex.stdout
+      expired = True
+
+    logging.debug("%s", output.decode('utf-8'))
 
     # copy the pcaps from the simulator
     subprocess.run(
@@ -162,13 +172,13 @@ class InteropRunner:
       shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
 
-    lines = output.stdout.splitlines()
-    status = TestResult.FAILED
-    if self._is_unsupported(lines):
-      status = TestResult.UNSUPPORTED
-    elif any("client exited with code 0" in str(l) for l in lines):
-      if testcase.check():
-        status = TestResult.SUCCEEDED
+    if not expired:
+      lines = output.splitlines()
+      if self._is_unsupported(lines):
+        status = TestResult.UNSUPPORTED
+      elif any("client exited with code 0" in str(l) for l in lines):
+        if testcase.check():
+          status = TestResult.SUCCEEDED
 
     # save logs
     logging.getLogger().removeHandler(log_handler)
