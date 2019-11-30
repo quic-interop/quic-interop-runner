@@ -4,7 +4,7 @@ from typing import List
 from interop import InteropRunner
 import testcases
 from testcases import TESTCASES, MEASUREMENTS
-from implementations import IMPLEMENTATIONS, IMPLEMENTATION_ROLES
+from implementations import IMPLEMENTATIONS
 
 def get_args():
   parser = argparse.ArgumentParser()
@@ -29,8 +29,8 @@ else:
   console.setLevel(logging.INFO)
 logger.addHandler(console)
 
-implementations = copy.deepcopy(IMPLEMENTATIONS)
-roles = IMPLEMENTATION_ROLES
+implementations = { key:value[0] for key, value in IMPLEMENTATIONS.items() }
+roles = { key:value[1] for key, value in IMPLEMENTATIONS.items() }
 
 client_implementations = list(filter(lambda name: name not in roles or roles[name] == 0 or roles[name] == 2, implementations))
 server_implementations = list(filter(lambda name: name not in roles or roles[name] == 1 or roles[name] == 2, implementations))

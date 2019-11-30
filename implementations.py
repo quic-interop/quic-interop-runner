@@ -1,14 +1,10 @@
 # add your QUIC implementation here
-IMPLEMENTATIONS = { # name => docker image
-  "quicgo": "martenseemann/quic-go-interop:latest",
-  "quicly": "janaiyengar/quicly:interop",
-  "ngtcp2": "ngtcp2/ngtcp2-interop:latest",
-  "quant":  "ntap/quant:interop",
-  "mvfst":  "lnicco/mvfst-qns:latest",
-  "quiche":  "cloudflare/quiche-qns:latest",
-  "kwik":   "peterdoornbosch/kwik_n_flupke-interop",
-}
-
-IMPLEMENTATION_ROLES = {  # name => role, 0 == 'client', 1 == 'server', 2 == both, default is 'both'
-  "kwik": 0,
+IMPLEMENTATIONS = { # name => [ docker image, role ]; role: 0 == 'client', 1 == 'server', 2 == both
+  "quicgo": [ "martenseemann/quic-go-interop:latest", 2 ],
+  "quicly": [ "janaiyengar/quicly:interop", 2 ],
+  "ngtcp2": [ "ngtcp2/ngtcp2-interop:latest", 2 ],
+  "quant":  [ "ntap/quant:interop", 2 ],
+  "mvfst":  [ "lnicco/mvfst-qns:latest", 2 ],
+  "quiche": [ "cloudflare/quiche-qns:latest", 2 ],
+  "kwik":   [ "peterdoornbosch/kwik_n_flupke-interop", 0 ],
 }
