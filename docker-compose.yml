@@ -27,7 +27,6 @@ services:
     tty: true
     volumes:
       - $WWW:/www
-      - $SERVER_LOGS:/logs
     environment:
       - ROLE=server
       - SERVER_PARAMS=$SERVER_PARAMS
@@ -48,7 +47,6 @@ services:
     tty: true
     volumes:
       - $DOWNLOADS:/downloads
-      - $CLIENT_LOGS:/logs
     environment:
       - ROLE=client
       - CLIENT_PARAMS=$CLIENT_PARAMS
