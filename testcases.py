@@ -269,7 +269,7 @@ class TestCaseGoodput(TestCase):
   def check(self, log_dir: tempfile.TemporaryDirectory) -> bool:
     if not self._check_files():
       return False
-    packets = TraceAnalyzer(log_dir.name + "/trace_node_left.pcap").get_all_packets(Direction.FROM_CLIENT)
+    packets = TraceAnalyzer(log_dir.name + "/trace_node_left.pcap").get_all(Direction.FROM_CLIENT)
 
     first, last = 0, 0
     for p in packets:
