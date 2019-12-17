@@ -3,7 +3,7 @@ from typing import List
 
 from interop import InteropRunner
 import testcases
-from testcases import TESTCASES
+from testcases import TESTCASES, MEASUREMENTS
 from implementations import IMPLEMENTATIONS
 
 def get_args():
@@ -14,6 +14,7 @@ def get_args():
   parser.add_argument("-s", "--server", help="server implementations (comma-separated)")
   parser.add_argument("-c", "--client", help="client implementations (comma-separated)")
   parser.add_argument("-t", "--test", help="test cases (comma-separatated)")
+  parser.add_argument("-m", "--measurement", help="measurements (comma-separatated)")
   parser.add_argument("-r", "--replace", help="replace path of implementation. Example: -r myquicimpl=dockertagname")
   parser.add_argument("-j", "--json", help="output the matrix to file in json format")
   return parser.parse_args()
@@ -51,19 +52,34 @@ def get_impls(arg) -> dict:
   return impls
 
 def get_tests(arg) -> List[testcases.TestCase]:
-  if not arg:
+  if arg is None:
     return TESTCASES
+  if len(arg) is 0:
+    return []
   tests = []
   for t in arg.split(","):
     if t not in [ tc.name() for tc in TESTCASES ]:
       sys.exit("Test case " + t + " not found.")
     tests += [ tc for tc in TESTCASES if tc.name()==t ]
-  return tests 
+  return tests
+
+def get_measurements(arg) -> List[testcases.TestCase]:
+  if arg is None:
+    return MEASUREMENTS
+  if len(arg) is 0:
+    return []
+  tests = []
+  for t in arg.split(","):
+    if t not in [ tc.name() for tc in MEASUREMENTS ]:
+      sys.exit("Measurement " + t + " not found.")
+    tests += [ tc for tc in MEASUREMENTS if tc.name()==t ]
+  return tests
     
 InteropRunner(
   implementations=implementations,
   servers=get_impls(get_args().server), 
   clients=get_impls(get_args().client),
   tests=get_tests(get_args().test),
+  measurements=get_measurements(get_args().measurement),
   output=get_args().json,
 ).run()

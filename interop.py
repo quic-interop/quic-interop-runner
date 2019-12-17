@@ -17,6 +17,10 @@ class TestResult(Enum):
   FAILED = 2
   UNSUPPORTED = 3
 
+class MeasurementResult:
+  result = TestResult
+  details = str
+
 class LogFileFormatter(logging.Formatter):
   def format(self, record):
     msg = super(LogFileFormatter, self).format(record)
@@ -24,28 +28,35 @@ class LogFileFormatter(logging.Formatter):
     return re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]').sub('', msg)
 
 class InteropRunner:
-  results = {}
+  test_results = {}
+  measurement_results = {}
   compliant = {}
   _implementations = {}
   _servers = {}
   _clients = {}
   _tests = []
+  _measurements = []
   _output = ""
 
-  def __init__(self, implementations: dict, servers: dict, clients: dict, tests: List[testcases.TestCase], output: string):
+  def __init__(self, implementations: dict, servers: dict, clients: dict, tests: List[testcases.TestCase], measurements: List[testcases.Measurement], output: str):
     self._tests = tests
+    self._measurements = measurements
     self._servers = servers
     self._clients = clients
     self._implementations = implementations
     self._output = output
     for server in servers:
-      self.results[server] = {}
+      self.test_results[server] = {}
+      self.measurement_results[server] = {}
       for client in clients:
-        self.results[server][client] = {
-          TestResult.SUCCEEDED: [],
-          TestResult.FAILED: [],
-          TestResult.UNSUPPORTED: [],
+        self.test_results[server][client] = {
+          TestResult.SUCCEEDED: [], # List[testcases.TestCase]
+          TestResult.FAILED: [], # List[testcases.TestCase]
+          TestResult.UNSUPPORTED: [], # List[testcases.TestCase]
         }
+        self.measurement_results[server][client] = {}
+        for measurement in measurements:
+          self.measurement_results[server][client][measurement] = {}
 
   def _is_unsupported(self, lines: List[str]) -> bool:
     return any("exited with code 127" in str(l) for l in lines) or any("exit status 127" in str(l) for l in lines)
@@ -111,21 +122,44 @@ class InteropRunner:
       if len(testcases) == 0:
         return "-"
       return "".join([ test.abbreviation() for test in testcases ])
-      
-    t = prettytable.PrettyTable()
-    t.hrules = prettytable.ALL
-    t.vrules = prettytable.ALL
-    t.field_names = [ "" ] + [ name for name in self._servers ]
-    for client in self._clients:
-      row = [ client ]
-      for server in self._servers:
-        cell = self.results[server][client]
-        res = colored(get_letters(cell[TestResult.SUCCEEDED]), "green") + "\n"
-        res += colored(get_letters(cell[TestResult.UNSUPPORTED]), "yellow") + "\n"
-        res += colored(get_letters(cell[TestResult.FAILED]), "red")
-        row += [ res ]
-      t.add_row(row)
-    print(t)
+    
+    if len(self._tests) > 0:
+      t = prettytable.PrettyTable()
+      t.hrules = prettytable.ALL
+      t.vrules = prettytable.ALL
+      t.field_names = [ "" ] + [ name for name in self._servers ]
+      for client in self._clients:
+        row = [ client ]
+        for server in self._servers:
+          cell = self.test_results[server][client]
+          res = colored(get_letters(cell[TestResult.SUCCEEDED]), "green") + "\n"
+          res += colored(get_letters(cell[TestResult.UNSUPPORTED]), "yellow") + "\n"
+          res += colored(get_letters(cell[TestResult.FAILED]), "red")
+          row += [ res ]
+        t.add_row(row)
+      print(t)
+    
+    if len(self._measurements) > 0:
+      t = prettytable.PrettyTable()
+      t.hrules = prettytable.ALL
+      t.vrules = prettytable.ALL
+      t.field_names = [ "" ] + [ name for name in self._servers ]
+      for client in self._clients:
+        row = [ client ]
+        for server in self._servers:
+          cell = self.measurement_results[server][client]
+          results = []
+          for measurement in self._measurements:
+            res = cell[measurement]
+            if res.result == TestResult.SUCCEEDED:
+              results.append(colored(measurement.name() + ": " + res.details, "green"))
+            elif res.result == TestResult.UNSUPPORTED:
+              results.append(colored(measurement.name(), "yellow"))
+            elif res.result == TestResult.FAILED:
+              results.append(colored(measurement.name(), "yellow"))
+          row += [ "\n".join(results) ]
+        t.add_row(row)
+      print(t)
 
   def _export_results(self):
     if not self._output:
@@ -145,7 +179,7 @@ class InteropRunner:
       
     for client in self._clients:
       for server in self._servers:
-        cell = self.results[server][client]
+        cell = self.test_results[server][client]
         out["results"].append({
           "succeeded": get_letters(cell[TestResult.SUCCEEDED]),
           "unsupported": get_letters(cell[TestResult.UNSUPPORTED]),
@@ -159,6 +193,9 @@ class InteropRunner:
   def _run_testcase(self, server: str, client: str, test: Callable[[], testcases.TestCase]) -> TestResult:
     sim_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_sim_")
     testcase = test(sim_log_dir=sim_log_dir)
+    return self._run_test(server, client, sim_log_dir, testcase)
+
+  def _run_test(self, server: str, client: str, sim_log_dir: tempfile.TemporaryDirectory, testcase: testcases.TestCase):
     print("Server: " + server + ". Client: " + client + ". Running test case: " + str(testcase))
     server_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_server_")
     client_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_client_")
@@ -173,7 +210,7 @@ class InteropRunner:
     reqs = " ".join(["https://server:443/" + p for p in testcase.get_paths()])
     logging.debug("Requests: %s", reqs)
     cmd = (
-      "TESTCASE=" + str(testcase) + " "
+      "TESTCASE=" + testcase.testname() + " "
       "WWW=" + testcase.www_dir() + " "
       "DOWNLOADS=" + testcase.download_dir() + " "
       "SERVER_LOGS=" + server_log_dir.name + " "
@@ -233,6 +270,15 @@ class InteropRunner:
     sim_log_dir.cleanup()
     return status
 
+  def _run_measurement(self, server: str, client: str, test: Callable[[], testcases.Measurement]) -> MeasurementResult:
+    sim_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_sim_")
+    testcase = test(sim_log_dir=sim_log_dir)
+
+    res = MeasurementResult()
+    res.result = self._run_test(server, client, sim_log_dir, testcase)
+    res.details = testcase.result()
+    return res
+
   def run(self):
     """run the interop test suite and output the table"""
 
@@ -250,7 +296,12 @@ class InteropRunner:
         # run the test cases
         for testcase in self._tests:
           status = self._run_testcase(server, client, testcase)
-          self.results[server][client][status] += [ testcase ]
+          self.test_results[server][client][status] += [ testcase ]
+
+        # run the measurements
+        for measurement in self._measurements:
+          res = self._run_measurement(server, client, measurement)
+          self.measurement_results[server][client][measurement] = res
 
     self._print_results()
     self._export_results()

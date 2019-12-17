@@ -1,5 +1,6 @@
 import abc, filecmp, os, string, tempfile, random, logging, sys
 from Crypto.Cipher import AES
+from datetime import timedelta
 
 from trace import TraceAnalyzer, Direction
 
@@ -20,7 +21,15 @@ class TestCase(abc.ABC):
   def __init__(self, sim_log_dir: tempfile.TemporaryDirectory):
     self._sim_log_dir = sim_log_dir
 
+  @abc.abstractmethod
+  def name(self):
+    pass
+
   def __str__(self):
+    return self.name()
+
+  def testname(self):
+    """ The name of testcase presented to the endpoint Docker images"""
     return self.name()
 
   def www_dir(self):
@@ -90,6 +99,11 @@ class TestCase(abc.ABC):
 
   @abc.abstractmethod
   def check(self) -> bool:
+    pass
+
+class Measurement(TestCase):
+  @abc.abstractmethod
+  def result(self) -> str:
     pass
 
 class TestCaseVersionNegotiation(TestCase):
@@ -252,6 +266,49 @@ class TestCaseHTTP3(TestCase):
     return self._check_files()
 
 
+class MeasurementGoodput(Measurement):
+  FILESIZE = 10*MB
+  _result = ""
+
+  @staticmethod
+  def name():
+    return "goodput"
+
+  @staticmethod
+  def testname():
+    return "transfer"
+
+  @staticmethod
+  def abbreviation():
+    return "G"
+
+  def get_paths(self):
+    self._files = [ self._generate_random_file(self.FILESIZE) ]
+    return self._files
+
+  def check(self) -> bool:
+    if not self._check_files():
+      return False
+    cap = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap").get_1rtt(Direction.FROM_SERVER)
+
+    first, last = 0, 0
+    for p in cap:
+      if (first == 0):
+        first = p.sniff_time
+      last = p.sniff_time
+    cap.close()
+
+    if (last - first == 0):
+      return False
+    time = (last - first) / timedelta(milliseconds = 1)
+    goodput = (8 * self.FILESIZE) / time
+    logging.debug("Transfering %d MB took %d ms. Goodput: %d kbps", self.FILESIZE/MB, time, goodput)
+    self._result = "%.0f kbps" % goodput
+    return True
+
+  def result(self) -> str:
+    return self._result
+
 TESTCASES = [ 
   TestCaseVersionNegotiation,
   TestCaseHandshake,
@@ -259,4 +316,8 @@ TESTCASES = [
   TestCaseRetry,
   TestCaseResumption,
   TestCaseHTTP3,
+]
+
+MEASUREMENTS = [
+  MeasurementGoodput,
 ]
