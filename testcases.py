@@ -1,5 +1,6 @@
 import abc, filecmp, os, string, tempfile, random, logging, sys
 from Crypto.Cipher import AES
+from datetime import timedelta
 
 from trace import TraceAnalyzer, Direction
 
@@ -252,6 +253,38 @@ class TestCaseHTTP3(TestCase):
     return self._check_files()
 
 
+class TestCaseGoodput(TestCase):
+  @staticmethod
+  def name():
+    return "goodput"
+
+  @staticmethod
+  def abbreviation():
+    return "G"
+
+  def get_paths(self):
+    self._files = [self._generate_random_file(10*MB)]
+    return self._files
+
+  def check(self, log_dir: tempfile.TemporaryDirectory) -> bool:
+    if not self._check_files():
+      return False
+    packets = TraceAnalyzer(log_dir.name + "/trace_node_left.pcap").get_all_packets(Direction.FROM_CLIENT)
+
+    first, last = 0, 0
+    for p in packets:
+      if (first == 0):
+        first = p.sniff_time
+      last = p.sniff_time
+
+    if (last - first == 0):
+      return False
+    time = (last - first) / timedelta(milliseconds = 1)
+    goodput = (10 * 1000 * 1000 * 8) / time
+    print("time:", time, "Goodput:", goodput, "kbps")
+    return True
+
+
 TESTCASES = [ 
   TestCaseVersionNegotiation,
   TestCaseHandshake,
@@ -259,4 +292,5 @@ TESTCASES = [
   TestCaseRetry,
   TestCaseResumption,
   TestCaseHTTP3,
+  TestCaseGoodput
 ]
