@@ -13,9 +13,9 @@ def random_string(length: int):
   return ''.join(random.choice(letters) for i in range(length))
 
 class TestResult(Enum):
-  SUCCEEDED = 1
-  FAILED = 2
-  UNSUPPORTED = 3
+  SUCCEEDED = "succeeded"
+  FAILED = "failed"
+  UNSUPPORTED = "unsupported"
 
 class MeasurementResult:
   result = TestResult
@@ -175,6 +175,7 @@ class InteropRunner:
       "servers": [ name for name in self._servers ],
       "clients": [ name for name in self._clients ],
       "results": [],
+      "measurements": [],
     }
       
     for client in self._clients:
@@ -185,6 +186,15 @@ class InteropRunner:
           "unsupported": get_letters(cell[TestResult.UNSUPPORTED]),
           "failed": get_letters(cell[TestResult.FAILED]),
         })
+        measurements = []
+        for measurement in self._measurements:
+          res = self.measurement_results[server][client][measurement]
+          measurements.append({
+            "name": measurement.name(),
+            "result": res.result.value,
+            "details": res.details,
+          })
+        out["measurements"].append(measurements)
 
     f = open(self._output, "w")
     json.dump(out, f)
