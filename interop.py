@@ -286,7 +286,7 @@ class InteropRunner:
 
     res = MeasurementResult()
     res.result = self._run_test(server, client, sim_log_dir, testcase)
-    res.details = testcase.result()
+    res.details = "%.0f " % testcase.result() + testcase.unit()
     return res
 
   def run(self):
