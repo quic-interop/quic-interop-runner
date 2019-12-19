@@ -106,6 +106,16 @@ class Measurement(TestCase):
   def result(self) -> str:
     pass
 
+  @staticmethod
+  @abc.abstractmethod
+  def unit() -> str:
+    pass
+
+  @staticmethod
+  @abc.abstractmethod
+  def repetitions() -> int:
+    pass
+
 class TestCaseVersionNegotiation(TestCase):
   @staticmethod
   def name():
@@ -285,6 +295,10 @@ class MeasurementGoodput(Measurement):
   @staticmethod
   def abbreviation():
     return "G"
+
+  @staticmethod
+  def repetitions() -> int:
+    return 5
 
   def get_paths(self):
     self._files = [ self._generate_random_file(self.FILESIZE) ]
