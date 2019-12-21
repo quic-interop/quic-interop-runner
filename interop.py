@@ -152,11 +152,11 @@ class InteropRunner:
           for measurement in self._measurements:
             res = cell[measurement]
             if res.result == TestResult.SUCCEEDED:
-              results.append(colored(measurement.name() + ": " + res.details, "green"))
+              results.append(colored(measurement.abbreviation() + ": " + res.details, "green"))
             elif res.result == TestResult.UNSUPPORTED:
-              results.append(colored(measurement.name(), "yellow"))
+              results.append(colored(measurement.abbreviation(), "yellow"))
             elif res.result == TestResult.FAILED:
-              results.append(colored(measurement.name(), "yellow"))
+              results.append(colored(measurement.abbreviation(), "yellow"))
           row += [ "\n".join(results) ]
         t.add_row(row)
       print(t)
@@ -190,7 +190,7 @@ class InteropRunner:
         for measurement in self._measurements:
           res = self.measurement_results[server][client][measurement]
           measurements.append({
-            "name": measurement.name(),
+            "name": measurement.abbreviation(),
             "result": res.result.value,
             "details": res.details,
           })
