@@ -13,5 +13,5 @@ table.resulttable tr td:first-child {
 }
 
 table.resulttable .results div {
-  height: 1.4em;
+  min-height: 1.4em;
 }

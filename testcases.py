@@ -106,6 +106,16 @@ class Measurement(TestCase):
   def result(self) -> str:
     pass
 
+  @staticmethod
+  @abc.abstractmethod
+  def unit() -> str:
+    pass
+
+  @staticmethod
+  @abc.abstractmethod
+  def repetitions() -> int:
+    pass
+
 class TestCaseVersionNegotiation(TestCase):
   @staticmethod
   def name():
@@ -268,11 +278,15 @@ class TestCaseHTTP3(TestCase):
 
 class MeasurementGoodput(Measurement):
   FILESIZE = 10*MB
-  _result = ""
+  _result = 0.0
 
   @staticmethod
   def name():
     return "goodput"
+
+  @staticmethod
+  def unit() -> str:
+    return "kbps"
 
   @staticmethod
   def testname():
@@ -281,6 +295,10 @@ class MeasurementGoodput(Measurement):
   @staticmethod
   def abbreviation():
     return "G"
+
+  @staticmethod
+  def repetitions() -> int:
+    return 5
 
   def get_paths(self):
     self._files = [ self._generate_random_file(self.FILESIZE) ]
@@ -303,10 +321,10 @@ class MeasurementGoodput(Measurement):
     time = (last - first) / timedelta(milliseconds = 1)
     goodput = (8 * self.FILESIZE) / time
     logging.debug("Transfering %d MB took %d ms. Goodput: %d kbps", self.FILESIZE/MB, time, goodput)
-    self._result = "%.0f kbps" % goodput
+    self._result = goodput
     return True
 
-  def result(self) -> str:
+  def result(self) -> float:
     return self._result
 
 TESTCASES = [ 
