@@ -3,15 +3,15 @@
   text-align: right;
 }
 
-table#interop td {
+table.resulttable td {
   vertical-align: middle;
 }
 
-table#interop tr:first-child td,
-table#interop tr td:first-child {
+table.resulttable tr:first-child td,
+table.resulttable tr td:first-child {
   font-weight: bold;
 }
 
-table#interop .results div {
+table.resulttable .results div {
   height: 1.4em;
 }
