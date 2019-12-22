@@ -29,11 +29,8 @@ else:
   console.setLevel(logging.INFO)
 logger.addHandler(console)
 
-implementations = { key:value[0] for key, value in IMPLEMENTATIONS.items() }
-roles = { key:value[1] for key, value in IMPLEMENTATIONS.items() }
-
-client_implementations = list(filter(lambda name: name not in roles or roles[name] == 0 or roles[name] == 2, implementations))
-server_implementations = list(filter(lambda name: name not in roles or roles[name] == 1 or roles[name] == 2, implementations))
+client_implementations = [ name for name, value in IMPLEMENTATIONS.items() if value["role"] == 0 or value["role"] == 2 ]
+server_implementations = [ name for name, value in IMPLEMENTATIONS.items() if value["role"] == 1 or value["role"] == 2 ]
 
 replace_arg = get_args().replace
 if replace_arg:
@@ -81,7 +78,7 @@ def get_measurements(arg) -> List[testcases.TestCase]:
   return tests
     
 InteropRunner(
-  implementations=implementations,
+  implementations={ name:value["url"] for name, value in IMPLEMENTATIONS.items() },
   servers=get_impls(get_args().server, server_implementations, "Server"),
   clients=get_impls(get_args().client, client_implementations, "Client"),
   tests=get_tests(get_args().test),
