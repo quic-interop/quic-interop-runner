@@ -29,7 +29,9 @@ else:
   console.setLevel(logging.INFO)
 logger.addHandler(console)
 
-implementations = copy.deepcopy(IMPLEMENTATIONS)
+client_implementations = [ name for name, value in IMPLEMENTATIONS.items() if value["role"] == 0 or value["role"] == 2 ]
+server_implementations = [ name for name, value in IMPLEMENTATIONS.items() if value["role"] == 1 or value["role"] == 2 ]
+
 replace_arg = get_args().replace
 if replace_arg:
   for s in replace_arg.split(","):
@@ -41,14 +43,14 @@ if replace_arg:
       sys.exit("Implementation " + name + " not found.")
     implementations[name] = image
 
-def get_impls(arg) -> dict:
+def get_impls(arg, availableImpls, role) -> List[str]:
   if not arg:
-    return implementations
-  impls = {}
+    return availableImpls
+  impls = []
   for s in arg.split(","):
-    if s not in implementations:
-      sys.exit("Implementation " + s + " not found.")
-    impls[s] = implementations[s]
+    if s not in availableImpls:
+      sys.exit(role + " implementation " + s + " not found.")
+    impls.append(s)
   return impls
 
 def get_tests(arg) -> List[testcases.TestCase]:
@@ -76,9 +78,9 @@ def get_measurements(arg) -> List[testcases.TestCase]:
   return tests
     
 InteropRunner(
-  implementations=implementations,
-  servers=get_impls(get_args().server), 
-  clients=get_impls(get_args().client),
+  implementations={ name:value["url"] for name, value in IMPLEMENTATIONS.items() },
+  servers=get_impls(get_args().server, server_implementations, "Server"),
+  clients=get_impls(get_args().client, client_implementations, "Client"),
   tests=get_tests(get_args().test),
   measurements=get_measurements(get_args().measurement),
   output=get_args().json,

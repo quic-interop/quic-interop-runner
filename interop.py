@@ -32,13 +32,13 @@ class InteropRunner:
   measurement_results = {}
   compliant = {}
   _implementations = {}
-  _servers = {}
-  _clients = {}
+  _servers = []
+  _clients = []
   _tests = []
   _measurements = []
   _output = ""
 
-  def __init__(self, implementations: dict, servers: dict, clients: dict, tests: List[testcases.TestCase], measurements: List[testcases.Measurement], output: str):
+  def __init__(self, implementations: dict, servers: List[str], clients: List[str], tests: List[testcases.TestCase], measurements: List[testcases.Measurement], output: str):
     self._tests = tests
     self._measurements = measurements
     self._servers = servers
@@ -76,7 +76,7 @@ class InteropRunner:
     cmd = (
         "TESTCASE=" + random_string(6) + " "
         "SERVER_LOGS=/dev/null "
-        "CLIENT_LOGS=" + client_log_dir.name + " " 
+        "CLIENT_LOGS=" + client_log_dir.name + " "
         "WWW=" + www_dir.name + " "
         "DOWNLOADS=" + downloads_dir.name + " "
         "SCENARIO=\"simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25\" "
@@ -310,7 +310,7 @@ class InteropRunner:
     
     for server in self._servers:
       for client in self._clients:
-        logging.info("Running with server %s (%s) and client %s (%s)", server, self._servers[server], client, self._clients[client])
+        logging.info("Running with server %s (%s) and client %s (%s)", server, self._implementations[server], client, self._implementations[client])
         if not (self._check_impl_is_compliant(server) and self._check_impl_is_compliant(client)):
           logging.info("Not compliant, skipping")
           continue
