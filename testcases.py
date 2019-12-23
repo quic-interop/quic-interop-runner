@@ -32,6 +32,11 @@ class TestCase(abc.ABC):
     """ The name of testcase presented to the endpoint Docker images"""
     return self.name()
 
+  @staticmethod
+  def scenario() -> str:
+    """ Scenario for the ns3 simulator """
+    return "simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25"
+
   def www_dir(self):
     if not self._www_dir:
       self._www_dir = tempfile.TemporaryDirectory(dir = "/tmp", prefix = "www_")
@@ -275,6 +280,32 @@ class TestCaseHTTP3(TestCase):
   def check(self):
     return self._check_files()
 
+class TestCaseBlackhole(TestCase):
+  @staticmethod
+  def name():
+    return "blackhole"
+
+  @staticmethod
+  def testname():
+    return "transfer"
+
+  @staticmethod
+  def abbreviation():
+    return "B"
+
+  @staticmethod
+  def scenario() -> str:
+    """ Scenario for the ns3 simulator """
+    return "blackhole --delay=15ms --bandwidth=10Mbps --queue=25 --on=5s --off=2s"
+
+  def get_paths(self):
+    self._files = [ self._generate_random_file(10*MB) ]
+    return self._files
+
+  def check(self):
+    c = self._check_files()
+    print("check", c)
+    return c
 
 class MeasurementGoodput(Measurement):
   FILESIZE = 10*MB
@@ -333,6 +364,7 @@ TESTCASES = [
   TestCaseRetry,
   TestCaseResumption,
   TestCaseHTTP3,
+  TestCaseBlackhole,
 ]
 
 MEASUREMENTS = [
