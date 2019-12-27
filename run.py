@@ -29,6 +29,7 @@ else:
   console.setLevel(logging.INFO)
 logger.addHandler(console)
 
+implementations={ name:value["url"] for name, value in IMPLEMENTATIONS.items() }
 client_implementations = [ name for name, value in IMPLEMENTATIONS.items() if value["role"] == 0 or value["role"] == 2 ]
 server_implementations = [ name for name, value in IMPLEMENTATIONS.items() if value["role"] == 1 or value["role"] == 2 ]
 
@@ -78,7 +79,7 @@ def get_measurements(arg) -> List[testcases.TestCase]:
   return tests
     
 InteropRunner(
-  implementations={ name:value["url"] for name, value in IMPLEMENTATIONS.items() },
+  implementations=implementations,
   servers=get_impls(get_args().server, server_implementations, "Server"),
   clients=get_impls(get_args().client, client_implementations, "Client"),
   tests=get_tests(get_args().test),
