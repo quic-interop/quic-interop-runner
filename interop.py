@@ -244,6 +244,9 @@ class InteropRunner:
 
     logging.debug("%s", output.decode('utf-8'))
 
+    if expired:
+      logging.debug("Test failed: took longer than 60s.")
+
     # copy the pcaps from the simulator
     subprocess.run(
       "docker cp \"$(docker-compose --log-level ERROR ps -q sim)\":/logs/. " + sim_log_dir.name,
