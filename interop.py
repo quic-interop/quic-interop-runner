@@ -174,7 +174,8 @@ class InteropRunner:
         results = []
         for test in self._tests:
           results.append({
-            "name": test.abbreviation(),
+            "abbr": test.abbreviation(),
+            "name": test.name(),
             "result": self.test_results[server][client][test].value,
           })
         out["results"].append(results)
