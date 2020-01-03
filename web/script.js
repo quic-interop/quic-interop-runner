@@ -12,18 +12,25 @@
       row.insertCell(0).innerHTML = result.clients[i];
       for(var j = 0; j < result.servers.length; j++) {
         var cell = row.insertCell(j+1);
+        var collectResult = function(res) {
+          var s = "";
+          result.results[index].forEach(function(item) {
+            if(item.result == res) s += item.name;
+          });
+          return s;
+        }
         cell.className = "results";
         var succeeded = document.createElement("div");
         succeeded.className = "text-success";
-        succeeded.innerHTML = result.results[index].succeeded;
+        succeeded.innerHTML = collectResult("succeeded")
         cell.appendChild(succeeded);
         var unsupported = document.createElement("div");
         unsupported.className = "text-warning";
-        unsupported.innerHTML = result.results[index].unsupported;
+        unsupported.innerHTML = collectResult("unsupported");
         cell.appendChild(unsupported);
         var failed = document.createElement("div");
         failed.className = "text-danger";
-        failed.innerHTML = result.results[index].failed;
+        failed.innerHTML = collectResult("failed");
         cell.appendChild(failed);
         index++;
       }
