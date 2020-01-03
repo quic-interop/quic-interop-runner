@@ -60,18 +60,20 @@
         for(var k = 0; k < res.length; k++) {
           var measurement = res[k];
           var el = document.createElement("div");
+          var link = getLogLink(result.servers[j], result.clients[i], measurement.name, measurement.abbr);
           switch(measurement.result) {
             case "succeeded":
               el.className = "text-success";
-              el.innerHTML = measurement.name + ": " + measurement.details;
+              el.appendChild(link);
+              el.innerHTML += ": " + measurement.details;
               break;
             case "unsupported":
               el.className = "text-warning";
-              el.innerHTML = measurement.name;
+              el.appendChild(link);
               break;
             case "failed":
               el.className = "text-danger";
-              el.innerHTML = measurement.name;
+              el.appendChild(link);
               break;
           }
           cell.appendChild(el);

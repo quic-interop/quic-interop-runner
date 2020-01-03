@@ -184,7 +184,8 @@ class InteropRunner:
         for measurement in self._measurements:
           res = self.measurement_results[server][client][measurement]
           measurements.append({
-            "name": measurement.abbreviation(),
+            "name": measurement.name(),
+            "abbr": measurement.abbreviation(),
             "result": res.result.value,
             "details": res.details,
           })
