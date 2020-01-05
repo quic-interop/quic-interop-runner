@@ -328,7 +328,6 @@ class MeasurementGoodput(Measurement):
     return self._result
 
 TESTCASES = [ 
-  TestCaseVersionNegotiation,
   TestCaseHandshake,
   TestCaseTransfer,
   TestCaseRetry,

@@ -40,6 +40,7 @@ The log files are saved to a directory named `#server_#client/#testcase`. `outpu
 The Interop Runner implements the following test cases. Unless noted otherwise, test cases use HTTP/0.9 for file transfers. More test cases will be added in the future, to test more protocol features. The name in parentheses is the value of the `TESTCASE` environment variable passed into your Docker container.
 
 * **Version Negotiation** (`versionnegotiation`): This test case tests that a server sends a Version Negotiation packet in response to an unknown QUIC version number. The client should start a connection using an unsupported version number (it can use a reserved version number to do so), and should abort the connection attempt when receiving the Version Negotiation packet.
+Currently disabled due to #20.
 
 * **Handshake** (`handshake`): This test case tests the successful completion of the handshake. The client is expected to establish a single QUIC connection to the server and download one or multiple small files. Servers should not send a Retry packet in this test case.
 
