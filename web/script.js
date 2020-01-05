@@ -1,4 +1,13 @@
 (function() {
+  function getLogLink(server, client, testcase, text) {
+    var a = document.createElement("a");
+    a.title = "Logs";
+    a.href = "logs/" + server + "_" + client + "/" + testcase;
+    a.target = "_blank";
+    a.appendChild(document.createTextNode(text));
+    return a;
+  }
+
   function fillInteropTable(result) {
     var t = document.getElementById("interop");
     var row = t.insertRow(0);
@@ -12,19 +21,22 @@
       row.insertCell(0).innerHTML = result.clients[i];
       for(var j = 0; j < result.servers.length; j++) {
         var cell = row.insertCell(j+1);
+        var appendResult = function(el, res) {
+          result.results[index].forEach(function(item) {
+            if(item.result == res) el.appendChild(getLogLink(result.servers[j], result.clients[i], item.name, item.abbr))
+          });
+          cell.appendChild(el);
+        }
         cell.className = "results";
         var succeeded = document.createElement("div");
         succeeded.className = "text-success";
-        succeeded.innerHTML = result.results[index].succeeded;
-        cell.appendChild(succeeded);
+        appendResult(succeeded, "succeeded");
         var unsupported = document.createElement("div");
         unsupported.className = "text-warning";
-        unsupported.innerHTML = result.results[index].unsupported;
-        cell.appendChild(unsupported);
+        appendResult(unsupported, "unsupported");
         var failed = document.createElement("div");
         failed.className = "text-danger";
-        failed.innerHTML = result.results[index].failed;
-        cell.appendChild(failed);
+        appendResult(failed, "failed");
         index++;
       }
     }
@@ -48,18 +60,20 @@
         for(var k = 0; k < res.length; k++) {
           var measurement = res[k];
           var el = document.createElement("div");
+          var link = getLogLink(result.servers[j], result.clients[i], measurement.name, measurement.abbr);
           switch(measurement.result) {
             case "succeeded":
               el.className = "text-success";
-              el.innerHTML = measurement.name + ": " + measurement.details;
+              el.appendChild(link);
+              el.innerHTML += ": " + measurement.details;
               break;
             case "unsupported":
               el.className = "text-warning";
-              el.innerHTML = measurement.name;
+              el.appendChild(link);
               break;
             case "failed":
               el.className = "text-danger";
-              el.innerHTML = measurement.name;
+              el.appendChild(link);
               break;
           }
           cell.appendChild(el);

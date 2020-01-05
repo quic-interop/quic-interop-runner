@@ -49,11 +49,9 @@ class InteropRunner:
       self.test_results[server] = {}
       self.measurement_results[server] = {}
       for client in clients:
-        self.test_results[server][client] = {
-          TestResult.SUCCEEDED: [], # List[testcases.TestCase]
-          TestResult.FAILED: [], # List[testcases.TestCase]
-          TestResult.UNSUPPORTED: [], # List[testcases.TestCase]
-        }
+        self.test_results[server][client] = {}
+        for test in self._tests:
+          self.test_results[server][client][test] = {}
         self.measurement_results[server][client] = {}
         for measurement in measurements:
           self.measurement_results[server][client][measurement] = {}
@@ -118,10 +116,8 @@ class InteropRunner:
 
   def _print_results(self):
     """print the interop table"""
-    def get_letters(testcases):
-      if len(testcases) == 0:
-        return "-"
-      return "".join([ test.abbreviation() for test in testcases ])
+    def get_letters(result):
+      return "".join([ test.abbreviation() for test in cell if cell[test] is result ])
     
     if len(self._tests) > 0:
       t = prettytable.PrettyTable()
@@ -132,9 +128,9 @@ class InteropRunner:
         row = [ client ]
         for server in self._servers:
           cell = self.test_results[server][client]
-          res = colored(get_letters(cell[TestResult.SUCCEEDED]), "green") + "\n"
-          res += colored(get_letters(cell[TestResult.UNSUPPORTED]), "yellow") + "\n"
-          res += colored(get_letters(cell[TestResult.FAILED]), "red")
+          res = colored(get_letters(TestResult.SUCCEEDED), "green") + "\n"
+          res += colored(get_letters(TestResult.UNSUPPORTED), "yellow") + "\n"
+          res += colored(get_letters(TestResult.FAILED), "red")
           row += [ res ]
         t.add_row(row)
       print(t)
@@ -165,11 +161,6 @@ class InteropRunner:
     if not self._output:
       return
 
-    def get_letters(testcases):
-      if len(testcases) == 0:
-        return ""
-      return "".join([ test.abbreviation() for test in testcases ])
-
     out = {
       "timestamp": time.time(),
       "servers": [ name for name in self._servers ],
@@ -180,17 +171,21 @@ class InteropRunner:
       
     for client in self._clients:
       for server in self._servers:
-        cell = self.test_results[server][client]
-        out["results"].append({
-          "succeeded": get_letters(cell[TestResult.SUCCEEDED]),
-          "unsupported": get_letters(cell[TestResult.UNSUPPORTED]),
-          "failed": get_letters(cell[TestResult.FAILED]),
-        })
+        results = []
+        for test in self._tests:
+          results.append({
+            "abbr": test.abbreviation(),
+            "name": test.name(),
+            "result": self.test_results[server][client][test].value,
+          })
+        out["results"].append(results)
+       
         measurements = []
         for measurement in self._measurements:
           res = self.measurement_results[server][client][measurement]
           measurements.append({
-            "name": measurement.abbreviation(),
+            "name": measurement.name(),
+            "abbr": measurement.abbreviation(),
             "result": res.result.value,
             "details": res.details,
           })
@@ -321,7 +316,7 @@ class InteropRunner:
         # run the test cases
         for testcase in self._tests:
           status = self._run_testcase(server, client, testcase)
-          self.test_results[server][client][status] += [ testcase ]
+          self.test_results[server][client][testcase] = status
 
         # run the measurements
         for measurement in self._measurements:

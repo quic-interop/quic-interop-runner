@@ -15,3 +15,7 @@ table.resulttable tr td:first-child {
 table.resulttable .results div {
   min-height: 1.4em;
 }
+
+table#interop .results {
+  letter-spacing: 0.3em;
+}
