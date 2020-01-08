@@ -247,6 +247,16 @@ class InteropRunner:
       "docker cp \"$(docker-compose --log-level ERROR ps -q sim)\":/logs/. " + sim_log_dir.name,
       shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
+    # copy logs from the client
+    subprocess.run(
+      "docker cp \"$(docker-compose --log-level ERROR ps -q client)\":/logs/. " + client_log_dir.name,
+      shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+    )
+    # copy logs from the server
+    subprocess.run(
+      "docker cp \"$(docker-compose --log-level ERROR ps -q server)\":/logs/. " + server_log_dir.name,
+      shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+    )
 
     if not expired:
       lines = output.splitlines()
