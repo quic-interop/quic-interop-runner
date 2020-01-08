@@ -220,12 +220,12 @@ class InteropRunner:
       "DOWNLOADS=" + testcase.download_dir() + " "
       "SERVER_LOGS=" + server_log_dir.name + " "
       "CLIENT_LOGS=" + client_log_dir.name + " "
-      "SCENARIO=\"simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25\" "
+      "SCENARIO=\"{}\" "
       "CLIENT=" + self._implementations[client] + " "
       "SERVER=" + self._implementations[server] + " "
       "REQUESTS=\"" + reqs + "\" "
       "docker-compose up --abort-on-container-exit --timeout 1"
-    )
+    ).format(testcase.scenario())
 
     status = TestResult.FAILED
     output = ""
