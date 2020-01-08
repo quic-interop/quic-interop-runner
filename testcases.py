@@ -287,7 +287,7 @@ class TestCaseBlackhole(TestCase):
 
   @staticmethod
   def testname():
-    return "transfer"
+    return "blackhole"
 
   @staticmethod
   def abbreviation():
@@ -321,7 +321,7 @@ class MeasurementGoodput(Measurement):
 
   @staticmethod
   def testname():
-    return "transfer"
+    return "goodput"
 
   @staticmethod
   def abbreviation():
