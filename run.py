@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse, copy, logging, sys
 from typing import List
 
@@ -77,7 +79,7 @@ def get_measurements(arg) -> List[testcases.TestCase]:
       sys.exit("Measurement " + t + " not found.")
     tests += [ tc for tc in MEASUREMENTS if tc.name()==t ]
   return tests
-    
+
 InteropRunner(
   implementations=implementations,
   servers=get_impls(get_args().server, server_implementations, "Server"),
