@@ -1,0 +1,4 @@
+pycrypto
+termcolor
+prettytable
+pyshark
