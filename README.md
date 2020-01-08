@@ -7,7 +7,7 @@ The Interop Test Runner aims to automatically generate an interop matrix by runn
 The Interop Runner is written in Python 3. You'll need to install a few Python modules to run it:
 
 ```bash
-pip3 install termcolor prettytable pyshark
+python3 setup.py install
 ```
 
 Furthermore, you need to install development version of Wireshark (version 3.1.0 or newer).
@@ -46,7 +46,7 @@ Currently disabled due to #20.
 
 * **Transfer** (`transfer`): This test case tests both flow control and stream multiplexing. The client should use small initial flow control windows for both stream- and connection-level flow control, such that the during the transfer of files on the order of 1 MB the flow control window needs to be increased. The client is exepcted to establish a single QUIC connection, and use multiple streams to concurrently download the files.
 
-* **Retry** (`retry`): This test case tests that the server can generate a Retry, and that the client can act upon it (i.e. use the Token provided in the Retry packet in the Initial packet). 
+* **Retry** (`retry`): This test case tests that the server can generate a Retry, and that the client can act upon it (i.e. use the Token provided in the Retry packet in the Initial packet).
 
 * **Resumption** (`resumption`): This test cases tests QUIC session resumption (without 0-RTT). The client is expected to establish a connection and download the first file. The server is expected to provide the client with a session ticket that allows it to resume the connection. After downloading the first file, the client has to close the connection, establish a resumed connection using the session ticket, and use this connection to download the remaining file(s).
 
