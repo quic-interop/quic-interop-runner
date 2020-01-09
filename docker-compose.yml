@@ -61,6 +61,40 @@ services:
         ipv4_address: 193.167.0.100
     extra_hosts:
       - "server:193.167.100.100"
+  
+  iperf_server:
+    image: martenseemann/quic-interop-iperf-endpoint
+    container_name: iperf_server
+    stdin_open: true
+    tty: true
+    environment:
+      - ROLE=server
+    depends_on:
+      - sim
+    cap_add: 
+      - NET_ADMIN
+    networks:
+      rightnet:
+        ipv4_address: 193.167.100.110
+    extra_hosts:
+      - "client: 193.167.0.90"
+
+  iperf_client:
+    image: martenseemann/quic-interop-iperf-endpoint
+    container_name: iperf_client
+    stdin_open: true
+    tty: true
+    environment:
+      - ROLE=client
+    depends_on:
+      - sim
+    cap_add: 
+      - NET_ADMIN
+    networks:
+      leftnet:
+        ipv4_address: 193.167.0.90
+    extra_hosts:
+      - "server: 193.167.100.110"
 
 networks:
   leftnet:

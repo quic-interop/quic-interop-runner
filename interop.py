@@ -216,7 +216,7 @@ class InteropRunner:
 
     reqs = " ".join(["https://server:443/" + p for p in testcase.get_paths()])
     logging.debug("Requests: %s", reqs)
-    cmd = (
+    params = (
       "TESTCASE=" + testcase.testname() + " "
       "WWW=" + testcase.www_dir() + " "
       "DOWNLOADS=" + testcase.download_dir() + " "
@@ -226,14 +226,16 @@ class InteropRunner:
       "CLIENT=" + self._implementations[client] + " "
       "SERVER=" + self._implementations[server] + " "
       "REQUESTS=\"" + reqs + "\" "
-      "docker-compose up --abort-on-container-exit --timeout 1"
     ).format(testcase.scenario())
+    params += " ".join(testcase.additional_envs())
+    cmd = params + " docker-compose up --abort-on-container-exit --timeout 1 sim client server " + " ".join(testcase.additional_containers())
+    logging.debug("Command: %s", cmd)
 
     status = TestResult.FAILED
     output = ""
     expired = False
     try:
-      r = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
+      r = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=testcase.timeout())
       output = r.stdout
     except subprocess.TimeoutExpired as ex:
       output = ex.stdout
@@ -242,7 +244,7 @@ class InteropRunner:
     logging.debug("%s", output.decode('utf-8'))
 
     if expired:
-      logging.debug("Test failed: took longer than 60s.")
+      logging.debug("Test failed: took longer than %ds.", testcase.timeout())
 
     # copy the pcaps from the simulator
     subprocess.run(
