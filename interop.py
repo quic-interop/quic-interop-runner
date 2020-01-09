@@ -1,4 +1,5 @@
 import json, os, random, shutil, subprocess, string, logging, statistics, tempfile, time, re
+from datetime import datetime
 from typing import Callable, List
 from termcolor import colored
 from enum import Enum
@@ -201,6 +202,7 @@ class InteropRunner:
     return self._run_test(server, client, sim_log_dir, None, testcase)
 
   def _run_test(self, server: str, client: str, sim_log_dir: tempfile.TemporaryDirectory, log_dir_prefix: None, testcase: testcases.TestCase):
+    start_time = datetime.now()
     print("Server: " + server + ". Client: " + client + ". Running test case: " + str(testcase))
     server_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_server_")
     client_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_client_")
@@ -288,6 +290,7 @@ class InteropRunner:
     server_log_dir.cleanup()
     client_log_dir.cleanup()
     sim_log_dir.cleanup()
+    logging.debug("Test took %ss", (datetime.now()-start_time).total_seconds())
     return status
 
   def _run_measurement(self, server: str, client: str, test: Callable[[], testcases.Measurement]) -> MeasurementResult:
