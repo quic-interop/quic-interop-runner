@@ -152,7 +152,7 @@ class InteropRunner:
             elif res.result == TestResult.UNSUPPORTED:
               results.append(colored(measurement.abbreviation(), "yellow"))
             elif res.result == TestResult.FAILED:
-              results.append(colored(measurement.abbreviation(), "yellow"))
+              results.append(colored(measurement.abbreviation(), "red"))
           row += [ "\n".join(results) ]
         t.add_row(row)
       print(t)
