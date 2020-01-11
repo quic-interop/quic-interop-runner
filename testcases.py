@@ -360,6 +360,33 @@ class TestCaseBlackhole(TestCase):
       return False
     return self._check_files()
 
+class TestCaseHighLoss(TestCase):
+  @staticmethod
+  def name():
+    return "highloss"
+
+  @staticmethod
+  def testname():
+    return "transfer"
+
+  @staticmethod
+  def abbreviation():
+    return "L"
+
+  @staticmethod
+  def scenario() -> str:
+    """ Scenario for the ns3 simulator """
+    return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_client=0 --rate_to_server=10"
+
+  def get_paths(self):
+    self._files = [ self._generate_random_file(1*KB) ]
+    return self._files
+
+  def check(self):
+    c = self._check_files()
+    print("check", c)
+    return c
+
 class MeasurementGoodput(Measurement):
   FILESIZE = 10*MB
   _result = 0.0
