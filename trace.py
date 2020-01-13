@@ -22,14 +22,19 @@ class TraceAnalyzer:
     else:
       return ""
 
-  def _get_packets(self, f: str) -> List: 
-    packets = []
+  def _get_packets(self, f: str) -> List:
     cap = pyshark.FileCapture(self._filename, display_filter=f)
-    for p in cap:
-      packets.append(p)
-    cap.close()
+    packets = []
+    # If the pcap has been cut short in the middle of the packet, pyshark will crash.
+    # See https://github.com/KimiNewt/pyshark/issues/390.
+    try:
+      for p in cap:
+        packets.append(p)
+      cap.close()
+    except:
+      pass
     return packets
-  
+
   def get_1rtt(self, direction: Direction = Direction.ALL) -> List:
     """ Get all QUIC packets, one or both directions.
     """
