@@ -90,6 +90,16 @@ class TestCase(abc.ABC):
     logging.debug("Check of downloaded files succeeded.")
     return True
 
+  def _count_handshakes(self) -> int:
+    """ Count the number of QUIC handshakes """
+    tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
+    # Determine the number of handshakes by looking at Handshake packets.
+    # This is easier, since the DCID of Handshake packets doesn't changes.
+    cap_handshakes = tr.get_handshake(Direction.FROM_CLIENT)
+    conn_ids = [ p.quic.dcid for p in cap_handshakes ]
+    cap_handshakes.close()
+    return len(set(conn_ids))
+
   def cleanup(self):
     if self._www_dir:
       self._www_dir.cleanup()
@@ -172,6 +182,10 @@ class TestCaseHandshake(TestCase):
     if self._retry_sent():
       logging.info("Didn't expect a Retry to be sent.")
       return False
+    num_handshakes = self._count_handshakes()
+    if num_handshakes != 1:
+      logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+      return False
     return True
 
 class TestCaseTransfer(TestCase):
@@ -192,6 +206,10 @@ class TestCaseTransfer(TestCase):
     return self._files
 
   def check(self):
+    num_handshakes = self._count_handshakes()
+    if num_handshakes != 1:
+      logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+      return False
     return self._check_files()
 
 class TestCaseRetry(TestCase):
@@ -236,6 +254,10 @@ class TestCaseRetry(TestCase):
     return found
 
   def check(self) -> bool:
+    num_handshakes = self._count_handshakes()
+    if num_handshakes != 1:
+      logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+      return False
     if not self._check_files():
       return False
     return self._check_trace()
@@ -258,6 +280,10 @@ class TestCaseResumption(TestCase):
     return self._files
 
   def check(self):
+    num_handshakes = self._count_handshakes()
+    if num_handshakes != 2:
+      logging.info("Expected exactly 2 handshake. Got: %d", num_handshakes)
+      return False
     return self._check_files()
 
 class TestCaseHTTP3(TestCase):
@@ -278,6 +304,10 @@ class TestCaseHTTP3(TestCase):
     return self._files
 
   def check(self):
+    num_handshakes = self._count_handshakes()
+    if num_handshakes != 1:
+      logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+      return False
     return self._check_files()
 
 class TestCaseBlackhole(TestCase):
@@ -303,9 +333,11 @@ class TestCaseBlackhole(TestCase):
     return self._files
 
   def check(self):
-    c = self._check_files()
-    print("check", c)
-    return c
+    num_handshakes = self._count_handshakes()
+    if num_handshakes != 1:
+      logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+      return False
+    return self._check_files()
 
 class MeasurementGoodput(Measurement):
   FILESIZE = 10*MB
@@ -336,6 +368,10 @@ class MeasurementGoodput(Measurement):
     return self._files
 
   def check(self) -> bool:
+    num_handshakes = self._count_handshakes()
+    if num_handshakes != 1:
+      logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+      return False
     if not self._check_files():
       return False
     cap = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap").get_1rtt(Direction.FROM_SERVER)
