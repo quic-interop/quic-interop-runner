@@ -120,6 +120,7 @@ class TestCase(abc.ABC):
   def check(self) -> bool:
     pass
 
+
 class Measurement(TestCase):
   @abc.abstractmethod
   def result(self) -> str:
@@ -134,6 +135,7 @@ class Measurement(TestCase):
   @abc.abstractmethod
   def repetitions() -> int:
     pass
+
 
 class TestCaseVersionNegotiation(TestCase):
   @staticmethod
@@ -164,6 +166,7 @@ class TestCaseVersionNegotiation(TestCase):
     logging.info("Didn't find a Version Negotiation Packet with matching SCID.")
     return False
 
+
 class TestCaseHandshake(TestCase):
   @staticmethod
   def name():
@@ -189,6 +192,7 @@ class TestCaseHandshake(TestCase):
       return False
     return True
 
+
 class TestCaseTransfer(TestCase):
   @staticmethod
   def name():
@@ -212,6 +216,7 @@ class TestCaseTransfer(TestCase):
       logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
       return False
     return self._check_files()
+
 
 class TestCaseMultiplexing(TestCase):
   @staticmethod
@@ -237,6 +242,7 @@ class TestCaseMultiplexing(TestCase):
       logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
       return False
     return self._check_files()
+
 
 class TestCaseRetry(TestCase):
   @staticmethod
@@ -307,6 +313,7 @@ class TestCaseResumption(TestCase):
       return False
     return self._check_files()
 
+
 class TestCaseHTTP3(TestCase):
   @staticmethod
   def name():
@@ -330,6 +337,7 @@ class TestCaseHTTP3(TestCase):
       logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
       return False
     return self._check_files()
+
 
 class TestCaseBlackhole(TestCase):
   @staticmethod
@@ -360,6 +368,7 @@ class TestCaseBlackhole(TestCase):
       return False
     return self._check_files()
 
+
 class TestCaseHandshakeLoss(TestCase):
   @staticmethod
   def name():
@@ -367,28 +376,33 @@ class TestCaseHandshakeLoss(TestCase):
 
   @staticmethod
   def testname():
-    return "transfer"
+    return "seqtransfer"
 
   @staticmethod
   def abbreviation():
-    return "HL"
+    return "L"
+
+  @staticmethod
+  def timeout() -> int:
+    return 300
 
   @staticmethod
   def scenario() -> str:
     """ Scenario for the ns3 simulator """
-    return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_client=30 --rate_to_server=0"
+    return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=30 --rate_to_client=30"
 
   def get_paths(self):
-    for _ in range(1, 10):
+    for _ in range(100):
       self._files.append(self._generate_random_file(1*KB))
     return self._files
 
   def check(self):
     num_handshakes = self._count_handshakes()
-    if num_handshakes != 10:
-      logging.info("Expected 10 handshakes. Got: %d", num_handshakes)
+    if num_handshakes != 100:
+      logging.info("Expected 100 handshakes. Got: %d", num_handshakes)
       return False
     return self._check_files()
+
 
 class MeasurementGoodput(Measurement):
   FILESIZE = 10*MB
@@ -444,6 +458,7 @@ class MeasurementGoodput(Measurement):
   def result(self) -> float:
     return self._result
 
+
 class MeasurementCrossTraffic(MeasurementGoodput):
   FILESIZE=25*MB
 
@@ -466,6 +481,7 @@ class MeasurementCrossTraffic(MeasurementGoodput):
   @staticmethod
   def additional_containers() -> List[str]:
     return [ "iperf_server", "iperf_client" ]
+
 
 TESTCASES = [ 
   TestCaseHandshake,
