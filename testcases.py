@@ -425,7 +425,7 @@ class MeasurementCrossTraffic(MeasurementGoodput):
   
   @staticmethod
   def additional_envs() -> List[str]:
-    return [ "IPERF_CONGESTION=reno" ]
+    return [ "IPERF_CONGESTION=cubic" ]
 
   @staticmethod
   def additional_containers() -> List[str]:
