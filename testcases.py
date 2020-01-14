@@ -1,6 +1,7 @@
 import abc, filecmp, os, string, tempfile, random, logging, sys
 from Crypto.Cipher import AES
 from datetime import timedelta
+from typing import List
 
 from trace import TraceAnalyzer, Direction
 
@@ -37,6 +38,19 @@ class TestCase(abc.ABC):
   def scenario() -> str:
     """ Scenario for the ns3 simulator """
     return "simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25"
+
+  @staticmethod
+  def timeout() -> int:
+    """ timeout in s """
+    return 60
+
+  @staticmethod
+  def additional_envs() -> List[str]:
+    return [ "" ]
+
+  @staticmethod
+  def additional_containers() -> List[str]:
+    return [ "" ]
 
   def www_dir(self):
     if not self._www_dir:
@@ -420,6 +434,29 @@ class MeasurementGoodput(Measurement):
   def result(self) -> float:
     return self._result
 
+class MeasurementCrossTraffic(MeasurementGoodput):
+  FILESIZE=25*MB
+
+  @staticmethod
+  def name():
+    return "crosstraffic"
+
+  @staticmethod
+  def abbreviation():
+    return "C"
+
+  @staticmethod
+  def timeout() -> int:
+    return 180
+  
+  @staticmethod
+  def additional_envs() -> List[str]:
+    return [ "IPERF_CONGESTION=cubic" ]
+
+  @staticmethod
+  def additional_containers() -> List[str]:
+    return [ "iperf_server", "iperf_client" ]
+
 TESTCASES = [ 
   TestCaseHandshake,
   TestCaseTransfer,
@@ -432,4 +469,5 @@ TESTCASES = [
 
 MEASUREMENTS = [
   MeasurementGoodput,
+  MeasurementCrossTraffic,
 ]
