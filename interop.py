@@ -1,4 +1,4 @@
-import json, os, random, shutil, subprocess, string, logging, statistics, tempfile, time, re
+import json, os, random, shutil, subprocess, string, logging, statistics, tempfile, re
 from datetime import datetime
 from typing import Callable, List
 from termcolor import colored
@@ -29,6 +29,7 @@ class LogFileFormatter(logging.Formatter):
     return re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]').sub('', msg)
 
 class InteropRunner:
+  _start_time = 0
   test_results = {}
   measurement_results = {}
   compliant = {}
@@ -40,6 +41,7 @@ class InteropRunner:
   _output = ""
 
   def __init__(self, implementations: dict, servers: List[str], clients: List[str], tests: List[testcases.TestCase], measurements: List[testcases.Measurement], output: str):
+    self._start_time = datetime.now()
     self._tests = tests
     self._measurements = measurements
     self._servers = servers
@@ -117,6 +119,7 @@ class InteropRunner:
 
   def _print_results(self):
     """print the interop table"""
+    logging.info("Run took %s", datetime.now() - self._start_time)
     def get_letters(result):
       return "".join([ test.abbreviation() for test in cell if cell[test] is result ])
     
@@ -163,7 +166,8 @@ class InteropRunner:
       return
 
     out = {
-      "timestamp": time.time(),
+      "start_time": self._start_time.timestamp(),
+      "end_time": datetime.now().timestamp(),
       "servers": [ name for name in self._servers ],
       "clients": [ name for name in self._clients ],
       "results": [],

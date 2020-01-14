@@ -1,4 +1,13 @@
 (function() {
+  // see https://stackoverflow.com/a/43466724/
+  function formatTime(seconds) {
+    return [
+      parseInt(seconds / 60 / 60),
+      parseInt(seconds / 60 % 60),
+      parseInt(seconds % 60)
+    ].join(":").replace(/\b(\d)\b/g, "0$1")
+  }
+
   function getLogLink(server, client, testcase, text) {
     var a = document.createElement("a");
     a.title = "Logs";
@@ -84,8 +93,10 @@
   }
 
   function process(result) {
-    var d = new Date(1000*result.timestamp);
-    document.getElementById("lastrun").innerHTML = d.toLocaleDateString("en-US") + " " + d.toLocaleTimeString("en-US");
+    var startTime = new Date(1000*result.start_time);
+    var endTime = new Date(1000*result.end_time);
+    document.getElementById("lastrun").innerHTML = startTime.toLocaleDateString("en-US") + " " + startTime.toLocaleTimeString("en-US");
+    document.getElementById("duration").innerHTML = formatTime(result.end_time - result.start_time);
 
     fillInteropTable(result)
     fillMeasurementTable(result)
