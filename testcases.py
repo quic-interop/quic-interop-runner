@@ -360,10 +360,10 @@ class TestCaseBlackhole(TestCase):
       return False
     return self._check_files()
 
-class TestCaseHighLoss(TestCase):
+class TestCaseHandshakeLoss(TestCase):
   @staticmethod
   def name():
-    return "highloss"
+    return "handshakeloss"
 
   @staticmethod
   def testname():
@@ -371,21 +371,24 @@ class TestCaseHighLoss(TestCase):
 
   @staticmethod
   def abbreviation():
-    return "L"
+    return "HL"
 
   @staticmethod
   def scenario() -> str:
     """ Scenario for the ns3 simulator """
-    return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_client=0 --rate_to_server=10"
+    return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_client=30 --rate_to_server=0"
 
   def get_paths(self):
-    self._files = [ self._generate_random_file(1*KB) ]
+    for _ in range(1, 10):
+      self._files.append(self._generate_random_file(1*KB))
     return self._files
 
   def check(self):
-    c = self._check_files()
-    print("check", c)
-    return c
+    num_handshakes = self._count_handshakes()
+    if num_handshakes != 10:
+      logging.info("Expected 10 handshakes. Got: %d", num_handshakes)
+      return False
+    return self._check_files()
 
 class MeasurementGoodput(Measurement):
   FILESIZE = 10*MB
@@ -472,6 +475,7 @@ TESTCASES = [
   TestCaseResumption,
   TestCaseHTTP3,
   TestCaseBlackhole,
+  TestCaseHandshakeLoss,
 ]
 
 MEASUREMENTS = [
