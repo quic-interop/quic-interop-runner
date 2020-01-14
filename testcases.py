@@ -376,7 +376,7 @@ class TestCaseHandshakeLoss(TestCase):
 
   @staticmethod
   def testname():
-    return "seqtransfer"
+    return "multiconnect"
 
   @staticmethod
   def abbreviation():
