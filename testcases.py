@@ -19,6 +19,7 @@ class TestCase(abc.ABC):
   _sim_log_dir = None
 
   def __init__(self, sim_log_dir: tempfile.TemporaryDirectory):
+    self._files = []
     self._sim_log_dir = sim_log_dir
 
   @abc.abstractmethod
@@ -203,6 +204,31 @@ class TestCaseTransfer(TestCase):
       self._generate_random_file(3*MB),
       self._generate_random_file(5*MB),
     ]
+    return self._files
+
+  def check(self):
+    num_handshakes = self._count_handshakes()
+    if num_handshakes != 1:
+      logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+      return False
+    return self._check_files()
+
+class TestCaseMultiplexing(TestCase):
+  @staticmethod
+  def name():
+    return "multiplexing"
+
+  @staticmethod
+  def testname():
+    return "transfer"
+
+  @staticmethod
+  def abbreviation():
+    return "M"
+
+  def get_paths(self):
+    for _ in range(1, 2000):
+      self._files.append(self._generate_random_file(32))
     return self._files
 
   def check(self):
@@ -397,6 +423,7 @@ class MeasurementGoodput(Measurement):
 TESTCASES = [ 
   TestCaseHandshake,
   TestCaseTransfer,
+  TestCaseMultiplexing,
   TestCaseRetry,
   TestCaseResumption,
   TestCaseHTTP3,
