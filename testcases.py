@@ -370,7 +370,7 @@ class TestCaseBlackhole(TestCase):
 
 
 class TestCaseHandshakeLoss(TestCase):
-  _num_runs = 100
+  _num_runs = 50
 
   @staticmethod
   def name():
