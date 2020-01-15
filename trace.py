@@ -15,12 +15,13 @@ class TraceAnalyzer:
     self._filename = filename
 
   def _get_direction_filter(self, d: Direction) -> str:
+    f = "(quic && !icmp) && "
     if d == Direction.FROM_CLIENT:
-      return "ip.src==193.167.0.100 && "
+      return f + "ip.src==193.167.0.100 && "
     elif d == Direction.FROM_SERVER:
-      return "ip.src==193.167.100.100 && "
+      return f + "ip.src==193.167.100.100 && "
     else:
-      return ""
+      return f
 
   def _get_packets(self, f: str) -> List:
     cap = pyshark.FileCapture(self._filename, display_filter=f)
