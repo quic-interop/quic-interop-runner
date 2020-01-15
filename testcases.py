@@ -370,6 +370,8 @@ class TestCaseBlackhole(TestCase):
 
 
 class TestCaseHandshakeLoss(TestCase):
+  _num_runs = 100
+
   @staticmethod
   def name():
     return "handshakeloss"
@@ -392,14 +394,14 @@ class TestCaseHandshakeLoss(TestCase):
     return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=30 --rate_to_client=30"
 
   def get_paths(self):
-    for _ in range(100):
+    for _ in range(self._num_runs):
       self._files.append(self._generate_random_file(1*KB))
     return self._files
 
   def check(self):
     num_handshakes = self._count_handshakes()
-    if num_handshakes != 100:
-      logging.info("Expected 100 handshakes. Got: %d", num_handshakes)
+    if num_handshakes != self._num_runs:
+      logging.info("Expected %d handshakes. Got: %d", self._num_runs, num_handshakes)
       return False
     return self._check_files()
 
