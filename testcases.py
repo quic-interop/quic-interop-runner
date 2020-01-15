@@ -73,15 +73,7 @@ class TestCase(abc.ABC):
     return filename
 
   def _retry_sent(self) -> bool:
-    tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
-    cap = tr.get_retry()
-    sent = True
-    try: 
-      cap.next()
-    except StopIteration:
-      sent = False
-    cap.close()
-    return sent
+    return len(TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap").get_retry()) > 0
 
   def _check_files(self):
     if len(self._files) == 0:
@@ -110,10 +102,7 @@ class TestCase(abc.ABC):
     tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
     # Determine the number of handshakes by looking at Handshake packets.
     # This is easier, since the DCID of Handshake packets doesn't changes.
-    cap_handshakes = tr.get_handshake(Direction.FROM_CLIENT)
-    conn_ids = [ p.quic.dcid for p in cap_handshakes ]
-    cap_handshakes.close()
-    return len(set(conn_ids))
+    return len(set([ p.quic.dcid for p in tr.get_handshake(Direction.FROM_CLIENT) ]))
 
   def cleanup(self):
     if self._www_dir:
@@ -160,23 +149,20 @@ class TestCaseVersionNegotiation(TestCase):
   
   def check(self):
     tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
-    cap_initial = tr.get_initial(Direction.FROM_CLIENT)
+    initials = tr.get_initial(Direction.FROM_CLIENT)
     dcid = ""
-    for p in cap_initial:
+    for p in initials:
       dcid = p.quic.dcid
-    cap_initial.close()
+      break
     if dcid is "":
       logging.info("Didn't find an Initial / a DCID.")
       return False
-    cap_server = tr.get_vnp()
-    conn_id_matches = False
-    for p in cap_server:
+    vnps = tr.get_vnp()
+    for p in vnps:
       if p.quic.scid == dcid:
-        conn_id_matches = True
-    cap_server.close()
-    if not conn_id_matches:
-      logging.info("Didn't find a Version Negotiation Packet with matching SCID.")
-    return conn_id_matches
+        return True
+    logging.info("Didn't find a Version Negotiation Packet with matching SCID.")
+    return False
 
 class TestCaseHandshake(TestCase):
   @staticmethod
@@ -269,29 +255,24 @@ class TestCaseRetry(TestCase):
     # check that (at least) one Retry packet was actually sent
     tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
     tokens = []
-    cap_retry = tr.get_retry(Direction.FROM_SERVER)
-    for p in cap_retry:
+    retries = tr.get_retry(Direction.FROM_SERVER)
+    for p in retries:
       tokens += [ p.quic.retry_token.replace(":", "") ]
-    cap_retry.close()
     if len(tokens) == 0:
       logging.info("Didn't find any Retry packets.")
       return False
     
     # check that an Initial packet uses a token sent in the Retry packet(s)
-    cap_initial = tr.get_initial(Direction.FROM_CLIENT)
-    found = False
-    for p in cap_initial:
+    initials = tr.get_initial(Direction.FROM_CLIENT)
+    for p in initials:
       if p.quic.long_packet_type != "0" or p.quic.token_length == "0":
         continue
       token = p.quic.token.replace(":", "")
       if token in tokens:
         logging.debug("Check of Retry succeeded. Token used: %s", token)
-        found = True
-        break
-    cap_initial.close()
-    if not found:
-      logging.info("Didn't find any Initial packet using a Retry token.")
-    return found
+        return True
+    logging.info("Didn't find any Initial packet using a Retry token.")
+    return False
 
   def check(self) -> bool:
     num_handshakes = self._count_handshakes()
@@ -414,14 +395,13 @@ class MeasurementGoodput(Measurement):
       return False
     if not self._check_files():
       return False
-    cap = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap").get_1rtt(Direction.FROM_SERVER)
 
+    packets = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap").get_1rtt(Direction.FROM_SERVER)
     first, last = 0, 0
-    for p in cap:
+    for p in packets:
       if (first == 0):
         first = p.sniff_time
       last = p.sniff_time
-    cap.close()
 
     if (last - first == 0):
       return False

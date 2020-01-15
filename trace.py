@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import List
 
 import pyshark
 
@@ -21,32 +22,40 @@ class TraceAnalyzer:
     else:
       return ""
 
-  def get_1rtt(self, direction: Direction = Direction.ALL) -> pyshark.FileCapture:
+  def _get_packets(self, f: str) -> List:
+    cap = pyshark.FileCapture(self._filename, display_filter=f)
+    packets = []
+    # If the pcap has been cut short in the middle of the packet, pyshark will crash.
+    # See https://github.com/KimiNewt/pyshark/issues/390.
+    try:
+      for p in cap:
+        packets.append(p)
+      cap.close()
+    except:
+      pass
+    return packets
+
+  def get_1rtt(self, direction: Direction = Direction.ALL) -> List:
     """ Get all QUIC packets, one or both directions.
     """
-    f = self._get_direction_filter(direction) + "quic.header_form==0"
-    return pyshark.FileCapture(self._filename, display_filter=f)
+    return self._get_packets(self._get_direction_filter(direction) + "quic.header_form==0")
 
-  def get_vnp(self, direction: Direction = Direction.ALL) -> pyshark.FileCapture:
-    f = self._get_direction_filter(direction) + "quic.version==0"
-    return pyshark.FileCapture(self._filename, display_filter=f)
+  def get_vnp(self, direction: Direction = Direction.ALL) -> List:
+    return self._get_packets(self._get_direction_filter(direction) + "quic.version==0")
 
-  def get_retry(self, direction: Direction = Direction.ALL) -> pyshark.FileCapture:
-    f = self._get_direction_filter(direction) + "quic.long.packet_type==Retry"
-    return pyshark.FileCapture(self._filename, display_filter=f)
+  def get_retry(self, direction: Direction = Direction.ALL) -> List:
+    return self._get_packets(self._get_direction_filter(direction) + "quic.long.packet_type==Retry")
 
-  def get_initial(self, direction: Direction = Direction.ALL) -> pyshark.FileCapture:
+  def get_initial(self, direction: Direction = Direction.ALL) -> List:
     """ Get all Initial packets.
     Note that this might return coalesced packets. Filter by:
     packet.quic.long_packet_type == "0"
     """
-    f = self._get_direction_filter(direction) + "quic.long.packet_type==Initial"
-    return pyshark.FileCapture(self._filename, display_filter=f)
+    return self._get_packets(self._get_direction_filter(direction) + "quic.long.packet_type==Initial")
 
-  def get_handshake(self, direction: Direction = Direction.ALL) -> pyshark.FileCapture:
-    """ Get all Initial packets.
+  def get_handshake(self, direction: Direction = Direction.ALL) -> List:
+    """ Get all Handshake packets.
     Note that this might return coalesced packets. Filter by:
     packet.quic.long_packet_type == "2"
     """
-    f = self._get_direction_filter(direction) + "quic.long.packet_type==Handshake"
-    return pyshark.FileCapture(self._filename, display_filter=f)
+    return self._get_packets(self._get_direction_filter(direction) + "quic.long.packet_type==Handshake")
