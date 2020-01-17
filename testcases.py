@@ -263,7 +263,7 @@ class TestCaseRetry(TestCase):
     tokens = []
     retries = tr.get_retry(Direction.FROM_SERVER)
     for p in retries:
-      tokens += [ p.quic.retry_token.replace(":", "") ]
+      tokens += [ p.retry_token.replace(":", "") ]
     if len(tokens) == 0:
       logging.info("Didn't find any Retry packets.")
       return False
@@ -271,7 +271,7 @@ class TestCaseRetry(TestCase):
     # check that an Initial packet uses a token sent in the Retry packet(s)
     initials = tr.get_initial(Direction.FROM_CLIENT)
     for p in initials:
-      if p.long_packet_type != "0" or p.token_length == "0":
+      if p.token_length == "0":
         continue
       token = p.token.replace(":", "")
       if token in tokens:

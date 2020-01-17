@@ -50,7 +50,12 @@ class TraceAnalyzer:
     return self._get_packets(self._get_direction_filter(direction) + "quic.version==0")
 
   def get_retry(self, direction: Direction = Direction.ALL) -> List:
-    return self._get_packets(self._get_direction_filter(direction) + "quic.long.packet_type==Retry")
+    packets = []
+    for packet in self._get_packets(self._get_direction_filter(direction) + "quic.long.packet_type==Retry"):
+      for layer in packet.layers:
+        if layer.layer_name == "quic":
+          packets.append(layer)
+    return packets
 
   def get_initial(self, direction: Direction = Direction.ALL) -> List:
     """ Get all Initial packets. """
