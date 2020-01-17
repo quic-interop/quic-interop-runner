@@ -102,7 +102,7 @@ class TestCase(abc.ABC):
     tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
     # Determine the number of handshakes by looking at Handshake packets.
     # This is easier, since the DCID of Handshake packets doesn't changes.
-    return len(set([ p.quic.dcid for p in tr.get_handshake(Direction.FROM_CLIENT) ]))
+    return len(set([ p.dcid for p in tr.get_handshake(Direction.FROM_CLIENT) ]))
 
   def cleanup(self):
     if self._www_dir:
@@ -154,14 +154,14 @@ class TestCaseVersionNegotiation(TestCase):
     initials = tr.get_initial(Direction.FROM_CLIENT)
     dcid = ""
     for p in initials:
-      dcid = p.quic.dcid
+      dcid = p.dcid
       break
     if dcid is "":
       logging.info("Didn't find an Initial / a DCID.")
       return False
     vnps = tr.get_vnp()
     for p in vnps:
-      if p.quic.scid == dcid:
+      if p.scid == dcid:
         return True
     logging.info("Didn't find a Version Negotiation Packet with matching SCID.")
     return False
@@ -271,9 +271,9 @@ class TestCaseRetry(TestCase):
     # check that an Initial packet uses a token sent in the Retry packet(s)
     initials = tr.get_initial(Direction.FROM_CLIENT)
     for p in initials:
-      if p.quic.long_packet_type != "0" or p.quic.token_length == "0":
+      if p.long_packet_type != "0" or p.token_length == "0":
         continue
-      token = p.quic.token.replace(":", "")
+      token = p.token.replace(":", "")
       if token in tokens:
         logging.debug("Check of Retry succeeded. Token used: %s", token)
         return True
