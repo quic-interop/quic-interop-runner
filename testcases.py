@@ -382,7 +382,7 @@ class TestCaseHandshakeLoss(TestCase):
 
   @staticmethod
   def abbreviation():
-    return "L"
+    return "L1"
 
   @staticmethod
   def timeout() -> int:
@@ -402,6 +402,36 @@ class TestCaseHandshakeLoss(TestCase):
     num_handshakes = self._count_handshakes()
     if num_handshakes != self._num_runs:
       logging.info("Expected %d handshakes. Got: %d", self._num_runs, num_handshakes)
+      return False
+    return self._check_files()
+
+class TestCaseTransferLoss(TestCase):
+  @staticmethod
+  def name():
+    return "transferloss"
+
+  @staticmethod
+  def testname():
+    return "transfer"
+
+  @staticmethod
+  def abbreviation():
+    return "L2"
+
+  @staticmethod
+  def scenario() -> str:
+    """ Scenario for the ns3 simulator """
+    return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=2 --rate_to_client=2"
+
+  def get_paths(self):
+    # At a packet loss rate of 2% and a MTU of 1500 bytes, we can expect 27 dropped packets.
+    self._files = [ self._generate_random_file(2*MB) ]
+    return self._files
+
+  def check(self):
+    num_handshakes = self._count_handshakes()
+    if num_handshakes != 1:
+      logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
       return False
     return self._check_files()
 
@@ -494,6 +524,7 @@ TESTCASES = [
   TestCaseHTTP3,
   TestCaseBlackhole,
   TestCaseHandshakeLoss,
+  TestCaseTransferLoss,
 ]
 
 MEASUREMENTS = [
