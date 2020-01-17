@@ -102,7 +102,7 @@ class TestCase(abc.ABC):
     tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
     # Determine the number of handshakes by looking at Handshake packets.
     # This is easier, since the DCID of Handshake packets doesn't changes.
-    return len(set([ p.dcid for p in tr.get_handshake(Direction.FROM_CLIENT) ]))
+    return len(set([ p.scid for p in tr.get_initial(Direction.FROM_SERVER) ]))
 
   def cleanup(self):
     if self._www_dir:
