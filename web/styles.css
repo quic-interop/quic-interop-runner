@@ -1,3 +1,9 @@
+@media (min-width: 1200px) {
+  .container {
+    max-width: 90%;
+  }
+}
+
 .runstats {
   margin-top: 50px;
   text-align: right;
