@@ -37,26 +37,40 @@ class TraceAnalyzer:
     return packets
 
   def get_1rtt(self, direction: Direction = Direction.ALL) -> List:
-    """ Get all QUIC packets, one or both directions.
-    """
-    return self._get_packets(self._get_direction_filter(direction) + "quic.header_form==0")
-
+    """ Get all QUIC packets, one or both directions. """
+    packets = []
+    for packet in self._get_packets(self._get_direction_filter(direction) + "quic.header_form==0"):
+      for layer in packet.layers:
+        if layer.layer_name == "quic" and not hasattr(layer, "long_packet_type"):
+          layer.sniff_time = packet.sniff_time
+          packets.append(layer)
+    return packets
+    
   def get_vnp(self, direction: Direction = Direction.ALL) -> List:
     return self._get_packets(self._get_direction_filter(direction) + "quic.version==0")
 
   def get_retry(self, direction: Direction = Direction.ALL) -> List:
-    return self._get_packets(self._get_direction_filter(direction) + "quic.long.packet_type==Retry")
+    packets = []
+    for packet in self._get_packets(self._get_direction_filter(direction) + "quic.long.packet_type==Retry"):
+      for layer in packet.layers:
+        if layer.layer_name == "quic":
+          packets.append(layer)
+    return packets
 
   def get_initial(self, direction: Direction = Direction.ALL) -> List:
-    """ Get all Initial packets.
-    Note that this might return coalesced packets. Filter by:
-    packet.quic.long_packet_type == "0"
-    """
-    return self._get_packets(self._get_direction_filter(direction) + "quic.long.packet_type==Initial")
+    """ Get all Initial packets. """
+    packets = []
+    for packet in self._get_packets(self._get_direction_filter(direction) + "quic.long.packet_type"):
+      for layer in packet.layers:
+        if layer.layer_name == "quic" and hasattr(layer, "long_packet_type") and layer.long_packet_type == "0":
+          packets.append(layer)
+    return packets
 
   def get_handshake(self, direction: Direction = Direction.ALL) -> List:
-    """ Get all Handshake packets.
-    Note that this might return coalesced packets. Filter by:
-    packet.quic.long_packet_type == "2"
-    """
-    return self._get_packets(self._get_direction_filter(direction) + "quic.long.packet_type==Handshake")
+    """ Get all Handshake packets. """
+    packets = []
+    for packet in self._get_packets(self._get_direction_filter(direction) + "quic.long.packet_type"):
+      for layer in packet.layers:
+        if layer.layer_name == "quic" and hasattr(layer, "long_packet_type") and layer.long_packet_type == "2":
+          packets.append(layer)
+    return packets
