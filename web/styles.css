@@ -26,6 +26,6 @@ table.resulttable .results a {
   color: inherit;
 }
 
-table#interop .results {
-  letter-spacing: 0.3em;
+table#interop .results a {
+  margin-right: 3px;
 }
