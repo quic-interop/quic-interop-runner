@@ -74,3 +74,12 @@ class TraceAnalyzer:
         if layer.layer_name == "quic" and hasattr(layer, "long_packet_type") and layer.long_packet_type == "2":
           packets.append(layer)
     return packets
+
+  def get_0rtt(self) -> List:
+    """ Get all Handshake packets. """
+    packets = []
+    for packet in self._get_packets(self._get_direction_filter(Direction.FROM_CLIENT) + "quic.long.packet_type"):
+      for layer in packet.layers:
+        if layer.layer_name == "quic" and hasattr(layer, "long_packet_type") and layer.long_packet_type == "1":
+          packets.append(layer)
+    return packets

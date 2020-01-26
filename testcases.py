@@ -311,6 +311,9 @@ class TestCaseResumption(TestCase):
     if num_handshakes != 2:
       logging.info("Expected exactly 2 handshake. Got: %d", num_handshakes)
       return False
+    if len(TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap").get_0rtt()) != 0:
+      logging.info("Client sent 0-RTT packets.")
+      return False
     return self._check_files()
 
 
