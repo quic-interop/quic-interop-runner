@@ -152,6 +152,16 @@ class TestCase(abc.ABC):
         tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
         return set([p.version for p in tr.get_initial(Direction.FROM_SERVER)])
 
+    def _payload_size(self, packets: List) -> int:
+        """ Get the sum of the payload sizes of all packets """
+        size = 0
+        for p in packets:
+            if hasattr(p, "payload"):  # when keys are available
+                size += len(p.payload.split(":"))
+            else:
+                size += len(p.remaining_payload.split(":"))
+        return size
+
     def cleanup(self):
         if self._www_dir:
             self._www_dir.cleanup()
@@ -360,6 +370,35 @@ class TestCaseResumption(TestCase):
         num_handshakes = self._count_handshakes()
         if num_handshakes != 2:
             logging.info("Expected exactly 2 handshake. Got: %d", num_handshakes)
+            return False
+
+        handshake_packets = self._client_trace().get_handshake(Direction.FROM_SERVER)
+        cids = [p.scid for p in handshake_packets]
+        handshake_packets_first = []
+        handshake_packets_second = []
+        for p in handshake_packets:
+            if p.scid == cids[0]:
+                handshake_packets_first.append(p)
+            elif p.scid == cids[len(cids) - 1]:
+                handshake_packets_second.append(p)
+            else:
+                logging.info("This should never happen.")
+                return False
+        handshake_size_first = self._payload_size(handshake_packets_first)
+        handshake_size_second = self._payload_size(handshake_packets_second)
+        logging.debug(
+            "Size of the server's Handshake flight (1st connection): %d",
+            handshake_size_first,
+        )
+        logging.debug(
+            "Size of the server's Handshake flight (2nd connection): %d",
+            handshake_size_second,
+        )
+        # The second handshake doesn't contain a certificate, if session resumption is used.
+        if handshake_size_first < handshake_size_second + 400:
+            logging.info(
+                "Expected the size of the server's Handshake flight to be significantly smaller during the second connection."
+            )
             return False
         return self._check_version_and_files()
 
