@@ -151,6 +151,8 @@ class InteropRunner:
           results = []
           for measurement in self._measurements:
             res = cell[measurement]
+            if not hasattr(res, "result"):
+              continue
             if res.result == TestResult.SUCCEEDED:
               results.append(colored(measurement.abbreviation() + ": " + res.details, "green"))
             elif res.result == TestResult.UNSUPPORTED:
@@ -188,6 +190,8 @@ class InteropRunner:
         measurements = []
         for measurement in self._measurements:
           res = self.measurement_results[server][client][measurement]
+          if not hasattr(res, "result"):
+            continue
           measurements.append({
             "name": measurement.name(),
             "abbr": measurement.abbreviation(),
