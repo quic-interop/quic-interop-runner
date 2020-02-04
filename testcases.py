@@ -92,7 +92,7 @@ class TestCase(abc.ABC):
           logging.info("File contents of %s do not match.", fp)
           return False
       except Exception as exception:
-        logging.info("Could not compoare files %s and %s: %s", self.www_dir() + f, fp, exception)
+        logging.info("Could not compare files %s and %s: %s", self.www_dir() + f, fp, exception)
         return False
     logging.debug("Check of downloaded files succeeded.")
     return True
