@@ -32,8 +32,8 @@ class TraceAnalyzer:
       for p in cap:
         packets.append(p)
       cap.close()
-    except:
-      pass
+    except Exception as e:
+      print(e)
     return packets
 
   def get_1rtt(self, direction: Direction = Direction.ALL) -> List:
