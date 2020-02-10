@@ -8,4 +8,5 @@ IMPLEMENTATIONS = { # name => [ docker image, role ]; role: 0 == 'client', 1 == 
   "quiche": { "url": "cloudflare/quiche-qns:latest", "role": 2 },
   "kwik":   { "url": "peterdoornbosch/kwik_n_flupke-interop", "role": 0 },
   "picoquic": { "url": "privateoctopus/picoquic:latest", "role":2 },
+  "aioquic": { "url": "aiortc/aioquic-qns:latest", "role": 2 },
 }
