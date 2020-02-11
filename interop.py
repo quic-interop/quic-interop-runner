@@ -236,7 +236,8 @@ class InteropRunner:
       "REQUESTS=\"" + reqs + "\" "
     ).format(testcase.scenario())
     params += " ".join(testcase.additional_envs())
-    cmd = params + " docker-compose up --abort-on-container-exit --timeout 1 sim client server " + " ".join(testcase.additional_containers())
+    containers = "sim client server " + " ".join(testcase.additional_containers())
+    cmd = params + " docker-compose up --abort-on-container-exit --timeout 1 " + containers
     logging.debug("Command: %s", cmd)
 
     status = TestResult.FAILED
@@ -253,6 +254,8 @@ class InteropRunner:
 
     if expired:
       logging.debug("Test failed: took longer than %ds.", testcase.timeout())
+      r = subprocess.run("docker-compose stop " + containers, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
+      logging.debug("%s", r.stdout.decode('utf-8'))
 
     # copy the pcaps from the simulator
     subprocess.run(
