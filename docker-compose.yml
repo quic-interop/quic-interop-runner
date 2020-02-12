@@ -31,6 +31,7 @@ services:
       - ROLE=server
       - SERVER_PARAMS=$SERVER_PARAMS
       - SSLKEYLOGFILE=/logs/keys.log
+      - QLOGDIR=/logs/qlog/
       - TESTCASE=$TESTCASE
     depends_on:
       - sim
@@ -52,6 +53,7 @@ services:
       - ROLE=client
       - CLIENT_PARAMS=$CLIENT_PARAMS
       - SSLKEYLOGFILE=/logs/keys.log
+      - QLOGDIR=/logs/qlog/
       - TESTCASE=$TESTCASE
       - REQUESTS=$REQUESTS
     depends_on:
