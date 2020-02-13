@@ -21,7 +21,8 @@ class TestCase(abc.ABC):
   _download_dir = None
   _sim_log_dir = None
 
-  def __init__(self, sim_log_dir: tempfile.TemporaryDirectory):
+  def __init__(self, sim_log_dir: tempfile.TemporaryDirectory, client_keylog_file: str):
+    self._client_keylog_file = client_keylog_file
     self._files = []
     self._sim_log_dir = sim_log_dir
 
@@ -64,6 +65,9 @@ class TestCase(abc.ABC):
       self._download_dir = tempfile.TemporaryDirectory(dir = "/tmp", prefix = "download_")
     return self._download_dir.name + "/"
 
+  def _client_trace(self):
+    return TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap", self._client_keylog_file)
+
   # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
   def _generate_random_file(self, size: int) -> str:
     filename = random_string(10)
@@ -75,7 +79,7 @@ class TestCase(abc.ABC):
     return filename
 
   def _retry_sent(self) -> bool:
-    return len(TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap").get_retry()) > 0
+    return len(self._client_trace().get_retry()) > 0
 
   def _check_version_and_files(self):
     versions = self._get_versions()
@@ -109,7 +113,7 @@ class TestCase(abc.ABC):
 
   def _count_handshakes(self) -> int:
     """ Count the number of QUIC handshakes """
-    tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
+    tr = self._client_trace()
     # Determine the number of handshakes by looking at Initial packets.
     # This is easier, since the SCID of Initial packets doesn't changes.
     return len(set([ p.scid for p in tr.get_initial(Direction.FROM_SERVER) ]))
@@ -138,7 +142,7 @@ class TestCase(abc.ABC):
 
 class Measurement(TestCase):
   @abc.abstractmethod
-  def result(self) -> str:
+  def result(self) -> float:
     pass
 
   @staticmethod
@@ -165,7 +169,7 @@ class TestCaseVersionNegotiation(TestCase):
     return [ "" ]
   
   def check(self):
-    tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
+    tr = self._client_trace()
     initials = tr.get_initial(Direction.FROM_CLIENT)
     dcid = ""
     for p in initials:
@@ -274,7 +278,7 @@ class TestCaseRetry(TestCase):
 
   def _check_trace(self) -> bool:
     # check that (at least) one Retry packet was actually sent
-    tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
+    tr = self._client_trace()
     tokens = []
     retries = tr.get_retry(Direction.FROM_SERVER)
     for p in retries:
@@ -487,7 +491,7 @@ class MeasurementGoodput(Measurement):
     if not self._check_version_and_files():
       return False
 
-    packets = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap").get_1rtt(Direction.FROM_SERVER)
+    packets = self._client_trace().get_1rtt(Direction.FROM_SERVER)
     first, last = 0, 0
     for p in packets:
       if (first == 0):
