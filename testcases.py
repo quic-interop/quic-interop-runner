@@ -8,6 +8,8 @@ from trace import TraceAnalyzer, Direction
 KB = 1<<10
 MB = 1<<20
 
+QUIC_VERSION="0xff000019" # draft-25
+
 def random_string(length: int):
   """Generate a random string of fixed length """
   letters = string.ascii_lowercase
@@ -75,7 +77,15 @@ class TestCase(abc.ABC):
   def _retry_sent(self) -> bool:
     return len(TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap").get_retry()) > 0
 
-  def _check_files(self):
+  def _check_version_and_files(self):
+    versions = self._get_versions()
+    if len(versions) != 1:
+      logging.info("Expected exactly one version. Got %s", versions)
+      return False
+    if QUIC_VERSION not in versions:
+      logging.info("Wrong version. Expected %s, got %s", QUIC_VERSION, versions)
+      return False
+
     if len(self._files) == 0:
       raise Exception("No test files generated.")
     num_files = len([ n for n in os.listdir(self.download_dir()) if os.path.isfile(os.path.join(self.download_dir(), n)) ])
@@ -100,9 +110,14 @@ class TestCase(abc.ABC):
   def _count_handshakes(self) -> int:
     """ Count the number of QUIC handshakes """
     tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
-    # Determine the number of handshakes by looking at Handshake packets.
-    # This is easier, since the DCID of Handshake packets doesn't changes.
+    # Determine the number of handshakes by looking at Initial packets.
+    # This is easier, since the SCID of Initial packets doesn't changes.
     return len(set([ p.scid for p in tr.get_initial(Direction.FROM_SERVER) ]))
+
+  def _get_versions(self) -> set:
+    """ Get the QUIC versions """
+    tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
+    return set([ p.version for p in tr.get_initial(Direction.FROM_SERVER) ])
 
   def cleanup(self):
     if self._www_dir:
@@ -181,7 +196,7 @@ class TestCaseHandshake(TestCase):
     return self._files
 
   def check(self):
-    if not self._check_files():
+    if not self._check_version_and_files():
       return False
     if self._retry_sent():
       logging.info("Didn't expect a Retry to be sent.")
@@ -215,7 +230,7 @@ class TestCaseTransfer(TestCase):
     if num_handshakes != 1:
       logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
       return False
-    return self._check_files()
+    return self._check_version_and_files()
 
 
 class TestCaseMultiplexing(TestCase):
@@ -241,7 +256,7 @@ class TestCaseMultiplexing(TestCase):
     if num_handshakes != 1:
       logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
       return False
-    return self._check_files()
+    return self._check_version_and_files()
 
 
 class TestCaseRetry(TestCase):
@@ -285,7 +300,7 @@ class TestCaseRetry(TestCase):
     if num_handshakes != 1:
       logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
       return False
-    if not self._check_files():
+    if not self._check_version_and_files():
       return False
     return self._check_trace()
     
@@ -311,7 +326,7 @@ class TestCaseResumption(TestCase):
     if num_handshakes != 2:
       logging.info("Expected exactly 2 handshake. Got: %d", num_handshakes)
       return False
-    return self._check_files()
+    return self._check_version_and_files()
 
 
 class TestCaseHTTP3(TestCase):
@@ -336,7 +351,7 @@ class TestCaseHTTP3(TestCase):
     if num_handshakes != 1:
       logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
       return False
-    return self._check_files()
+    return self._check_version_and_files()
 
 
 class TestCaseBlackhole(TestCase):
@@ -366,7 +381,7 @@ class TestCaseBlackhole(TestCase):
     if num_handshakes != 1:
       logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
       return False
-    return self._check_files()
+    return self._check_version_and_files()
 
 
 class TestCaseHandshakeLoss(TestCase):
@@ -403,7 +418,7 @@ class TestCaseHandshakeLoss(TestCase):
     if num_handshakes != self._num_runs:
       logging.info("Expected %d handshakes. Got: %d", self._num_runs, num_handshakes)
       return False
-    return self._check_files()
+    return self._check_version_and_files()
 
 class TestCaseTransferLoss(TestCase):
   @staticmethod
@@ -433,7 +448,7 @@ class TestCaseTransferLoss(TestCase):
     if num_handshakes != 1:
       logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
       return False
-    return self._check_files()
+    return self._check_version_and_files()
 
 
 class MeasurementGoodput(Measurement):
@@ -469,7 +484,7 @@ class MeasurementGoodput(Measurement):
     if num_handshakes != 1:
       logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
       return False
-    if not self._check_files():
+    if not self._check_version_and_files():
       return False
 
     packets = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap").get_1rtt(Direction.FROM_SERVER)
