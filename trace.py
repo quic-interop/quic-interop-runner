@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List
+from typing import List, Optional
 
 import pyshark
 
@@ -11,8 +11,9 @@ class Direction(Enum):
 class TraceAnalyzer:
   _filename = ""
 
-  def __init__(self, filename: str):
+  def __init__(self, filename: str, keylog_file: Optional[str] = None):
     self._filename = filename
+    self._keylog_file = keylog_file
 
   def _get_direction_filter(self, d: Direction) -> str:
     f = "(quic && !icmp) && "
@@ -24,7 +25,10 @@ class TraceAnalyzer:
       return f
 
   def _get_packets(self, f: str) -> List:
-    cap = pyshark.FileCapture(self._filename, display_filter=f)
+    override_prefs = {}
+    if self._keylog_file is not None:
+        override_prefs["ssl.keylog_file"] = self._keylog_file
+    cap = pyshark.FileCapture(self._filename, display_filter=f, override_prefs=override_prefs)
     packets = []
     # If the pcap has been cut short in the middle of the packet, pyshark will crash.
     # See https://github.com/KimiNewt/pyshark/issues/390.

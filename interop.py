@@ -1,6 +1,6 @@
 import json, os, random, shutil, subprocess, string, logging, statistics, tempfile, re
 from datetime import datetime
-from typing import Callable, List
+from typing import Callable, List, Tuple
 from termcolor import colored
 from enum import Enum
 import prettytable
@@ -205,13 +205,11 @@ class InteropRunner:
     f.close()
 
   def _run_testcase(self, server: str, client: str, test: Callable[[], testcases.TestCase]) -> TestResult:
-    sim_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_sim_")
-    testcase = test(sim_log_dir=sim_log_dir)
-    return self._run_test(server, client, sim_log_dir, None, testcase)
+    return self._run_test(server, client, None, test)[0]
 
-  def _run_test(self, server: str, client: str, sim_log_dir: tempfile.TemporaryDirectory, log_dir_prefix: None, testcase: testcases.TestCase):
+  def _run_test(self, server: str, client: str, log_dir_prefix: None, test: Callable[[], testcases.TestCase]) -> Tuple[TestResult, float]:
     start_time = datetime.now()
-    print("Server: " + server + ". Client: " + client + ". Running test case: " + str(testcase))
+    sim_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_sim_")
     server_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_server_")
     client_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_client_")
     log_file = tempfile.NamedTemporaryFile(dir="/tmp", prefix="output_log_")
@@ -221,6 +219,9 @@ class InteropRunner:
     formatter = LogFileFormatter('%(asctime)s %(message)s')
     log_handler.setFormatter(formatter)
     logging.getLogger().addHandler(log_handler)
+
+    testcase = test(sim_log_dir=sim_log_dir, client_keylog_file=client_log_dir.name + "/keys.log")
+    print("Server: " + server + ". Client: " + client + ". Running test case: " + str(testcase))
 
     reqs = " ".join(["https://server:443/" + p for p in testcase.get_paths()])
     logging.debug("Requests: %s", reqs)
@@ -304,20 +305,25 @@ class InteropRunner:
     client_log_dir.cleanup()
     sim_log_dir.cleanup()
     logging.debug("Test took %ss", (datetime.now()-start_time).total_seconds())
-    return status
+
+    # measurements also have a value
+    if hasattr(testcase, "result"):
+        value = testcase.result()
+    else:
+        value = None
+
+    return status, value
 
   def _run_measurement(self, server: str, client: str, test: Callable[[], testcases.Measurement]) -> MeasurementResult:
     values = []
     for i in range (0, test.repetitions()):
-      sim_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_sim_")
-      testcase = test(sim_log_dir=sim_log_dir)
-      result = self._run_test(server, client, sim_log_dir, "%d" % (i+1), testcase)
+      result, value = self._run_test(server, client, "%d" % (i+1), test)
       if result != TestResult.SUCCEEDED:
         res = MeasurementResult()
         res.result = result
         res.details = ""
         return res
-      values.append(testcase.result())
+      values.append(value)
 
     logging.debug(values)    
     res = MeasurementResult()
