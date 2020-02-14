@@ -1,0 +1,6 @@
+dist: xenial
+install: pip install -r requirements.txt black flake8 isort
+language: python
+python: "3.8"
+script: .travis/script
+sudo: true
