@@ -30,6 +30,7 @@ services:
     environment:
       - ROLE=server
       - SERVER_PARAMS=$SERVER_PARAMS
+      - SSLKEYLOGFILE=/logs/keys.log
       - TESTCASE=$TESTCASE
     depends_on:
       - sim
@@ -50,6 +51,7 @@ services:
     environment:
       - ROLE=client
       - CLIENT_PARAMS=$CLIENT_PARAMS
+      - SSLKEYLOGFILE=/logs/keys.log
       - TESTCASE=$TESTCASE
       - REQUESTS=$REQUESTS
     depends_on:
