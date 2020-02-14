@@ -37,6 +37,8 @@ The log files are saved to a directory named `#server_#client/#testcase`. `outpu
 
 If implementations wish to export the TLS secrets, they are encouraged to do so in the format in the [NSS Key Log format](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/Key_Log_Format). The interop runner sets the SSLKEYLOGFILE environment variable to a file in the logs directory. In the future, the interop runner might use those files to decode the traces.
 
+Implementations that implement [qlog](https://github.com/quiclog/internet-drafts) should export the log files to the directory specified by the `QLOGDIR` environment variable.
+
 ## Test cases
 
 The Interop Runner implements the following test cases. Unless noted otherwise, test cases use HTTP/0.9 for file transfers. More test cases will be added in the future, to test more protocol features. The name in parentheses is the value of the `TESTCASE` environment variable passed into your Docker container.
