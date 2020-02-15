@@ -1,4 +1,5 @@
 import os
+
 from implementations import IMPLEMENTATIONS
 
 print("Pulling the simulator...")
@@ -8,5 +9,5 @@ print("\nPulling the iperf endpoint...")
 os.system("docker pull martenseemann/quic-interop-iperf-endpoint")
 
 for name, value in IMPLEMENTATIONS.items():
-  print("\nPulling " + name + "...")
-  os.system("docker pull " + value["url"])
+    print("\nPulling " + name + "...")
+    os.system("docker pull " + value["url"])
