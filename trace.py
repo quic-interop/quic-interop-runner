@@ -31,7 +31,10 @@ class TraceAnalyzer:
         if self._keylog_file is not None:
             override_prefs["ssl.keylog_file"] = self._keylog_file
         cap = pyshark.FileCapture(
-            self._filename, display_filter=f, override_prefs=override_prefs
+            self._filename,
+            display_filter=f,
+            override_prefs=override_prefs,
+            decode_as={"udp.port==443": "quic"},
         )
         packets = []
         # If the pcap has been cut short in the middle of the packet, pyshark will crash.
