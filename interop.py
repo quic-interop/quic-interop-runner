@@ -120,7 +120,7 @@ class InteropRunner:
             logging.debug("%s", output.stdout.decode("utf-8"))
             self.compliant[name] = False
             return False
-        logging.debug("%s client compliant.", name)
+        logging.info("%s client compliant.", name)
 
         # check that the server is capable of returning UNSUPPORTED
         logging.debug("Checking compliance of %s server", name)
