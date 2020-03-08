@@ -3,7 +3,7 @@
 import argparse
 import logging
 import sys
-from typing import List
+from typing import List, Tuple
 
 import testcases
 from implementations import IMPLEMENTATIONS
@@ -28,7 +28,6 @@ def get_args():
         "-c", "--client", help="client implementations (comma-separated)"
     )
     parser.add_argument("-t", "--test", help="test cases (comma-separatated)")
-    parser.add_argument("-m", "--measurement", help="measurements (comma-separatated)")
     parser.add_argument(
         "-r",
         "--replace",
@@ -82,37 +81,31 @@ def get_impls(arg, availableImpls, role) -> List[str]:
     return impls
 
 
-def get_tests(arg) -> List[testcases.TestCase]:
+def get_tests_and_measurements(
+    arg,
+) -> Tuple[List[testcases.TestCase], List[testcases.TestCase]]:
     if arg is None:
-        return TESTCASES
+        return TESTCASES, MEASUREMENTS
     elif not arg:
         return []
     tests = []
+    measurements = []
     for t in arg.split(","):
-        if t not in [tc.name() for tc in TESTCASES]:
+        if t in [tc.name() for tc in TESTCASES]:
+            tests += [tc for tc in TESTCASES if tc.name() == t]
+        elif t in [tc.name() for tc in MEASUREMENTS]:
+            measurements += [tc for tc in MEASUREMENTS if tc.name() == t]
+        else:
             sys.exit("Test case " + t + " not found.")
-        tests += [tc for tc in TESTCASES if tc.name() == t]
-    return tests
+    return tests, measurements
 
 
-def get_measurements(arg) -> List[testcases.TestCase]:
-    if arg is None:
-        return MEASUREMENTS
-    elif not arg:
-        return []
-    tests = []
-    for t in arg.split(","):
-        if t not in [tc.name() for tc in MEASUREMENTS]:
-            sys.exit("Measurement " + t + " not found.")
-        tests += [tc for tc in MEASUREMENTS if tc.name() == t]
-    return tests
-
-
+t = get_tests_and_measurements(get_args().test)
 InteropRunner(
     implementations=implementations,
     servers=get_impls(get_args().server, server_implementations, "Server"),
     clients=get_impls(get_args().client, client_implementations, "Client"),
-    tests=get_tests(get_args().test),
-    measurements=get_measurements(get_args().measurement),
+    tests=t[0],
+    measurements=t[1],
     output=get_args().json,
 ).run()
