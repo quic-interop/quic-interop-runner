@@ -37,6 +37,8 @@ services:
       - sim
     cap_add: 
       - NET_ADMIN
+    ulimits:
+      memlock: 67108864
     networks:
       rightnet:
         ipv4_address: 193.167.100.100
@@ -60,6 +62,8 @@ services:
       - sim
     cap_add: 
       - NET_ADMIN
+    ulimits:
+      memlock: 67108864
     networks:
       leftnet:
         ipv4_address: 193.167.0.100
