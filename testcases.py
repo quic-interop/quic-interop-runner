@@ -313,6 +313,10 @@ class TestCaseRetry(TestCase):
         tokens = []
         retries = tr.get_retry(Direction.FROM_SERVER)
         for p in retries:
+            if not hasattr(p, "retry_token"):
+                logging.info("Retry packet doesn't have a retry_token")
+                logging.info(p)
+                return False
             tokens += [p.retry_token.replace(":", "")]
         if len(tokens) == 0:
             logging.info("Didn't find any Retry packets.")
