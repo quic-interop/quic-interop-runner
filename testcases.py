@@ -88,8 +88,8 @@ class TestCase(abc.ABC):
         )
 
     # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
-    def _generate_random_file(self, size: int) -> str:
-        filename = random_string(10)
+    def _generate_random_file(self, size: int, filename_len=10) -> str:
+        filename = random_string(filename_len)
         enc = AES.new(os.urandom(32), AES.MODE_OFB, b"a" * 16)
         f = open(self.www_dir() + filename, "wb")
         f.write(enc.encrypt(b" " * size))
@@ -161,10 +161,13 @@ class TestCase(abc.ABC):
         """ Get the sum of the payload sizes of all packets """
         size = 0
         for p in packets:
-            if hasattr(p, "payload"):  # when keys are available
-                size += len(p.payload.split(":"))
+            if hasattr(p, "long_packet_type"):
+                if hasattr(p, "payload"):  # when keys are available
+                    size += len(p.payload.split(":"))
+                else:
+                    size += len(p.remaining_payload.split(":"))
             else:
-                size += len(p.remaining_payload.split(":"))
+                size += len(p.protected_payload.split(":"))
         return size
 
     def cleanup(self):
@@ -412,6 +415,44 @@ class TestCaseResumption(TestCase):
         return self._check_version_and_files()
 
 
+class TestCaseZeroRTT(TestCase):
+    NUM_FILES = 40
+    FILESIZE = 32  # in bytes
+    FILENAMELEN = 255
+
+    @staticmethod
+    def name():
+        return "zerortt"
+
+    @staticmethod
+    def abbreviation():
+        return "Z"
+
+    def get_paths(self):
+        for _ in range(self.NUM_FILES):
+            self._files.append(
+                self._generate_random_file(self.FILESIZE, self.FILENAMELEN)
+            )
+        return self._files
+
+    def check(self) -> bool:
+        num_handshakes = self._count_handshakes()
+        if num_handshakes != 2:
+            logging.info("Expected exactly 2 handshakes. Got: %d", num_handshakes)
+            return False
+        if not self._check_version_and_files():
+            return False
+        tr = self._client_trace()
+        zeroRTTSize = self._payload_size(tr.get_0rtt())
+        oneRTTSize = self._payload_size(tr.get_1rtt(Direction.FROM_CLIENT))
+        logging.debug("0-RTT size: %d", zeroRTTSize)
+        logging.debug("1-RTT size: %d", oneRTTSize)
+        if oneRTTSize > 0.5 * self.FILENAMELEN * self.NUM_FILES:
+            logging.info("Client sent too much data in 0-RTT packets.")
+            return False
+        return True
+
+
 class TestCaseHTTP3(TestCase):
     @staticmethod
     def name():
@@ -657,6 +698,7 @@ TESTCASES = [
     TestCaseMultiplexing,
     TestCaseRetry,
     TestCaseResumption,
+    TestCaseZeroRTT,
     TestCaseHTTP3,
     TestCaseBlackhole,
     TestCaseHandshakeLoss,
