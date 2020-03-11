@@ -82,6 +82,11 @@ class TestCase(abc.ABC):
             self._sim_log_dir.name + "/trace_node_left.pcap", self._client_keylog_file
         )
 
+    def _server_trace(self):
+        return TraceAnalyzer(
+            self._sim_log_dir.name + "/trace_node_right.pcap", self._client_keylog_file
+        )
+
     # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
     def _generate_random_file(self, size: int) -> str:
         filename = random_string(10)
@@ -142,14 +147,14 @@ class TestCase(abc.ABC):
 
     def _count_handshakes(self) -> int:
         """ Count the number of QUIC handshakes """
-        tr = self._client_trace()
+        tr = self._server_trace()
         # Determine the number of handshakes by looking at Initial packets.
         # This is easier, since the SCID of Initial packets doesn't changes.
         return len(set([p.scid for p in tr.get_initial(Direction.FROM_SERVER)]))
 
     def _get_versions(self) -> set:
         """ Get the QUIC versions """
-        tr = TraceAnalyzer(self._sim_log_dir.name + "/trace_node_left.pcap")
+        tr = self._server_trace()
         return set([p.version for p in tr.get_initial(Direction.FROM_SERVER)])
 
     def cleanup(self):
@@ -493,6 +498,36 @@ class TestCaseTransferLoss(TestCase):
         return self._check_version_and_files()
 
 
+class TestCaseHandshakeCorruption(TestCaseHandshakeLoss):
+    @staticmethod
+    def name():
+        return "handshakecorruption"
+
+    @staticmethod
+    def abbreviation():
+        return "C1"
+
+    @staticmethod
+    def scenario() -> str:
+        """ Scenario for the ns3 simulator """
+        return "corrupt-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=30 --rate_to_client=30"
+
+
+class TestCaseTransferCorruption(TestCaseTransferLoss):
+    @staticmethod
+    def name():
+        return "transfercorruption"
+
+    @staticmethod
+    def abbreviation():
+        return "C2"
+
+    @staticmethod
+    def scenario() -> str:
+        """ Scenario for the ns3 simulator """
+        return "corrupt-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=2 --rate_to_client=2"
+
+
 class MeasurementGoodput(Measurement):
     FILESIZE = 10 * MB
     _result = 0.0
@@ -587,6 +622,8 @@ TESTCASES = [
     TestCaseBlackhole,
     TestCaseHandshakeLoss,
     TestCaseTransferLoss,
+    TestCaseHandshakeCorruption,
+    TestCaseTransferCorruption,
 ]
 
 MEASUREMENTS = [
