@@ -167,7 +167,8 @@ class TestCase(abc.ABC):
                 else:
                     size += len(p.remaining_payload.split(":"))
             else:
-                size += len(p.protected_payload.split(":"))
+                if hasattr(p, "protected_payload"):
+                    size += len(p.protected_payload.split(":"))
         return size
 
     def cleanup(self):
