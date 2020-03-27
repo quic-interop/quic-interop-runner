@@ -449,7 +449,7 @@ class TestCaseZeroRTT(TestCase):
         logging.debug("0-RTT size: %d", zeroRTTSize)
         logging.debug("1-RTT size: %d", oneRTTSize)
         if oneRTTSize > 0.5 * self.FILENAMELEN * self.NUM_FILES:
-            logging.info("Client sent too much data in 0-RTT packets.")
+            logging.info("Client sent too much data in 1-RTT packets.")
             return False
         return True
 
