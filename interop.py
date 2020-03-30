@@ -249,6 +249,21 @@ class InteropRunner:
         json.dump(out, f)
         f.close()
 
+    def _copy_logs(self, container: str, dir: tempfile.TemporaryDirectory):
+        r = subprocess.run(
+            'docker cp "$(docker-compose --log-level ERROR ps -q '
+            + container
+            + ')":/logs/. '
+            + dir.name,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        if r.returncode != 0:
+            logging.info(
+                "Copying logs from %s failed: %s", container, r.stdout.decode("utf-8")
+            )
+
     def _run_testcase(
         self, server: str, client: str, test: Callable[[], testcases.TestCase]
     ) -> TestResult:
@@ -338,32 +353,9 @@ class InteropRunner:
             logging.debug("%s", r.stdout.decode("utf-8"))
 
         # copy the pcaps from the simulator
-        r = subprocess.run(
-            'docker cp "$(docker-compose --log-level ERROR ps -q sim)":/logs/. '
-            + sim_log_dir.name,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        )
-        r.check_returncode()
-        # copy logs from the client
-        r = subprocess.run(
-            'docker cp "$(docker-compose --log-level ERROR ps -q client)":/logs/. '
-            + client_log_dir.name,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        )
-        r.check_returncode()
-        # copy logs from the server
-        r = subprocess.run(
-            'docker cp "$(docker-compose --log-level ERROR ps -q server)":/logs/. '
-            + server_log_dir.name,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        )
-        r.check_returncode()
+        self._copy_logs("sim", sim_log_dir)
+        self._copy_logs("client", client_log_dir)
+        self._copy_logs("server", server_log_dir)
 
         if not expired:
             lines = output.splitlines()
