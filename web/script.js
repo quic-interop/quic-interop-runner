@@ -8,10 +8,11 @@
     ].join(":").replace(/\b(\d)\b/g, "0$1")
   }
 
-  function getLogLink(server, client, testcase, text) {
+  function getLogLink(log_dir, server, client, testcase, text) {
+    if(log_dir.length == 0) log_dir = "logs"; // backwards-compatibility mode
     var a = document.createElement("a");
     a.title = "Logs";
-    a.href = "logs/" + server + "_" + client + "/" + testcase;
+    a.href = log_dir + "/" + server + "_" + client + "/" + testcase;
     a.target = "_blank";
     a.appendChild(document.createTextNode(text));
     return a;
@@ -32,7 +33,7 @@
         var cell = row.insertCell(j+1);
         var appendResult = function(el, res) {
           result.results[index].forEach(function(item) {
-            if(item.result == res) el.appendChild(getLogLink(result.servers[j], result.clients[i], item.name, item.abbr))
+            if(item.result == res) el.appendChild(getLogLink(result.log_dir, result.servers[j], result.clients[i], item.name, item.abbr))
           });
           cell.appendChild(el);
         }
@@ -69,7 +70,7 @@
         for(var k = 0; k < res.length; k++) {
           var measurement = res[k];
           var el = document.createElement("div");
-          var link = getLogLink(result.servers[j], result.clients[i], measurement.name, measurement.abbr);
+          var link = getLogLink(result.log_dir, result.servers[j], result.clients[i], measurement.name, measurement.abbr);
           switch(measurement.result) {
             case "succeeded":
               el.className = "text-success";

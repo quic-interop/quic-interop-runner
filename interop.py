@@ -7,6 +7,7 @@ import shutil
 import statistics
 import string
 import subprocess
+import sys
 import tempfile
 from datetime import datetime
 from enum import Enum
@@ -53,6 +54,7 @@ class InteropRunner:
     _tests = []
     _measurements = []
     _output = ""
+    _log_dir = "logs"
 
     def __init__(
         self,
@@ -70,6 +72,10 @@ class InteropRunner:
         self._clients = clients
         self._implementations = implementations
         self._output = output
+        self._log_dir = "logs_{:%Y-%m-%dT%H:%M:%S}".format(self._start_time)
+        if os.path.exists(self._log_dir):
+            sys.exit("Log dir " + self._log_dir + " already exists.")
+        logging.debug("Saving logs to %s.", self._log_dir)
         for server in servers:
             self.test_results[server] = {}
             self.measurement_results[server] = {}
@@ -211,6 +217,7 @@ class InteropRunner:
         out = {
             "start_time": self._start_time.timestamp(),
             "end_time": datetime.now().timestamp(),
+            "log_dir": self._log_dir,
             "servers": [name for name in self._servers],
             "clients": [name for name in self._clients],
             "results": [],
@@ -369,7 +376,7 @@ class InteropRunner:
         logging.getLogger().removeHandler(log_handler)
         log_handler.close()
         if status == TestResult.FAILED or status == TestResult.SUCCEEDED:
-            log_dir = "logs/" + server + "_" + client + "/" + str(testcase)
+            log_dir = self._log_dir + "/" + server + "_" + client + "/" + str(testcase)
             if log_dir_prefix:
                 log_dir += "/" + log_dir_prefix
             shutil.copytree(server_log_dir.name, log_dir + "/server")
@@ -420,10 +427,6 @@ class InteropRunner:
 
     def run(self):
         """run the interop test suite and output the table"""
-
-        # clear the logs directory
-        if os.path.exists("logs/"):
-            shutil.rmtree("logs/")
 
         for server in self._servers:
             for client in self._clients:

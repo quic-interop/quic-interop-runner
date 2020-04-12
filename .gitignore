@@ -1,4 +1,5 @@
 logs/
+logs_*/
 *.json
 
 *.egg-info/
