@@ -105,7 +105,7 @@
 
   var xhr = new XMLHttpRequest();
   xhr.responseType = 'json';
-  xhr.open('GET', 'result.json');
+  xhr.open('GET', 'latest/result.json');
 
   xhr.onreadystatechange = function() {
     if(xhr.readyState !== XMLHttpRequest.DONE) {

@@ -1,6 +1,7 @@
 logs/
 logs_*/
 *.json
+web/latest
 
 *.egg-info/
 __pycache__

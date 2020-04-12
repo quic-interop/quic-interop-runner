@@ -64,6 +64,7 @@ class InteropRunner:
         tests: List[testcases.TestCase],
         measurements: List[testcases.Measurement],
         output: str,
+        log_dir="",
     ):
         self._start_time = datetime.now()
         self._tests = tests
@@ -72,7 +73,9 @@ class InteropRunner:
         self._clients = clients
         self._implementations = implementations
         self._output = output
-        self._log_dir = "logs_{:%Y-%m-%dT%H:%M:%S}".format(self._start_time)
+        self._log_dir = log_dir
+        if len(self._log_dir) == 0:
+            self._log_dir = "logs_{:%Y-%m-%dT%H:%M:%S}".format(self._start_time)
         if os.path.exists(self._log_dir):
             sys.exit("Log dir " + self._log_dir + " already exists.")
         logging.debug("Saving logs to %s.", self._log_dir)
