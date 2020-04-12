@@ -95,7 +95,7 @@
   function process(result) {
     var startTime = new Date(1000*result.start_time);
     var endTime = new Date(1000*result.end_time);
-    document.getElementById("lastrun").innerHTML = startTime.toLocaleDateString("en-US") + " " + startTime.toLocaleTimeString("en-US");
+    document.getElementById("lastrun").innerHTML = startTime.toLocaleDateString("en-US",  { timeZone: 'UTC' }) + " " + startTime.toLocaleTimeString("en-US", { timeZone: 'UTC', timeZoneName: 'short' });
     document.getElementById("duration").innerHTML = formatTime(result.end_time - result.start_time);
 
     fillInteropTable(result)
