@@ -20,6 +20,7 @@
 
   function fillInteropTable(result) {
     var t = document.getElementById("interop");
+    t.innerHTML = "";
     var row = t.insertRow(0);
     row.insertCell(0);
     for(var i = 0; i < result.servers.length; i++) {
@@ -54,6 +55,7 @@
 
   function fillMeasurementTable(result) {
     var t = document.getElementById("measurements");
+    t.innerHTML = "";
     var row = t.insertRow(0);
     row.insertCell(0);
     for(var i = 0; i < result.servers.length; i++) {
@@ -103,10 +105,30 @@
     fillMeasurementTable(result)
   }
 
+  function load(dir) {
+    var xhr = new XMLHttpRequest();
+    xhr.responseType = 'json';
+    xhr.open('GET', dir + '/result.json');
+    xhr.onreadystatechange = function() {
+      if(xhr.readyState !== XMLHttpRequest.DONE) {
+        return;
+      }
+      if(xhr.status != 200) {
+        console.log("Received status");
+        console.log(xhr.status);
+        return;
+      }
+      process(xhr.response);
+    };
+    xhr.send();
+  }
+
+  load("latest");
+
+  // enable loading of old runs
   var xhr = new XMLHttpRequest();
   xhr.responseType = 'json';
-  xhr.open('GET', 'latest/result.json');
-
+  xhr.open('GET', 'logs.json');
   xhr.onreadystatechange = function() {
     if(xhr.readyState !== XMLHttpRequest.DONE) {
       return;
@@ -116,7 +138,17 @@
       console.log(xhr.status);
       return;
     }
-    process(xhr.response);
+    var s = document.createElement("select");
+    xhr.response.reverse().forEach(function(el) {
+      var opt = document.createElement("option");
+      opt.innerHTML = el.substr(5);
+      opt.value = el;
+      s.appendChild(opt);
+    })
+    s.addEventListener("change", function(ev) {
+      load(ev.currentTarget.value);
+    })
+    document.getElementById("available-runs").appendChild(s);
   };
   xhr.send();
 })();

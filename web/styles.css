@@ -9,6 +9,11 @@
   text-align: right;
 }
 
+#available-runs {
+  margin-left: 5px;
+  display: inline-block;
+}
+
 table.resulttable td {
   vertical-align: middle;
 }

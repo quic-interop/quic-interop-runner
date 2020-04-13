@@ -39,7 +39,7 @@ InteropRunner(
 ).run()
 
 web_dir = "web/"  # directory of the index.html of the interop runner website
-logs_file = web_dir + "logs.txt"
+logs_file = web_dir + "logs.json"
 try:
     with open(logs_file, "r") as f:
         lines = json.load(f)
