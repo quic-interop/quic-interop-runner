@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
 import sys
 from typing import List, Tuple
 
@@ -51,15 +50,6 @@ def main():
         )
         return parser.parse_args()
 
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    console = logging.StreamHandler(stream=sys.stderr)
-    if get_args().debug:
-        console.setLevel(logging.DEBUG)
-    else:
-        console.setLevel(logging.INFO)
-    logger.addHandler(console)
-
     replace_arg = get_args().replace
     if replace_arg:
         for s in replace_arg.split(","):
@@ -107,6 +97,7 @@ def main():
         tests=t[0],
         measurements=t[1],
         output=get_args().json,
+        debug=get_args().debug,
     ).run()
 
 

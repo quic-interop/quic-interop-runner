@@ -54,7 +54,7 @@ class InteropRunner:
     _tests = []
     _measurements = []
     _output = ""
-    _log_dir = "logs"
+    _log_dir = ""
 
     def __init__(
         self,
@@ -64,8 +64,17 @@ class InteropRunner:
         tests: List[testcases.TestCase],
         measurements: List[testcases.Measurement],
         output: str,
+        debug: bool,
         log_dir="",
     ):
+        logger = logging.getLogger()
+        logger.setLevel(logging.DEBUG)
+        console = logging.StreamHandler(stream=sys.stderr)
+        if debug:
+            console.setLevel(logging.DEBUG)
+        else:
+            console.setLevel(logging.INFO)
+        logger.addHandler(console)
         self._start_time = datetime.now()
         self._tests = tests
         self._measurements = measurements
@@ -78,7 +87,7 @@ class InteropRunner:
             self._log_dir = "logs_{:%Y-%m-%dT%H:%M:%S}".format(self._start_time)
         if os.path.exists(self._log_dir):
             sys.exit("Log dir " + self._log_dir + " already exists.")
-        logging.debug("Saving logs to %s.", self._log_dir)
+        logging.info("Saving logs to %s.", self._log_dir)
         for server in servers:
             self.test_results[server] = {}
             self.measurement_results[server] = {}

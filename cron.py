@@ -35,6 +35,7 @@ InteropRunner(
     tests=TESTCASES,
     measurements=MEASUREMENTS,
     output=log_dir + "/result.json",
+    debug=False,
     log_dir=log_dir,
 ).run()
 
