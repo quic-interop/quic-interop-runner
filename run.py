@@ -90,7 +90,7 @@ def main():
         return tests, measurements
 
     t = get_tests_and_measurements(get_args().test)
-    InteropRunner(
+    return InteropRunner(
         implementations=implementations,
         servers=get_impls(get_args().server, server_implementations, "Server"),
         clients=get_impls(get_args().client, client_implementations, "Client"),
@@ -102,4 +102,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
