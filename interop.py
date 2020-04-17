@@ -440,6 +440,7 @@ class InteropRunner:
     def run(self):
         """run the interop test suite and output the table"""
 
+        nr_failed = 0
         for server in self._servers:
             for client in self._clients:
                 logging.info(
@@ -460,6 +461,8 @@ class InteropRunner:
                 for testcase in self._tests:
                     status = self._run_testcase(server, client, testcase)
                     self.test_results[server][client][testcase] = status
+                    if status == TestResult.FAILED:
+                        nr_failed += 1
 
                 # run the measurements
                 for measurement in self._measurements:
@@ -468,3 +471,4 @@ class InteropRunner:
 
         self._print_results()
         self._export_results()
+        return nr_failed
