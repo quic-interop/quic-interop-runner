@@ -17,6 +17,7 @@ import prettytable
 from termcolor import colored
 
 import testcases
+from testcases import Perspective
 
 
 def random_string(length: int):
@@ -323,7 +324,8 @@ class InteropRunner:
         reqs = " ".join(["https://server:443/" + p for p in testcase.get_paths()])
         logging.debug("Requests: %s", reqs)
         params = (
-            "TESTCASE=" + testcase.testname() + " "
+            "TESTCASE_SERVER=" + testcase.testname(Perspective.SERVER) + " "
+            "TESTCASE_CLIENT=" + testcase.testname(Perspective.CLIENT) + " "
             "WWW=" + testcase.www_dir() + " "
             "DOWNLOADS=" + testcase.download_dir() + " "
             "SERVER_LOGS=" + server_log_dir.name + " "
