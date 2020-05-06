@@ -6,6 +6,7 @@ import random
 import string
 import tempfile
 from datetime import timedelta
+from enum import Enum
 from trace import Direction, TraceAnalyzer
 from typing import List
 
@@ -15,6 +16,11 @@ KB = 1 << 10
 MB = 1 << 20
 
 QUIC_VERSION = "0xff00001b"  # draft-27
+
+
+class Perspective(Enum):
+    SERVER = "server"
+    CLIENT = "client"
 
 
 def random_string(length: int):
@@ -43,7 +49,7 @@ class TestCase(abc.ABC):
     def __str__(self):
         return self.name()
 
-    def testname(self):
+    def testname(self, p: Perspective):
         """ The name of testcase presented to the endpoint Docker images"""
         return self.name()
 
@@ -285,13 +291,53 @@ class TestCaseTransfer(TestCase):
         return self._check_version_and_files()
 
 
+class TestCaseChaCha20(TestCase):
+    @staticmethod
+    def name():
+        return "chacha20"
+
+    @staticmethod
+    def testname(p: Perspective):
+        if p is Perspective.CLIENT:
+            return "chacha20"
+        return "transfer"
+
+    @staticmethod
+    def abbreviation():
+        return "C20"
+
+    def get_paths(self):
+        self._files = [
+            self._generate_random_file(2 * KB),
+            # self._generate_random_file(3 * MB),
+        ]
+        return self._files
+
+    def check(self):
+        num_handshakes = self._count_handshakes()
+        if num_handshakes != 1:
+            logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+            return False
+        ciphersuites = []
+        for p in self._client_trace().get_initial(Direction.FROM_CLIENT):
+            if hasattr(p, "tls_handshake_ciphersuite"):
+                ciphersuites.append(p.tls_handshake_ciphersuite)
+        for c in ciphersuites:
+            if c != "4867":
+                logging.info(
+                    "Expected only ChaCha20 cipher suite to be offered. Got: %d", c
+                )
+                return False
+        return self._check_version_and_files()
+
+
 class TestCaseMultiplexing(TestCase):
     @staticmethod
     def name():
         return "multiplexing"
 
     @staticmethod
-    def testname():
+    def testname(p: Perspective):
         return "transfer"
 
     @staticmethod
@@ -485,7 +531,7 @@ class TestCaseBlackhole(TestCase):
         return "blackhole"
 
     @staticmethod
-    def testname():
+    def testname(p: Perspective):
         return "transfer"
 
     @staticmethod
@@ -517,7 +563,7 @@ class TestCaseHandshakeLoss(TestCase):
         return "handshakeloss"
 
     @staticmethod
-    def testname():
+    def testname(p: Perspective):
         return "multiconnect"
 
     @staticmethod
@@ -554,7 +600,7 @@ class TestCaseTransferLoss(TestCase):
         return "transferloss"
 
     @staticmethod
-    def testname():
+    def testname(p: Perspective):
         return "transfer"
 
     @staticmethod
@@ -622,7 +668,7 @@ class MeasurementGoodput(Measurement):
         return "kbps"
 
     @staticmethod
-    def testname():
+    def testname(p: Perspective):
         return "transfer"
 
     @staticmethod
@@ -696,6 +742,7 @@ class MeasurementCrossTraffic(MeasurementGoodput):
 TESTCASES = [
     TestCaseHandshake,
     TestCaseTransfer,
+    TestCaseChaCha20,
     TestCaseMultiplexing,
     TestCaseRetry,
     TestCaseResumption,
