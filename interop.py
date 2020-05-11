@@ -241,12 +241,11 @@ class InteropRunner:
             for server in self._servers:
                 results = []
                 for test in self._tests:
+                    r = None
+                    if hasattr(self.test_results[server][client][test], "value"):
+                        r = self.test_results[server][client][test].value
                     results.append(
-                        {
-                            "abbr": test.abbreviation(),
-                            "name": test.name(),
-                            "result": self.test_results[server][client][test].value,
-                        }
+                        {"abbr": test.abbreviation(), "name": test.name(), "result": r}
                     )
                 out["results"].append(results)
 
