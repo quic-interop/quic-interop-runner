@@ -101,8 +101,8 @@ class InteropRunner:
                     self.measurement_results[server][client][measurement] = {}
 
     def _is_unsupported(self, lines: List[str]) -> bool:
-        return any("exited with code 127" in str(l) for l in lines) or any(
-            "exit status 127" in str(l) for l in lines
+        return any("exited with code 127" in str(line) for line in lines) or any(
+            "exit status 127" in str(line) for line in lines
         )
 
     def _check_impl_is_compliant(self, name: str) -> bool:
@@ -381,7 +381,7 @@ class InteropRunner:
             lines = output.splitlines()
             if self._is_unsupported(lines):
                 status = TestResult.UNSUPPORTED
-            elif any("client exited with code 0" in str(l) for l in lines):
+            elif any("client exited with code 0" in str(line) for line in lines):
                 if testcase.check():
                     status = TestResult.SUCCEEDED
 
