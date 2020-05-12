@@ -122,7 +122,7 @@ class InteropRunner:
         # check that the client is capable of returning UNSUPPORTED
         logging.debug("Checking compliance of %s client", name)
         cmd = (
-            "TESTCASE=" + random_string(6) + " "
+            "TESTCASE_CLIENT=" + random_string(6) + " "
             "SERVER_LOGS=/dev/null "
             "CLIENT_LOGS=" + client_log_dir.name + " "
             "WWW=" + www_dir.name + " "
@@ -145,7 +145,7 @@ class InteropRunner:
         logging.debug("Checking compliance of %s server", name)
         server_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_server_")
         cmd = (
-            "TESTCASE=" + random_string(6) + " "
+            "TESTCASE_SERVER=" + random_string(6) + " "
             "SERVER_LOGS=" + server_log_dir.name + " "
             "CLIENT_LOGS=/dev/null "
             "WWW=" + www_dir.name + " "
