@@ -307,10 +307,7 @@ class TestCaseChaCha20(TestCase):
         return "C20"
 
     def get_paths(self):
-        self._files = [
-            self._generate_random_file(2 * KB),
-            # self._generate_random_file(3 * MB),
-        ]
+        self._files = [self._generate_random_file(3 * MB)]
         return self._files
 
     def check(self):
@@ -322,12 +319,12 @@ class TestCaseChaCha20(TestCase):
         for p in self._client_trace().get_initial(Direction.FROM_CLIENT):
             if hasattr(p, "tls_handshake_ciphersuite"):
                 ciphersuites.append(p.tls_handshake_ciphersuite)
-        for c in ciphersuites:
-            if c != "4867":
-                logging.info(
-                    "Expected only ChaCha20 cipher suite to be offered. Got: %d", c
-                )
-                return False
+        if len(ciphersuites) != 1 or ciphersuites[0] != "4867":
+            logging.info(
+                "Expected only ChaCha20 cipher suite to be offered. Got: %s",
+                ciphersuites,
+            )
+            return False
         return self._check_version_and_files()
 
 
