@@ -307,10 +307,7 @@ class TestCaseChaCha20(TestCase):
         return "C20"
 
     def get_paths(self):
-        self._files = [
-            self._generate_random_file(2 * KB),
-            # self._generate_random_file(3 * MB),
-        ]
+        self._files = [self._generate_random_file(3 * MB)]
         return self._files
 
     def check(self):
