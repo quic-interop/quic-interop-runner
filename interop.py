@@ -139,7 +139,7 @@ class InteropRunner:
             logging.debug("%s", output.stdout.decode("utf-8"))
             self.compliant[name] = False
             return False
-        logging.info("%s client compliant.", name)
+        logging.debug("%s client compliant.", name)
 
         # check that the server is capable of returning UNSUPPORTED
         logging.debug("Checking compliance of %s server", name)
@@ -161,7 +161,7 @@ class InteropRunner:
             logging.debug("%s", output.stdout.decode("utf-8"))
             self.compliant[name] = False
             return False
-        logging.info("%s server compliant.", name)
+        logging.debug("%s server compliant.", name)
 
         # remember compliance test outcome
         self.compliant[name] = True
@@ -444,7 +444,7 @@ class InteropRunner:
         nr_failed = 0
         for server in self._servers:
             for client in self._clients:
-                logging.info(
+                logging.debug(
                     "Running with server %s (%s) and client %s (%s)",
                     server,
                     self._implementations[server],
