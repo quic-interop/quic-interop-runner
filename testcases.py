@@ -15,7 +15,7 @@ from Crypto.Cipher import AES
 KB = 1 << 10
 MB = 1 << 20
 
-QUIC_VERSION = "0xff00001b"  # draft-27
+QUIC_VERSION = "0xff00001c"  # draft-28
 
 
 class Perspective(Enum):
