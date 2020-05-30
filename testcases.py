@@ -491,6 +491,9 @@ class TestCaseZeroRTT(TestCase):
         oneRTTSize = self._payload_size(tr.get_1rtt(Direction.FROM_CLIENT))
         logging.debug("0-RTT size: %d", zeroRTTSize)
         logging.debug("1-RTT size: %d", oneRTTSize)
+        if zeroRTTSize == 0:
+            logging.info("Client didn't send any 0-RTT data.")
+            return False
         if oneRTTSize > 0.5 * self.FILENAMELEN * self.NUM_FILES:
             logging.info("Client sent too much data in 1-RTT packets.")
             return False
