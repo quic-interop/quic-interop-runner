@@ -43,7 +43,7 @@
         succeeded.className = "text-success";
         appendResult(succeeded, "succeeded");
         var unsupported = document.createElement("div");
-        unsupported.className = "text-warning";
+        unsupported.className = "text-secondary";
         appendResult(unsupported, "unsupported");
         var failed = document.createElement("div");
         failed.className = "text-danger";
@@ -80,7 +80,7 @@
               el.innerHTML += ": " + measurement.details;
               break;
             case "unsupported":
-              el.className = "text-warning";
+              el.className = "text-secondary";
               el.appendChild(link);
               break;
             case "failed":
