@@ -6,6 +6,7 @@ import logging
 import os
 import os.path
 import shutil
+import subprocess
 import sys
 from datetime import datetime
 
@@ -51,15 +52,25 @@ except FileNotFoundError:
 while len(lines) >= numlogs:
     d = web_dir + lines[0]
     logging.info("Deleting %s.", d)
-    shutil.rmtree(d)
+    subprocess.run("umount " + d, shell=True)
+    os.remove(d + ".sqsh")
+    os.rmdir(d)
     lines = lines[1:]
 
 with open(logs_file, "w") as f:
     lines.append(log_dir)
     json.dump(lines, f)
 
-# move log dir to the web folder
-shutil.move(log_dir, web_dir + "/")
+# create a squashfs image
+web_log_dir = web_dir + log_dir
+subprocess.run(
+    '/usr/bin/mksquashfs "{}" "{}.sqsh"'.format(log_dir, web_log_dir), shell=True
+)
+subprocess.run(
+    "mkdir {} && mount {}.sqsh {}".format(web_log_dir, web_log_dir, web_log_dir),
+    shell=True,
+)
+shutil.rmtree(log_dir)
 # adjust web/latest to point to the latest run
 latest_symlink = web_dir + "latest"
 try:
