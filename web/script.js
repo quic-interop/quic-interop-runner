@@ -18,6 +18,12 @@
     return a;
   }
 
+  function getUnsupported(text) {
+    var a = document.createElement("a");
+    a.appendChild(document.createTextNode(text));
+    return a;
+  }
+
   function fillInteropTable(result) {
     var t = document.getElementById("interop");
     t.innerHTML = "";
@@ -34,7 +40,12 @@
         var cell = row.insertCell(j+1);
         var appendResult = function(el, res) {
           result.results[index].forEach(function(item) {
-            if(item.result == res) el.appendChild(getLogLink(result.log_dir, result.servers[j], result.clients[i], item.name, item.abbr))
+            if(item.result != res) return;
+            if(res == "unsupported") {
+              el.appendChild(getUnsupported(item.abbr));
+            } else {
+              el.appendChild(getLogLink(result.log_dir, result.servers[j], result.clients[i], item.name, item.abbr))
+            }
           });
           cell.appendChild(el);
         }
@@ -81,7 +92,7 @@
               break;
             case "unsupported":
               el.className = "text-secondary";
-              el.appendChild(link);
+              el.appendChild(getUnsupported(measurement.abbr));
               break;
             case "failed":
               el.className = "text-danger";
