@@ -462,7 +462,7 @@ class TestCaseResumption(TestCase):
 class TestCaseZeroRTT(TestCase):
     NUM_FILES = 40
     FILESIZE = 32  # in bytes
-    FILENAMELEN = 255
+    FILENAMELEN = 250
 
     @staticmethod
     def name():
