@@ -266,6 +266,38 @@ class TestCaseHandshake(TestCase):
         return True
 
 
+class TestCaseLongRTT(TestCaseHandshake):
+    @staticmethod
+    def abbreviation():
+        return "LR"
+
+    @staticmethod
+    def name():
+        return "longrtt"
+
+    @staticmethod
+    def testname(p: Perspective):
+        return "handshake"
+
+    @staticmethod
+    def scenario() -> str:
+        """ Scenario for the ns3 simulator """
+        return "simple-p2p --delay=750ms --bandwidth=10Mbps --queue=25"
+
+    def check(self):
+        if not super(TestCaseLongRTT, self).check():
+            return False
+        num_ch = 0
+        for p in self._client_trace().get_initial(Direction.FROM_CLIENT):
+            if hasattr(p, "tls_handshake_type"):
+                if p.tls_handshake_type == "1":
+                    num_ch += 1
+        if num_ch < 2:
+            logging.info("Expected at least 2 ClientHellos. Got: %d", num_ch)
+            return False
+        return True
+
+
 class TestCaseTransfer(TestCase):
     @staticmethod
     def name():
@@ -742,6 +774,7 @@ class MeasurementCrossTraffic(MeasurementGoodput):
 TESTCASES = [
     TestCaseHandshake,
     TestCaseTransfer,
+    TestCaseLongRTT,
     TestCaseChaCha20,
     TestCaseMultiplexing,
     TestCaseRetry,
