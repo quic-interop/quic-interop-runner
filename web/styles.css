@@ -17,6 +17,7 @@
 table.resulttable td {
   vertical-align: middle;
   font-size: 0.8rem;
+  padding: 0.6rem;
 }
 
 table.resulttable tr:first-child td,
@@ -30,7 +31,6 @@ table.resulttable .results div {
 
 table.resulttable .results a {
   color: inherit;
-  padding: 0.6rem;
 }
 
 table#interop .results a {
