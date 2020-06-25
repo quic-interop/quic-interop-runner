@@ -32,13 +32,22 @@ def random_string(length: int):
 class TestCase(abc.ABC):
     _files = []
     _www_dir = None
+    _keylog_file = None
     _download_dir = None
     _sim_log_dir = None
 
     def __init__(
-        self, sim_log_dir: tempfile.TemporaryDirectory, client_keylog_file: str
+        self,
+        sim_log_dir: tempfile.TemporaryDirectory,
+        client_keylog_file: str,
+        server_keylog_file: str,
     ):
-        self._client_keylog_file = client_keylog_file
+        if os.path.isfile(client_keylog_file):
+            logging.debug("Using the client's key log file.")
+            self._keylog_file = client_keylog_file
+        elif os.path.isfile(server_keylog_file):
+            logging.debug("Using the server's key log file.")
+            self._keylog_file = server_keylog_file
         self._files = []
         self._sim_log_dir = sim_log_dir
 
@@ -85,12 +94,12 @@ class TestCase(abc.ABC):
 
     def _client_trace(self):
         return TraceAnalyzer(
-            self._sim_log_dir.name + "/trace_node_left.pcap", self._client_keylog_file
+            self._sim_log_dir.name + "/trace_node_left.pcap", self._keylog_file
         )
 
     def _server_trace(self):
         return TraceAnalyzer(
-            self._sim_log_dir.name + "/trace_node_right.pcap", self._client_keylog_file
+            self._sim_log_dir.name + "/trace_node_right.pcap", self._keylog_file
         )
 
     # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
