@@ -310,6 +310,7 @@ class InteropRunner:
         testcase = test(
             sim_log_dir=sim_log_dir,
             client_keylog_file=client_log_dir.name + "/keys.log",
+            server_keylog_file=server_log_dir.name + "/keys.log",
         )
         print(
             "Server: "

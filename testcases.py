@@ -32,13 +32,22 @@ def random_string(length: int):
 class TestCase(abc.ABC):
     _files = []
     _www_dir = None
+    _keylog_file = None
     _download_dir = None
     _sim_log_dir = None
 
     def __init__(
-        self, sim_log_dir: tempfile.TemporaryDirectory, client_keylog_file: str
+        self,
+        sim_log_dir: tempfile.TemporaryDirectory,
+        client_keylog_file: str,
+        server_keylog_file: str,
     ):
-        self._client_keylog_file = client_keylog_file
+        if os.path.isfile(client_keylog_file):
+            logging.debug("Using the client's key log file.")
+            self._keylog_file = client_keylog_file
+        elif os.path.isfile(server_keylog_file):
+            logging.debug("Using the server's key log file.")
+            self._keylog_file = server_keylog_file
         self._files = []
         self._sim_log_dir = sim_log_dir
 
@@ -85,12 +94,12 @@ class TestCase(abc.ABC):
 
     def _client_trace(self):
         return TraceAnalyzer(
-            self._sim_log_dir.name + "/trace_node_left.pcap", self._client_keylog_file
+            self._sim_log_dir.name + "/trace_node_left.pcap", self._keylog_file
         )
 
     def _server_trace(self):
         return TraceAnalyzer(
-            self._sim_log_dir.name + "/trace_node_right.pcap", self._client_keylog_file
+            self._sim_log_dir.name + "/trace_node_right.pcap", self._keylog_file
         )
 
     # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
@@ -383,7 +392,25 @@ class TestCaseMultiplexing(TestCase):
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
             return False
-        return self._check_version_and_files()
+        if not self._check_version_and_files():
+            return False
+        # Check that the server set a bidirectional stream limit <= 1000
+        checked_stream_limit = False
+        for p in self._client_trace().get_handshake(Direction.FROM_SERVER):
+            if hasattr(p, "tls.quic.parameter.initial_max_streams_bidi"):
+                checked_stream_limit = True
+                stream_limit = int(
+                    getattr(p, "tls.quic.parameter.initial_max_streams_bidi")
+                )
+                logging.debug("Server set bidirectional stream limit: %d", stream_limit)
+                if stream_limit > 1000:
+                    logging.info("Server set a stream limit > 1000.")
+                    return False
+        if not checked_stream_limit:
+            logging.debug(
+                "WARNING: Couldn't check stream limit. No SSLKEYLOG file available?"
+            )
+        return True
 
 
 class TestCaseRetry(TestCase):
