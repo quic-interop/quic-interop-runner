@@ -9,7 +9,7 @@ IMPLEMENTATIONS = {  # name => [ docker image, role ]; role: 0 == 'client', 1 ==
     "kwik": {"url": "peterdoornbosch/kwik_n_flupke-interop", "role": 0},
     "picoquic": {"url": "privateoctopus/picoquic:latest", "role": 2},
     "aioquic": {"url": "aiortc/aioquic-qns:latest", "role": 2},
-    "neqo": {"url": "neqoquic/neqo-qns:latest", "role": 0},
+    "neqo": {"url": "neqoquic/neqo-qns:latest", "role": 2},
     "nginx": {"url": "fiestajetsam/nginx-quic-qns", "role": 1},
     "msquic": {"url": "mcr.microsoft.com/msquic/qns:latest", "role": 1},
 }
