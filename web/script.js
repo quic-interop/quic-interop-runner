@@ -24,13 +24,75 @@
     return a;
   }
 
+  function getServerLink(result, server_name, server_idx) {
+    var a = document.createElement("a");
+    a.title = server_name;
+    a.onclick = function(){ fillFeaturesTable(result, server_idx); return false; };
+    a.href = "/";
+    a.target = "_blank";
+    a.appendChild(document.createTextNode(server_name));
+    return a;
+  }
+
+  function appendFeatureResult(el, res, j, i, result, item, cell) {
+    if(item.result != res) return;
+    if(res == "unsupported") {
+      el.appendChild(getUnsupported(res));
+    } else {
+      el.appendChild(getLogLink(result.log_dir, result.servers[j], result.clients[i], item.name, item.result))
+    }
+    cell.appendChild(el);
+  }
+
+  function fillFeaturesTable(result, srv_idx) {
+    var t = document.getElementById("interop_per_server");
+    t.innerHTML = "";
+    var row = t.insertRow(0);
+    row.insertCell(0).innerHTML="server: " + result.servers[srv_idx];
+    for(var i = 0; i < result.clients.length; i++) {
+        row.insertCell(i+1).innerHTML = result.clients[i];
+    }
+
+    var my_res = result.results[srv_idx];
+
+    for (k = 0; k < my_res.length; ++k) {
+      var item = my_res[k];
+      var row = t.insertRow(k + 1);
+      row.insertCell(0).innerHTML = item.name;
+
+      var j = 0;
+      for (var i = srv_idx; i < result.results.length; i += result.servers.length) {
+
+        var cell = row.insertCell(j + 1);
+
+        cell.className = "results";
+
+        var feature_res = result.results[i][k];
+
+        var succeeded = document.createElement("div");
+        succeeded.className = "text-success";
+        appendFeatureResult(succeeded, "succeeded", srv_idx, j, result, feature_res, cell);
+
+        var unsupported = document.createElement("div");
+        unsupported.className = "text-secondary";
+        appendFeatureResult(unsupported, "unsupported", srv_idx, j, result, feature_res, cell);
+
+        var failed = document.createElement("div");
+        failed.className = "text-danger";
+        appendFeatureResult(failed, "failed", srv_idx, j, result, feature_res, cell);
+
+        j = j + 1;
+      }
+    }
+  }
+
   function fillInteropTable(result) {
     var t = document.getElementById("interop");
     t.innerHTML = "";
     var row = t.insertRow(0);
     row.insertCell(0);
     for(var i = 0; i < result.servers.length; i++) {
-      row.insertCell(i+1).innerHTML = result.servers[i];
+      row.insertCell(i+1).appendChild(getServerLink(result, result.servers[i], i));
     }
     var index = 0;
     for(var i = 0; i < result.clients.length; i++) {
