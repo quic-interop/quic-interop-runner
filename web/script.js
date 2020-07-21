@@ -106,11 +106,19 @@
     }
   }
 
+  function dateToString(date) {
+    return date.toLocaleDateString("en-US",  { timeZone: 'UTC' }) + " " + date.toLocaleTimeString("en-US", { timeZone: 'UTC', timeZoneName: 'short' });
+  }
+
   function process(result) {
     var startTime = new Date(1000*result.start_time);
     var endTime = new Date(1000*result.end_time);
-    document.getElementById("lastrun").innerHTML = startTime.toLocaleDateString("en-US",  { timeZone: 'UTC' }) + " " + startTime.toLocaleTimeString("en-US", { timeZone: 'UTC', timeZoneName: 'short' });
-    document.getElementById("duration").innerHTML = formatTime(result.end_time - result.start_time);
+    var duration = result.end_time - result.start_time;
+    var estNextEndTime = new Date(1000*(result.end_time + duration));
+    document.getElementById("lastrun-start").innerHTML = dateToString(startTime);
+    document.getElementById("lastrun-end").innerHTML = dateToString(endTime);
+    document.getElementById("duration").innerHTML = formatTime(duration);
+    document.getElementById("est-next-end").innerHTML = dateToString(estNextEndTime);
 
     fillInteropTable(result)
     fillMeasurementTable(result)
