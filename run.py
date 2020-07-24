@@ -39,7 +39,12 @@ def main():
         parser.add_argument(
             "-c", "--client", help="client implementations (comma-separated)"
         )
-        parser.add_argument("-t", "--test", help="test cases (comma-separatated)")
+        parser.add_argument(
+            "-t",
+            "--test",
+            help="test cases (comma-separatated). Valid test cases are: "
+            + ", ".join([x.name() for x in TESTCASES + MEASUREMENTS]),
+        )
         parser.add_argument(
             "-r",
             "--replace",
