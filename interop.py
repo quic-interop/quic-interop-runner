@@ -186,7 +186,7 @@ class InteropRunner:
                 for server in self._servers:
                     cell = self.test_results[server][client]
                     res = colored(get_letters(TestResult.SUCCEEDED), "green") + "\n"
-                    res += colored(get_letters(TestResult.UNSUPPORTED), "yellow") + "\n"
+                    res += colored(get_letters(TestResult.UNSUPPORTED), "grey") + "\n"
                     res += colored(get_letters(TestResult.FAILED), "red")
                     row += [res]
                 t.add_row(row)
@@ -214,9 +214,7 @@ class InteropRunner:
                                 )
                             )
                         elif res.result == TestResult.UNSUPPORTED:
-                            results.append(
-                                colored(measurement.abbreviation(), "yellow")
-                            )
+                            results.append(colored(measurement.abbreviation(), "grey"))
                         elif res.result == TestResult.FAILED:
                             results.append(colored(measurement.abbreviation(), "red"))
                     row += ["\n".join(results)]
