@@ -444,10 +444,17 @@ class TestCaseRetry(TestCase):
             return False
 
         # check that an Initial packet uses a token sent in the Retry packet(s)
-        initials = tr.get_initial(Direction.FROM_CLIENT)
-        for p in initials:
+        highest_pn_before_retry = -1
+        for p in tr.get_initial(Direction.FROM_CLIENT):
+            pn = int(p.packet_number)
             if p.token_length == "0":
+                highest_pn_before_retry = max(highest_pn_before_retry, pn)
                 continue
+            if pn <= highest_pn_before_retry:
+                logging.debug(
+                    "Client didn't reset the packet number. Check failed for %d", pn
+                )
+                return False
             token = p.token.replace(":", "")
             if token in tokens:
                 logging.debug("Check of Retry succeeded. Token used: %s", token)
