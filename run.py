@@ -46,6 +46,9 @@ def main():
             help="replace path of implementation. Example: -r myquicimpl=dockertagname",
         )
         parser.add_argument(
+            "-l", "--log-dir", help="log directory", default="",
+        )
+        parser.add_argument(
             "-j", "--json", help="output the matrix to file in json format"
         )
         return parser.parse_args()
@@ -98,6 +101,7 @@ def main():
         measurements=t[1],
         output=get_args().json,
         debug=get_args().debug,
+        log_dir=get_args().log_dir,
     ).run()
 
 
