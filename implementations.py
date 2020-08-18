@@ -12,4 +12,5 @@ IMPLEMENTATIONS = {  # name => [ docker image, role ]; role: 0 == 'client', 1 ==
     "neqo": {"url": "neqoquic/neqo-qns:latest", "role": 2},
     "nginx": {"url": "nginx/nginx-quic-qns:latest", "role": 1},
     "msquic": {"url": "mcr.microsoft.com/msquic/qns:latest", "role": 1},
+    "pquic": {"url": "pquic/pquic-interop:latest", "role": 2},
 }
