@@ -29,6 +29,19 @@ Equivalently, the Interop Runner mounts `/downloads` into your client Docker con
 After the transfer is completed, the client container is expected to exit with exit status 0. If an error occurred during the transfer, the client is expected to exit with exit status 1.
 After completion of the test case, the Interop Runner will verify that the client downloaded the files it was expected to transfer, and that the file contents match. Additionally, for certain test cases, the Interop Runner will use the pcap of the transfer to verify that the implementations fulfilled the requirements of the test (for example, for the Retry test case, the pcap should show that a Retry packet was sent, and that the client used the Token provided in that packet).
 
+### Examples
+
+If you're not familiar with Docker, it might be helpful to have a look at the Dockerfiles and scripts that other implementations use:
+
+* quic-go: [Dockerfile](https://github.com/lucas-clemente/quic-go/blob/master/interop/Dockerfile), [run_endpoint.sh](https://github.com/lucas-clemente/quic-go/blob/master/interop/run_endpoint.sh) and [CI config](https://github.com/lucas-clemente/quic-go/blob/master/.github/workflows/build-interop-docker.yml)
+* quicly: [Dockerfile](https://github.com/h2o/quicly/blob/master/misc/quic-interop-runner/Dockerfile) and [run_endpoint.sh](https://github.com/h2o/quicly/blob/master/misc/quic-interop-runner/run_endpoint.sh) and [run_endpoint.sh](https://github.com/cloudflare/quiche/blob/master/tools/qns/run_endpoint.sh)
+* quant: [Dockerfile](https://github.com/NTAP/quant/blob/master/Dockerfile.interop) and [run_endpoint.sh](https://github.com/NTAP/quant/blob/master/test/interop.sh), built on [DockerHub](https://hub.docker.com/r/ntap/quant)
+* quiche: [Dockerfile](https://github.com/cloudflare/quiche/blob/master/Dockerfile)
+* neqo: [Dockerfile](https://github.com/mozilla/neqo/blob/main/neqo-qns/Dockerfile) and [run_endpoint.sh](https://github.com/mozilla/neqo/blob/main/neqo-qns/run_endpoint.sh)
+* msquic: [Dockerfile](https://github.com/microsoft/msquic/blob/master/Dockerfile), [run_endpoint.sh](https://github.com/microsoft/msquic/blob/master/scripts/run_endpoint.sh) and [CI config](https://github.com/microsoft/msquic/blob/master/.azure/azure-pipelines.docker.yml)
+
+Implementers: Please feel free to add links to your implementation here!
+
 ## Logs
 
 To facilitate debugging, the Interop Runner saves the log files to the logs directory. This directory is overwritten every time the Interop Runner is executed.
