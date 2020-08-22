@@ -49,6 +49,9 @@ def main():
             "-l", "--log-dir", help="log directory", default="",
         )
         parser.add_argument(
+            "-f", "--save-files", help="save downloaded files if a test fails"
+        )
+        parser.add_argument(
             "-j", "--json", help="output the matrix to file in json format"
         )
         return parser.parse_args()
@@ -102,6 +105,7 @@ def main():
         output=get_args().json,
         debug=get_args().debug,
         log_dir=get_args().log_dir,
+        save_files=get_args().save_files,
     ).run()
 
 
