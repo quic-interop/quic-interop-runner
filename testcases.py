@@ -146,6 +146,11 @@ class TestCase(abc.ABC):
                 logging.info("File %s does not exist.", fp)
                 return False
             try:
+                size = os.path.getsize(self.www_dir() + f)
+                downloaded_size = os.path.getsize(fp)
+                if size != downloaded_size:
+                    logging.info("File size of %s doesn't match. Original: %d bytes, downloaded: %d bytes.", fp, size, downloaded_size)
+                    return False
                 if not filecmp.cmp(self.www_dir() + f, fp, shallow=False):
                     logging.info("File contents of %s do not match.", fp)
                     return False
