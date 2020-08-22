@@ -452,7 +452,7 @@ class TestCaseRetry(TestCase):
                 continue
             if pn <= highest_pn_before_retry:
                 logging.debug(
-                    "Client didn't reset the packet number. Check failed for %d", pn
+                    "Client reset the packet number. Check failed for PN %d", pn
                 )
                 return False
             token = p.token.replace(":", "")
