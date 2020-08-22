@@ -56,6 +56,7 @@ class InteropRunner:
     _measurements = []
     _output = ""
     _log_dir = ""
+    _save_files = False
 
     def __init__(
         self,
@@ -66,6 +67,7 @@ class InteropRunner:
         measurements: List[testcases.Measurement],
         output: str,
         debug: bool,
+        save_files: bool,
         log_dir="",
     ):
         logger = logging.getLogger()
@@ -84,6 +86,7 @@ class InteropRunner:
         self._implementations = implementations
         self._output = output
         self._log_dir = log_dir
+        self._save_files = save_files
         if len(self._log_dir) == 0:
             self._log_dir = "logs_{:%Y-%m-%dT%H:%M:%S}".format(self._start_time)
         if os.path.exists(self._log_dir):
@@ -395,7 +398,7 @@ class InteropRunner:
             shutil.copytree(client_log_dir.name, log_dir + "/client")
             shutil.copytree(sim_log_dir.name, log_dir + "/sim")
             shutil.copyfile(log_file.name, log_dir + "/output.txt")
-            if status == TestResult.FAILED:
+            if self._save_files and status == TestResult.FAILED:
                 shutil.copytree(testcase.www_dir(), log_dir + "/www")
                 try:
                     shutil.copytree(testcase.download_dir(), log_dir + "/downloads")
