@@ -1,7 +1,0 @@
-#!/bin/sh
-
-set -ex
-
-flake8 *.py
-isort -c -df *.py
-black --check --diff *.py
