@@ -67,7 +67,7 @@ class InteropRunner:
         measurements: List[testcases.Measurement],
         output: str,
         debug: bool,
-        save_files: bool,
+        save_files=False,
         log_dir="",
     ):
         logger = logging.getLogger()
