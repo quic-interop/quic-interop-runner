@@ -20,6 +20,9 @@ def get_args():
     return parser.parse_args()
 
 
+# set the CRON environment variable, so implmenetations can adjust their logging
+os.environ["CRON"] = "true"
+
 try:
     numlogs = int(get_args().numlogs)
 except Exception as e:

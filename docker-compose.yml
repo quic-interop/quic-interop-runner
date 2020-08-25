@@ -28,6 +28,7 @@ services:
     volumes:
       - $WWW:/www
     environment:
+      - CRON=$CRON
       - ROLE=server
       - SERVER_PARAMS=$SERVER_PARAMS
       - SSLKEYLOGFILE=/logs/keys.log
@@ -52,6 +53,7 @@ services:
     volumes:
       - $DOWNLOADS:/downloads
     environment:
+      - CRON=$CRON
       - ROLE=client
       - CLIENT_PARAMS=$CLIENT_PARAMS
       - SSLKEYLOGFILE=/logs/keys.log
