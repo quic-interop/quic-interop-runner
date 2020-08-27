@@ -46,7 +46,10 @@ def main():
             help="replace path of implementation. Example: -r myquicimpl=dockertagname",
         )
         parser.add_argument(
-            "-l", "--log-dir", help="log directory", default="",
+            "-l",
+            "--log-dir",
+            help="log directory",
+            default="",
         )
         parser.add_argument(
             "-f", "--save-files", help="save downloaded files if a test fails"
