@@ -90,6 +90,10 @@ def main():
     ) -> Tuple[List[testcases.TestCase], List[testcases.TestCase]]:
         if arg is None:
             return TESTCASES, MEASUREMENTS
+        elif arg == "onlyTests":
+            return TESTCASES, []
+        elif arg == "onlyMeasurements":
+            return [], MEASUREMENTS
         elif not arg:
             return []
         tests = []
