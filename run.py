@@ -5,7 +5,7 @@ import sys
 from typing import List, Tuple
 
 import testcases
-from implementations import IMPLEMENTATIONS
+from implementations import IMPLEMENTATIONS, Role
 from interop import InteropRunner
 from testcases import MEASUREMENTS, TESTCASES
 
@@ -13,12 +13,12 @@ implementations = {name: value["url"] for name, value in IMPLEMENTATIONS.items()
 client_implementations = [
     name
     for name, value in IMPLEMENTATIONS.items()
-    if value["role"] == 0 or value["role"] == 2
+    if value["role"] == Role.BOTH or value["role"] == Role.CLIENT
 ]
 server_implementations = [
     name
     for name, value in IMPLEMENTATIONS.items()
-    if value["role"] == 1 or value["role"] == 2
+    if value["role"] == Role.BOTH or value["role"] == Role.SERVER
 ]
 
 
