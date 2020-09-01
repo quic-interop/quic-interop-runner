@@ -133,18 +133,19 @@ class TestCase(abc.ABC):
                 if os.path.isfile(os.path.join(self.download_dir(), n))
             ]
         )
+        ret = True
         if num_files != len(self._files):
             logging.info(
                 "Downloaded the wrong number of files. Got %d, expected %d.",
                 num_files,
                 len(self._files),
             )
-            return False
+            ret = False
         for f in self._files:
             fp = self.download_dir() + f
             if not os.path.isfile(fp):
                 logging.info("File %s does not exist.", fp)
-                return False
+                ret = False
             try:
                 size = os.path.getsize(self.www_dir() + f)
                 downloaded_size = os.path.getsize(fp)
@@ -155,10 +156,10 @@ class TestCase(abc.ABC):
                         size,
                         downloaded_size,
                     )
-                    return False
+                    ret = False
                 if not filecmp.cmp(self.www_dir() + f, fp, shallow=False):
                     logging.info("File contents of %s do not match.", fp)
-                    return False
+                    ret = False
             except Exception as exception:
                 logging.info(
                     "Could not compare files %s and %s: %s",
@@ -166,9 +167,10 @@ class TestCase(abc.ABC):
                     fp,
                     exception,
                 )
-                return False
-        logging.debug("Check of downloaded files succeeded.")
-        return True
+                ret = False
+        if ret:
+            logging.debug("Check of downloaded files succeeded.")
+        return ret
 
     def _count_handshakes(self) -> int:
         """ Count the number of QUIC handshakes """
