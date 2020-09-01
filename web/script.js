@@ -9,7 +9,6 @@
   }
 
   function getLogLink(log_dir, server, client, testcase, text) {
-    if(log_dir.length == 0) log_dir = "logs"; // backwards-compatibility mode
     var a = document.createElement("a");
     a.title = "Logs";
     a.href = log_dir + "/" + server + "_" + client + "/" + testcase;
@@ -114,11 +113,9 @@
     var startTime = new Date(1000*result.start_time);
     var endTime = new Date(1000*result.end_time);
     var duration = result.end_time - result.start_time;
-    var estNextEndTime = new Date(1000*(result.end_time + duration));
     document.getElementById("lastrun-start").innerHTML = dateToString(startTime);
     document.getElementById("lastrun-end").innerHTML = dateToString(endTime);
     document.getElementById("duration").innerHTML = formatTime(duration);
-    document.getElementById("est-next-end").innerHTML = dateToString(estNextEndTime);
 
     fillInteropTable(result)
     fillMeasurementTable(result)
@@ -160,7 +157,7 @@
     var s = document.createElement("select");
     xhr.response.reverse().forEach(function(el) {
       var opt = document.createElement("option");
-      opt.innerHTML = el.substr(5);
+      opt.innerHTML = el.replace("logs_", "");
       opt.value = el;
       s.appendChild(opt);
     })

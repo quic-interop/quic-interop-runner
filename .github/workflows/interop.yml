@@ -1,0 +1,134 @@
+name: interop
+on:
+  schedule:
+  - cron: "0 */8 * * *" # every 8h
+
+jobs:
+  wireshark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: wireshark/wireshark
+      - name: Install dependencies
+        run: |
+          sudo tools/debian-setup.sh --install-deb-deps --install-optional
+      - name: Build packages
+        run: |
+          dpkg-buildpackage
+          mkdir packages
+          mv ../*.deb packages
+      - name: Upload packages
+        uses: actions/upload-artifact@v2
+        with:
+          name: wireshark
+          path: packages
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+      - id: set-matrix
+        run: |
+          TASKS=$(echo $(python implementations.py) | sed 's/ //g' )
+          echo "::set-output name=matrix::$TASKS"
+  tests:
+    needs: [ wireshark, matrix ]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.matrix.outputs.matrix) }}
+    name: (${{ matrix.server }} - ${{ matrix.client }})
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+      - name: Download Wireshark
+        uses: actions/download-artifact@v1
+        with:
+          name: wireshark
+          path: packages
+      - name: Install Wireshark
+        run: |
+          sudo dpkg -i \
+            packages/libwireshark-data_*.deb \
+            packages/libwireshark0_*.deb \
+            packages/libwiretap0_*.deb \
+            packages/libwsutil0_*.deb \
+            packages/tshark_*.deb \
+            packages/wireshark-common_*.deb || true
+          sudo apt-get -f install
+      - name: Install Python packages
+        run: |
+          pip install -U pip
+          pip install -r requirements.txt
+      - name: Run tests
+        env:
+          CRON: "true"
+        run: |
+          (python run.py --client ${{ matrix.client }} --server ${{ matrix.server }} --log-dir logs --json ${{ matrix.server }}_${{ matrix.client }}_results.json -t onlyTests || true) | tee output.txt
+          mkdir -p logs/${{ matrix.server }}_${{ matrix.client }}
+          mv output.txt logs/${{ matrix.server }}_${{ matrix.client }}/
+      - name: Run measurements
+        env:
+          CRON: "true"
+        run: |
+          python run.py --client ${{ matrix.client }} --server ${{ matrix.server }} --log-dir logs_measurement --json ${{ matrix.server }}_${{ matrix.client }}_measurements.json -t onlyMeasurements || true
+          find logs_measurement -depth -name "sim" -type d -exec rm -r "{}" \;
+          find logs_measurement -depth -name "client" -type d -exec rm -r "{}" \;
+          find logs_measurement -depth -name "server" -type d -exec rm -r "{}" \;
+          mv logs_measurement/${{ matrix.server }}_${{ matrix.client }}/* logs/${{ matrix.server }}_${{ matrix.client }}/
+      - name: Upload logs
+        uses: appleboy/scp-action@master
+        with:
+          host: interop.seemann.io
+          username: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
+          key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
+          source: logs/${{ matrix.server }}_${{ matrix.client }}
+          target: /root/src/quic-interop-runner/web/${{ github.run_id }}
+          strip_components: 1
+      - name: Upload result
+        uses: actions/upload-artifact@v2
+        with:
+          name: results
+          path: |
+            ${{ matrix.server }}_${{ matrix.client }}_results.json
+            ${{ matrix.server }}_${{ matrix.client }}_measurements.json
+  aggregate:
+    needs: [ matrix, tests ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+      - name: Download results
+        uses: actions/download-artifact@v2
+        with:
+          name: results
+      - name: Aggregate results
+        run: python .github/workflows/aggregate.py --server ${{ join(fromJson(needs.matrix.outputs.matrix).server, ',') }} --client ${{ join(fromJson(needs.matrix.outputs.matrix).client, ',') }} --log-dir=${{ github.run_id }} --output result.json
+      - name: Upload result
+        uses: appleboy/scp-action@master
+        with:
+          host: interop.seemann.io
+          username: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
+          key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
+          source: result.json
+          target: /root/src/quic-interop-runner/web/${{ github.run_id }}
+      - name: Publish result
+        uses: appleboy/ssh-action@master
+        with:
+          host: interop.seemann.io
+          username: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
+          key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
+          script: |
+            cd /root/src/quic-interop-runner/web/
+            jq '. += [ "${{ github.run_id }}" ]' logs.json | sponge logs.json
+            rm latest && ln -s ${{ github.run_id }} latest

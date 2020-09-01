@@ -2,6 +2,6 @@
 
 set -ex
 
-flake8 *.py
-isort -c -df *.py
-black --check --diff *.py
+flake8 .
+isort -c -df .
+black --check --diff .
