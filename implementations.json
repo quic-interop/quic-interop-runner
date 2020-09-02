@@ -8,7 +8,7 @@
     "role": "both"
   },
   "ngtcp2": {
-    "url": "ngtcp2/ngtcp2-interop:latest",
+    "url": "ghcr.io/ngtcp2/ngtcp2-interop:latest",
     "role": "both"
   },
   "quant": {
