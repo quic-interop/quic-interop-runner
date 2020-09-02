@@ -26,31 +26,121 @@ jobs:
   matrix:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      servers: ${{ steps.set-servers.outputs.servers }}
+      clients: ${{ steps.set-clients.outputs.clients }}
+      images: ${{ steps.set-images.outputs.images }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v1
         with:
           python-version: 3.8
-      - id: set-matrix
+      - name: Determine servers
+        id: set-servers
         run: |
-          TASKS=$(echo $(python implementations.py) | sed 's/ //g' )
-          echo "::set-output name=matrix::$TASKS"
+          SERVERS=$(jq -c 'with_entries(select(.value.role == "server" or .value.role == "both")) | keys_unsorted' implementations.json)
+          echo $SERVERS
+          echo "::set-output name=servers::$SERVERS"
+      - name: Determine clients
+        id: set-clients
+        run: |
+          CLIENTS=$(jq -c 'with_entries(select(.value.role == "client" or .value.role == "both")) | keys_unsorted' implementations.json)
+          echo $CLIENTS
+          echo "::set-output name=clients::$CLIENTS"
+      - name: Determine Docker images
+        id: set-images
+        run: |
+          IMAGES=$(jq -c 'keys_unsorted' implementations.json)
+          echo $IMAGES
+          echo "::set-output name=images::$IMAGES"
+  docker-pull-tools:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: [ 'quic-network-simulator', 'quic-interop-iperf-endpoint' ]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Pull
+      run: |
+        URL="martenseemann/${{ matrix.image }}"
+        docker pull $URL
+        echo "::set-env name=URL::$URL"
+    - name: Docker inspect
+      run: docker image inspect $URL
+    - name: Save Docker image
+      run: |
+        docker save $URL | gzip --best > ${{ matrix.image }}.tar.gz
+        du -sh ${{ matrix.image }}.tar.gz
+    - name: Upload result
+      uses: actions/upload-artifact@v2
+      with:
+        name: images-tools
+        path: ${{ matrix.image }}.tar.gz
+        if-no-files-found: error
+  docker-pull-images:
+    needs: [ matrix ]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: ${{ fromJson(needs.matrix.outputs.images) }}
+    name: Pull ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run docker pull
+        run: |
+          URL=$(jq -r '.["${{ matrix.image }}"].url' implementations.json)
+          echo $URL
+          docker pull $URL
+          echo "::set-env name=URL::$URL"
+      - name: Docker inspect
+        run: docker image inspect $URL
+      - name: Save Docker image
+        run: |
+          docker save $URL | gzip --best > ${{ matrix.image }}.tar.gz
+          du -sh ${{ matrix.image }}.tar.gz
+      - name: Upload result
+        uses: actions/upload-artifact@v2
+        with:
+          name: image-${{ matrix.image }}
+          path: ${{ matrix.image }}.tar.gz
+          if-no-files-found: error
   tests:
-    needs: [ wireshark, matrix ]
+    needs: [ wireshark, matrix, docker-pull-tools, docker-pull-images ]
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.matrix.outputs.matrix) }}
+      matrix: 
+        server: ${{ fromJson(needs.matrix.outputs.servers) }}
+        client: ${{ fromJson(needs.matrix.outputs.clients) }}
     name: (${{ matrix.server }} - ${{ matrix.client }})
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v1
         with:
           python-version: 3.8
+      - run: docker image ls
+      - name: Download tools Docker images
+        uses: actions/download-artifact@v2
+        with:
+          name: images-tools
+      - name: Download ${{ matrix.server }} Docker image
+        uses: actions/download-artifact@v2
+        with:
+          name: image-${{ matrix.server }}
+      - name: Download ${{ matrix.client }} Docker image
+        if: ${{ matrix.server != matrix.client }}
+        uses: actions/download-artifact@v2
+        with:
+          name: image-${{ matrix.client }}
+      - name: Load docker images
+        run: |
+          docker load --input quic-network-simulator.tar.gz
+          docker load --input quic-interop-iperf-endpoint.tar.gz
+          docker load --input ${{ matrix.server }}.tar.gz
+          docker load --input ${{ matrix.client }}.tar.gz
+      - run: docker image ls
       - name: Download Wireshark
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v2
         with:
           name: wireshark
           path: packages
@@ -114,7 +204,7 @@ jobs:
         with:
           name: results
       - name: Aggregate results
-        run: python .github/workflows/aggregate.py --server ${{ join(fromJson(needs.matrix.outputs.matrix).server, ',') }} --client ${{ join(fromJson(needs.matrix.outputs.matrix).client, ',') }} --log-dir=${{ github.run_id }} --output result.json
+        run: python .github/workflows/aggregate.py --server ${{ join(fromJson(needs.matrix.outputs.servers), ',') }} --client ${{ join(fromJson(needs.matrix.outputs.clients), ',') }} --log-dir=${{ github.run_id }} --output result.json
       - name: Upload result
         if: ${{ github.event_name == "schedule" }}
         uses: appleboy/scp-action@master

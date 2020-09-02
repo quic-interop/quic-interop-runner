@@ -1,6 +1,7 @@
 logs/
 logs_*/
 *.json
+!implementations.json
 web/latest
 
 *.egg-info/

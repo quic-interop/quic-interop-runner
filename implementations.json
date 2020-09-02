@@ -1,0 +1,54 @@
+{
+  "quic-go": {
+    "url": "martenseemann/quic-go-interop:latest",
+    "role": "both"
+  },
+  "quicly": {
+    "url": "h2oserver/quicly-interop-runner:latest",
+    "role": "both"
+  },
+  "ngtcp2": {
+    "url": "ngtcp2/ngtcp2-interop:latest",
+    "role": "both"
+  },
+  "quant": {
+    "url": "ntap/quant:interop",
+    "role": "both"
+  },
+  "mvfst": {
+    "url": "lnicco/mvfst-qns:latest",
+    "role": "both"
+  },
+  "quiche": {
+    "url": "cloudflare/quiche-qns:latest",
+    "role": "both"
+  },
+  "kwik": {
+    "url": "peterdoornbosch/kwik_n_flupke-interop",
+    "role": "client"
+  },
+  "picoquic": {
+    "url": "privateoctopus/picoquic:latest",
+    "role": "both"
+  },
+  "aioquic": {
+    "url": "aiortc/aioquic-qns:latest",
+    "role": "both"
+  },
+  "neqo": {
+    "url": "neqoquic/neqo-qns:latest",
+    "role": "both"
+  },
+  "nginx": {
+    "url": "nginx/nginx-quic-qns:latest",
+    "role": "server"
+  },
+  "msquic": {
+    "url": "mcr.microsoft.com/msquic/qns:latest",
+    "role": "server"
+  },
+  "pquic": {
+    "url": "pquic/pquic-interop:latest",
+    "role": "both"
+  }
+}

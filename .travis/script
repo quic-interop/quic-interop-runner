@@ -5,3 +5,6 @@ set -ex
 flake8 .
 isort -c -df .
 black --check --diff .
+
+# test that we can parse implementations.json
+python implementations.py
