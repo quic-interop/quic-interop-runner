@@ -175,7 +175,7 @@ jobs:
           find logs_measurement -depth -name "server" -type d -exec rm -r "{}" \;
           mv logs_measurement/${{ matrix.server }}_${{ matrix.client }}/* logs/${{ matrix.server }}_${{ matrix.client }}/
       - name: Upload logs
-        if: ${{ github.event_name == "schedule" }}
+        if: ${{ github.event_name == 'schedule' }}
         uses: appleboy/scp-action@master
         with:
           host: interop.seemann.io
@@ -206,7 +206,7 @@ jobs:
       - name: Aggregate results
         run: python .github/workflows/aggregate.py --server ${{ join(fromJson(needs.matrix.outputs.servers), ',') }} --client ${{ join(fromJson(needs.matrix.outputs.clients), ',') }} --log-dir=${{ github.run_id }} --output result.json
       - name: Upload result
-        if: ${{ github.event_name == "schedule" }}
+        if: ${{ github.event_name == 'schedule' }}
         uses: appleboy/scp-action@master
         with:
           host: interop.seemann.io
@@ -215,7 +215,7 @@ jobs:
           source: result.json
           target: /root/src/quic-interop-runner/web/${{ github.run_id }}
       - name: Publish result
-        if: ${{ github.event_name == "schedule" }}
+        if: ${{ github.event_name == 'schedule' }}
         uses: appleboy/ssh-action@master
         with:
           host: interop.seemann.io
