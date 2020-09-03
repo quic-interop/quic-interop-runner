@@ -122,6 +122,7 @@
   }
 
   function load(dir) {
+    document.getElementsByTagName("body")[0].classList.add("loading");
     var xhr = new XMLHttpRequest();
     xhr.responseType = 'json';
     xhr.open('GET', dir + '/result.json');
@@ -135,6 +136,7 @@
         return;
       }
       process(xhr.response);
+      document.getElementsByTagName("body")[0].classList.remove("loading");
     };
     xhr.send();
   }
