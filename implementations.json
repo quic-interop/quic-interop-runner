@@ -45,7 +45,7 @@
   },
   "msquic": {
     "url": "mcr.microsoft.com/msquic/qns:latest",
-    "role": "server"
+    "role": "both"
   },
   "pquic": {
     "url": "pquic/pquic-interop:latest",
