@@ -14,6 +14,10 @@
   display: inline-block;
 }
 
+body.loading table.resulttable {
+  opacity: 0.3;
+}
+
 table.resulttable td {
   vertical-align: middle;
   font-size: 0.8rem;
