@@ -126,19 +126,18 @@ class TestCase(abc.ABC):
 
         if len(self._files) == 0:
             raise Exception("No test files generated.")
-        num_files = len(
-            [
-                n
-                for n in os.listdir(self.download_dir())
-                if os.path.isfile(os.path.join(self.download_dir(), n))
-            ]
-        )
-        if num_files != len(self._files):
-            logging.info(
-                "Downloaded the wrong number of files. Got %d, expected %d.",
-                num_files,
-                len(self._files),
-            )
+        files = [
+            n
+            for n in os.listdir(self.download_dir())
+            if os.path.isfile(os.path.join(self.download_dir(), n))
+        ]
+        too_many = [f for f in files if f not in self._files]
+        if len(too_many) != 0:
+            logging.info("Found unexpected downloaded files: %s", too_many)
+        too_few = [f for f in self._files if f not in files]
+        if len(too_few) != 0:
+            logging.info("Missing files: %s", too_few)
+        if len(too_many) != 0 or len(too_few) != 0:
             return False
         for f in self._files:
             fp = self.download_dir() + f
