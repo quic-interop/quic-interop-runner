@@ -11,7 +11,7 @@
   function getLogLink(log_dir, server, client, testcase, text) {
     var a = document.createElement("a");
     a.title = "Logs";
-    a.href = log_dir + "/" + server + "_" + client + "/" + testcase;
+    a.href = "logs/" + log_dir + "/" + server + "_" + client + "/" + testcase;
     a.target = "_blank";
     a.appendChild(document.createTextNode(text));
     return a;
@@ -144,7 +144,7 @@
   // enable loading of old runs
   var xhr = new XMLHttpRequest();
   xhr.responseType = 'json';
-  xhr.open('GET', 'logs.json');
+  xhr.open('GET', 'logs/logs.json');
   xhr.onreadystatechange = function() {
     if(xhr.readyState !== XMLHttpRequest.DONE) {
       return;

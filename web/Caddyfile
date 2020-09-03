@@ -1,0 +1,26 @@
+{
+  experimental_http3
+}
+
+interop.seemann.io:443
+
+# The website must be mounted at /var/www/web.
+# The log directory must be mounted at /var/www/logs.
+root /logs/* /var/www/
+root * /var/www/web
+
+# All logs files except .json files are gzipped.
+@islogfile {
+  file {path} # make sure that directoy listings are not compressed.
+  path /logs/*
+  not path *.json
+}
+
+handle @islogfile {
+  header Content-Encoding gzip
+  file_server browse
+}
+
+handle not @islogfile {
+  file_server browse
+}
