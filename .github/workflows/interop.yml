@@ -182,7 +182,7 @@ jobs:
           username: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
           key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
           source: logs/${{ matrix.server }}_${{ matrix.client }}
-          target: /root/src/quic-interop-runner/web/${{ github.run_id }}
+          target: /mnt/logs/${{ github.run_id }}
           strip_components: 1
       - name: Upload result
         uses: actions/upload-artifact@v2
@@ -213,7 +213,7 @@ jobs:
           username: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
           key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
           source: result.json
-          target: /root/src/quic-interop-runner/web/${{ github.run_id }}
+          target: /mnt/logs/${{ github.run_id }}
       - name: Publish result
         if: ${{ github.event_name == 'schedule' }}
         uses: appleboy/ssh-action@master
@@ -222,6 +222,6 @@ jobs:
           username: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
           key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
           script: |
-            cd /root/src/quic-interop-runner/web/
+            cd /mnt/logs
             jq '. += [ "${{ github.run_id }}" ]' logs.json | sponge logs.json
             rm latest && ln -s ${{ github.run_id }} latest
