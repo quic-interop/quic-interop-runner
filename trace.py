@@ -1,3 +1,4 @@
+import logging
 from enum import Enum
 from typing import List, Optional
 
@@ -44,7 +45,7 @@ class TraceAnalyzer:
                 packets.append(p)
             cap.close()
         except Exception as e:
-            print(e)
+            logging.debug(e)
         return packets
 
     def get_1rtt(self, direction: Direction = Direction.ALL) -> List:
