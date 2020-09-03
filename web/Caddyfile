@@ -1,0 +1,12 @@
+{
+  experimental_http3
+}
+
+interop.seemann.io:443
+
+# The website must be mounted at /var/www/web.
+# The log directory must be mounted at /var/www/logs.
+root /logs/* /var/www/
+root * /var/www/web
+
+file_server browse
