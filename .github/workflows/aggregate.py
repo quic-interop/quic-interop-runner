@@ -11,6 +11,7 @@ def get_args():
     parser.add_argument(
         "-c", "--client", help="client implementations (comma-separated)"
     )
+    parser.add_argument("-t", "--start-time", help="start time")
     parser.add_argument("-l", "--log-dir", help="log directory")
     parser.add_argument("-o", "--output", help="output file (stdout if not set)")
     return parser.parse_args()
@@ -22,6 +23,7 @@ result = {
     "servers": servers,
     "clients": clients,
     "log_dir": get_args().log_dir,
+    "start_time": int(get_args().start_time),
     "results": [],
     "measurements": [],
 }
@@ -48,8 +50,6 @@ def parse_data(server: str, client: str, cat: str, data: object):
         sys.exit("expected exactly one client")
     if data["servers"][0] != server:
         sys.exit("inconsistent client")
-    if "start_time" not in result or data["start_time"] < result["start_time"]:
-        result["start_time"] = data["start_time"]
     if "end_time" not in result or data["end_time"] > result["end_time"]:
         result["end_time"] = data["end_time"]
     result[cat].append(data[cat][0])
