@@ -213,7 +213,14 @@ jobs:
           name: results
       - name: Aggregate results
         run: python .github/workflows/aggregate.py --server ${{ join(fromJson(needs.config.outputs.servers), ',') }} --client ${{ join(fromJson(needs.config.outputs.clients), ',') }} --log-dir=$LOGNAME --output result.json
-      - name: Upload result
+      - name: Print result
+        run: jq '.' result.json
+      - name: Upload result to artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: results
+          path: result.json
+      - name: Upload result to interop.seemann.io
         if: ${{ github.event_name == 'schedule' }}
         uses: appleboy/scp-action@master
         with:
