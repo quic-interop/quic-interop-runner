@@ -786,8 +786,10 @@ class TestCaseECN(TestCaseHandshake):
             )
         )
         ok_client = self.check_ecn(ecn_client)
-        if ok_client == False:
-            logging.info("Not all client packets were consistently marked with ECT(0) or ECT(1)")
+        if ok_client is False:
+            logging.info(
+                "Not all client packets were consistently marked with ECT(0) or ECT(1)"
+            )
 
         tr_server = self._server_trace()
         ecn_server = self.count_ecn(
@@ -796,8 +798,10 @@ class TestCaseECN(TestCaseHandshake):
             )
         )
         ok_server = self.check_ecn(ecn_server)
-        if ok_server == False:
-            logging.info("Not all server packets were consistently marked with ECT(0) or ECT(1)")
+        if ok_server is False:
+            logging.info(
+                "Not all server packets were consistently marked with ECT(0) or ECT(1)"
+            )
 
         return ok_client and ok_server
 
