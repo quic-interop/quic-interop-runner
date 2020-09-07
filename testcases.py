@@ -765,45 +765,71 @@ class TestCaseECN(TestCaseHandshake):
             logging.debug("%s %d", e, ecn[e])
         return ecn
 
-    def check_ecn(self, e):
+    def check_ecn_any(self, e):
+        return e[ECN.ECT0] != 0 or e[ECN.ECT1] != 0
+
+    def check_ecn_marks(self, e):
         return (
             e[ECN.NONE] == 0
             and e[ECN.CE] == 0
             and ((e[ECN.ECT0] == 0) != (e[ECN.ECT1] == 0))
         )
 
+    def check_ack_ecn(self, tr):
+        # NOTE: We only check whether the trace contains any ACK-ECN information, not whether it is valid
+        for p in tr:
+            # logging.info(p["quic"])
+            if hasattr(p["quic"], "ack.ect0_count"):
+                # logging.info(getattr(p["quic"], "ack.ect0_count"))
+                return True
+        return False
+
     def check(self):
         if not super(TestCaseECN, self).check():
             return False
 
-        # This test currently *only* checks that all packets are consistently marked ECT(0) or ECT(1) in each direction
-        # FIXME: We importantly also need to test whether ACK-ECN is being sent in reply
-
-        tr_client = self._client_trace()
-        ecn_client = self.count_ecn(
-            tr_client._get_packets(
-                tr_client._get_direction_filter(Direction.FROM_CLIENT) + " quic"
-            )
+        tr_client = self._client_trace()._get_packets(
+            self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
         )
-        ok_client = self.check_ecn(ecn_client)
-        if ok_client is False:
-            logging.info(
-                "Not all client packets were consistently marked with ECT(0) or ECT(1)"
-            )
+        ecn = self.count_ecn(tr_client)
+        ecn_client_any_marked = self.check_ecn_any(ecn)
+        ecn_client_all_ok = self.check_ecn_marks(ecn)
+        ack_ecn_client_ok = self.check_ack_ecn(tr_client)
 
-        tr_server = self._server_trace()
-        ecn_server = self.count_ecn(
-            tr_server._get_packets(
-                tr_server._get_direction_filter(Direction.FROM_SERVER) + " quic"
-            )
+        tr_server = self._server_trace()._get_packets(
+            self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
         )
-        ok_server = self.check_ecn(ecn_server)
-        if ok_server is False:
-            logging.info(
-                "Not all server packets were consistently marked with ECT(0) or ECT(1)"
-            )
+        ecn = self.count_ecn(tr_server)
+        ecn_server_any_marked = self.check_ecn_any(ecn)
+        ecn_server_all_ok = self.check_ecn_marks(ecn)
+        ack_ecn_server_ok = self.check_ack_ecn(tr_server)
 
-        return ok_client and ok_server
+        if ecn_client_any_marked is False:
+            logging.info("Client did not mark any packets ECT(0) or ECT(1)")
+        else:
+            if ack_ecn_server_ok is False:
+                logging.info("Server did not send any ACK-ECN frames")
+            if ack_ecn_server_ok is True and ecn_client_all_ok is False:
+                logging.info(
+                    "Not all client packets were consistently marked with ECT(0) or ECT(1)"
+                )
+
+        if ecn_server_any_marked is False:
+            logging.info("Server did not mark any packets ECT(0) or ECT(1)")
+        else:
+            if ack_ecn_client_ok is False:
+                logging.info("Client did not send any ACK-ECN frames")
+            if ack_ecn_client_ok and ecn_server_all_ok is False:
+                logging.info(
+                    "Not all server packets were consistently marked with ECT(0) or ECT(1)"
+                )
+
+        return (
+            ecn_client_all_ok
+            and ecn_server_all_ok
+            and ack_ecn_client_ok
+            and ack_ecn_server_ok
+        )
 
 
 class MeasurementGoodput(Measurement):
