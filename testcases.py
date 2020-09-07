@@ -759,14 +759,18 @@ class TestCaseECN(TestCaseHandshake):
     def count_ecn(self, tr):
         ecn = [0] * (max(ECN) + 1)
         for p in tr:
-            e = int(getattr(p['ip'], "dsfield.ecn"))
+            e = int(getattr(p["ip"], "dsfield.ecn"))
             ecn[e] += 1
-        for e in (ECN):
+        for e in ECN:
             logging.info("%s %d", e, ecn[e])
         return ecn
 
     def check_ecn(self, e):
-        return e[ECN.NONE] == 0 and e[ECN.CE] == 0 and ((e[ECN.ECT0] == 0) != (e[ECN.ECT1] == 0))
+        return (
+            e[ECN.NONE] == 0
+            and e[ECN.CE] == 0
+            and ((e[ECN.ECT0] == 0) != (e[ECN.ECT1] == 0))
+        )
 
     def check(self):
         if not super(TestCaseECN, self).check():
@@ -775,8 +779,16 @@ class TestCaseECN(TestCaseHandshake):
         tr_client = self._client_trace()
         tr_server = self._server_trace()
 
-        ecn_client = self.count_ecn(tr_client._get_packets(tr_client._get_direction_filter(Direction.FROM_CLIENT) + " quic"))
-        ecn_server = self.count_ecn(tr_server._get_packets(tr_server._get_direction_filter(Direction.FROM_SERVER) + " quic"))
+        ecn_client = self.count_ecn(
+            tr_client._get_packets(
+                tr_client._get_direction_filter(Direction.FROM_CLIENT) + " quic"
+            )
+        )
+        ecn_server = self.count_ecn(
+            tr_server._get_packets(
+                tr_server._get_direction_filter(Direction.FROM_SERVER) + " quic"
+            )
+        )
 
         # This test currently *only* checks that all packets are consistently marked ECT(0) or ECT(1) in each direction
         # FIXME: We importantly also need to test whether ACK-ECN is being sent in reply
