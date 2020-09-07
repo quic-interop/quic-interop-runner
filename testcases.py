@@ -6,7 +6,7 @@ import random
 import string
 import tempfile
 from datetime import timedelta
-from enum import Enum
+from enum import Enum, IntEnum
 from trace import Direction, TraceAnalyzer
 from typing import List
 
@@ -22,6 +22,11 @@ class Perspective(Enum):
     SERVER = "server"
     CLIENT = "client"
 
+class ECN(IntEnum):
+    NONE = 0
+    ECT1 = 1
+    ECT0 = 2
+    CE = 3
 
 def random_string(length: int):
     """Generate a random string of fixed length """
@@ -736,6 +741,47 @@ class TestCaseTransferCorruption(TestCaseTransferLoss):
         return "corrupt-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=2 --rate_to_client=2"
 
 
+class TestCaseECN(TestCaseHandshake):
+    @staticmethod
+    def name():
+        return "ecn"
+
+    @staticmethod
+    def abbreviation():
+        return "E"
+
+    @staticmethod
+    def testname(p: Perspective):
+        return "handshake"
+
+    def count_ecn(self, tr):
+        ecn = [0] * (max(ECN) + 1)
+        for p in tr:
+            e = int(getattr(p['ip'], "dsfield.ecn"))
+            ecn[e] += 1
+        for e in (ECN):
+            logging.info("%s %d", e, ecn[e])
+        return ecn
+
+    def check_ecn(self, e):
+        return e[ECN.NONE] == 0 and e[ECN.CE] == 0 and ((e[ECN.ECT0] == 0) != (e[ECN.ECT1] == 0))
+
+    def check(self):
+        if not super(TestCaseECN, self).check():
+            return False
+
+        tr_client = self._client_trace()
+        tr_server = self._server_trace()
+
+        ecn_client = self.count_ecn(tr_client._get_packets(tr_client._get_direction_filter(Direction.FROM_CLIENT) + " quic"))
+        ecn_server = self.count_ecn(tr_server._get_packets(tr_server._get_direction_filter(Direction.FROM_SERVER) + " quic"))
+
+        # This test currently *only* checks that all packets are consistently marked ECT(0) or ECT(1) in each direction
+        # FIXME: We importantly also need to test whether ACK-ECN is being sent in reply
+
+        return self.check_ecn(ecn_client) and self.check_ecn(ecn_server)
+
+
 class MeasurementGoodput(Measurement):
     FILESIZE = 10 * MB
     _result = 0.0
@@ -835,6 +881,7 @@ TESTCASES = [
     TestCaseTransferLoss,
     TestCaseHandshakeCorruption,
     TestCaseTransferCorruption,
+    TestCaseECN,
 ]
 
 MEASUREMENTS = [
