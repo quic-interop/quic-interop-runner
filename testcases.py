@@ -6,7 +6,7 @@ import random
 import string
 import tempfile
 from datetime import timedelta
-from enum import Enum
+from enum import Enum, IntEnum
 from trace import Direction, TraceAnalyzer
 from typing import List
 
@@ -23,6 +23,13 @@ QUIC_VERSION = "0xff00001d"  # draft-29
 class Perspective(Enum):
     SERVER = "server"
     CLIENT = "client"
+
+
+class ECN(IntEnum):
+    NONE = 0
+    ECT1 = 1
+    ECT0 = 2
+    CE = 3
 
 
 def random_string(length: int):
@@ -826,6 +833,96 @@ class TestCaseTransferCorruption(TestCaseTransferLoss):
         return "corrupt-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=2 --rate_to_client=2"
 
 
+class TestCaseECN(TestCaseHandshake):
+    @staticmethod
+    def name():
+        return "ecn"
+
+    @staticmethod
+    def abbreviation():
+        return "E"
+
+    def _count_ecn(self, tr):
+        ecn = [0] * (max(ECN) + 1)
+        for p in tr:
+            e = int(getattr(p["ip"], "dsfield.ecn"))
+            ecn[e] += 1
+        for e in ECN:
+            logging.debug("%s %d", e, ecn[e])
+        return ecn
+
+    def _check_ecn_any(self, e) -> bool:
+        return e[ECN.ECT0] != 0 or e[ECN.ECT1] != 0
+
+    def _check_ecn_marks(self, e) -> bool:
+        return (
+            e[ECN.NONE] == 0
+            and e[ECN.CE] == 0
+            and ((e[ECN.ECT0] == 0) != (e[ECN.ECT1] == 0))
+        )
+
+    def _check_ack_ecn(self, tr) -> bool:
+        # NOTE: We only check whether the trace contains any ACK-ECN information, not whether it is valid
+        for p in tr:
+            if hasattr(p["quic"], "ack.ect0_count"):
+                return True
+        return False
+
+    def check(self) -> TestResult:
+        if not self._keylog_file():
+            logging.info("Can't check test result. SSLKEYLOG required.")
+            return TestResult.UNSUPPORTED
+
+        result = super(TestCaseECN, self).check()
+        if result != TestResult.SUCCEEDED:
+            return result
+
+        tr_client = self._client_trace()._get_packets(
+            self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
+        )
+        ecn = self._count_ecn(tr_client)
+        ecn_client_any_marked = self._check_ecn_any(ecn)
+        ecn_client_all_ok = self._check_ecn_marks(ecn)
+        ack_ecn_client_ok = self._check_ack_ecn(tr_client)
+
+        tr_server = self._server_trace()._get_packets(
+            self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
+        )
+        ecn = self._count_ecn(tr_server)
+        ecn_server_any_marked = self._check_ecn_any(ecn)
+        ecn_server_all_ok = self._check_ecn_marks(ecn)
+        ack_ecn_server_ok = self._check_ack_ecn(tr_server)
+
+        if ecn_client_any_marked is False:
+            logging.info("Client did not mark any packets ECT(0) or ECT(1)")
+        else:
+            if ack_ecn_server_ok is False:
+                logging.info("Server did not send any ACK-ECN frames")
+            elif ecn_client_all_ok is False:
+                logging.info(
+                    "Not all client packets were consistently marked with ECT(0) or ECT(1)"
+                )
+
+        if ecn_server_any_marked is False:
+            logging.info("Server did not mark any packets ECT(0) or ECT(1)")
+        else:
+            if ack_ecn_client_ok is False:
+                logging.info("Client did not send any ACK-ECN frames")
+            elif ecn_server_all_ok is False:
+                logging.info(
+                    "Not all server packets were consistently marked with ECT(0) or ECT(1)"
+                )
+
+        if (
+            ecn_client_all_ok
+            and ecn_server_all_ok
+            and ack_ecn_client_ok
+            and ack_ecn_server_ok
+        ):
+            return TestResult.SUCCEEDED
+        return TestResult.FAILED
+
+
 class MeasurementGoodput(Measurement):
     FILESIZE = 10 * MB
     _result = 0.0
@@ -922,6 +1019,7 @@ TESTCASES = [
     TestCaseHTTP3,
     TestCaseBlackhole,
     TestCaseKeyUpdate,
+    TestCaseECN,
     TestCaseHandshakeLoss,
     TestCaseTransferLoss,
     TestCaseHandshakeCorruption,
