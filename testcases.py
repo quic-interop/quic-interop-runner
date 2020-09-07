@@ -762,7 +762,7 @@ class TestCaseECN(TestCaseHandshake):
             e = int(getattr(p["ip"], "dsfield.ecn"))
             ecn[e] += 1
         for e in ECN:
-            logging.info("%s %d", e, ecn[e])
+            logging.debug("%s %d", e, ecn[e])
         return ecn
 
     def check_ecn(self, e):
