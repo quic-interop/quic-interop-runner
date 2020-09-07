@@ -778,9 +778,7 @@ class TestCaseECN(TestCaseHandshake):
     def check_ack_ecn(self, tr):
         # NOTE: We only check whether the trace contains any ACK-ECN information, not whether it is valid
         for p in tr:
-            # logging.info(p["quic"])
             if hasattr(p["quic"], "ack.ect0_count"):
-                # logging.info(getattr(p["quic"], "ack.ect0_count"))
                 return True
         return False
 
