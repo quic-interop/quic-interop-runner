@@ -32,7 +32,8 @@ def random_string(length: int):
 class TestCase(abc.ABC):
     _files = []
     _www_dir = None
-    _keylog_file = None
+    _client_keylog_file = None
+    _server_keylog_file = None
     _download_dir = None
     _sim_log_dir = None
 
@@ -42,12 +43,8 @@ class TestCase(abc.ABC):
         client_keylog_file: str,
         server_keylog_file: str,
     ):
-        if os.path.isfile(client_keylog_file):
-            logging.debug("Using the client's key log file.")
-            self._keylog_file = client_keylog_file
-        elif os.path.isfile(server_keylog_file):
-            logging.debug("Using the server's key log file.")
-            self._keylog_file = server_keylog_file
+        self._server_keylog_file = server_keylog_file
+        self._client_keylog_file = client_keylog_file
         self._files = []
         self._sim_log_dir = sim_log_dir
 
@@ -92,14 +89,23 @@ class TestCase(abc.ABC):
             )
         return self._download_dir.name + "/"
 
+    def _keylog_file(self):
+        if os.path.isfile(self._client_keylog_file):
+            logging.debug("Using the client's key log file.")
+            return self._client_keylog_file
+        elif os.path.isfile(self._server_keylog_file):
+            logging.debug("Using the server's key log file.")
+            return self._server_keylog_file
+        logging.debug("No key log file found.")
+
     def _client_trace(self):
         return TraceAnalyzer(
-            self._sim_log_dir.name + "/trace_node_left.pcap", self._keylog_file
+            self._sim_log_dir.name + "/trace_node_left.pcap", self._keylog_file()
         )
 
     def _server_trace(self):
         return TraceAnalyzer(
-            self._sim_log_dir.name + "/trace_node_right.pcap", self._keylog_file
+            self._sim_log_dir.name + "/trace_node_right.pcap", self._keylog_file()
         )
 
     # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
