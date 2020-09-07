@@ -776,24 +776,30 @@ class TestCaseECN(TestCaseHandshake):
         if not super(TestCaseECN, self).check():
             return False
 
-        tr_client = self._client_trace()
-        tr_server = self._server_trace()
+        # This test currently *only* checks that all packets are consistently marked ECT(0) or ECT(1) in each direction
+        # FIXME: We importantly also need to test whether ACK-ECN is being sent in reply
 
+        tr_client = self._client_trace()
         ecn_client = self.count_ecn(
             tr_client._get_packets(
                 tr_client._get_direction_filter(Direction.FROM_CLIENT) + " quic"
             )
         )
+        ok_client = self.check_ecn(ecn_client)
+        if ok_client == False:
+            logging.info("Not all client packets were consistently marked with ECT(0) or ECT(1)")
+
+        tr_server = self._server_trace()
         ecn_server = self.count_ecn(
             tr_server._get_packets(
                 tr_server._get_direction_filter(Direction.FROM_SERVER) + " quic"
             )
         )
+        ok_server = self.check_ecn(ecn_server)
+        if ok_server == False:
+            logging.info("Not all server packets were consistently marked with ECT(0) or ECT(1)")
 
-        # This test currently *only* checks that all packets are consistently marked ECT(0) or ECT(1) in each direction
-        # FIXME: We importantly also need to test whether ACK-ECN is being sent in reply
-
-        return self.check_ecn(ecn_client) and self.check_ecn(ecn_server)
+        return ok_client and ok_server
 
 
 class MeasurementGoodput(Measurement):
