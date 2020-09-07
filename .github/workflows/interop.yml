@@ -24,13 +24,20 @@ jobs:
         with:
           name: wireshark
           path: tshark.tar.gz
-  matrix:
+  config:
     runs-on: ubuntu-latest
     outputs:
+      logname: ${{ steps.set-logname.outputs.logname }}
       servers: ${{ steps.set-servers.outputs.servers }}
       clients: ${{ steps.set-clients.outputs.clients }}
       images: ${{ steps.set-images.outputs.images }}
     steps:
+      - name: Set log name
+        id: set-logname
+        run: |
+          LOGNAME=$(date -u +"%Y-%m-%dT%H:%M")
+          echo $LOGNAME
+          echo "::set-output name=logname::$LOGNAME"
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v1
         with:
@@ -78,11 +85,11 @@ jobs:
         path: ${{ matrix.image }}.tar.gz
         if-no-files-found: error
   docker-pull-images:
-    needs: [ matrix ]
+    needs: [ config ]
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        image: ${{ fromJson(needs.matrix.outputs.images) }}
+        image: ${{ fromJson(needs.config.outputs.images) }}
     name: Pull ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v2
@@ -105,14 +112,16 @@ jobs:
           path: ${{ matrix.image }}.tar.gz
           if-no-files-found: error
   tests:
-    needs: [ wireshark, matrix, docker-pull-tools, docker-pull-images ]
+    needs: [ wireshark, config, docker-pull-tools, docker-pull-images ]
     runs-on: ubuntu-latest
     continue-on-error: true
+    env:
+      LOGNAME: ${{ needs.config.outputs.logname }}
     strategy:
       fail-fast: false
       matrix: 
-        server: ${{ fromJson(needs.matrix.outputs.servers) }}
-        client: ${{ fromJson(needs.matrix.outputs.clients) }}
+        server: ${{ fromJson(needs.config.outputs.servers) }}
+        client: ${{ fromJson(needs.config.outputs.clients) }}
     name: (${{ matrix.server }} - ${{ matrix.client }})
     steps:
       - uses: actions/checkout@v2
@@ -179,7 +188,7 @@ jobs:
           username: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
           key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
           source: logs/${{ matrix.server }}_${{ matrix.client }}
-          target: /mnt/logs/${{ github.run_id }}
+          target: /mnt/logs/$LOGNAME
           strip_components: 1
       - name: Upload result
         uses: actions/upload-artifact@v2
@@ -189,8 +198,10 @@ jobs:
             ${{ matrix.server }}_${{ matrix.client }}_results.json
             ${{ matrix.server }}_${{ matrix.client }}_measurements.json
   aggregate:
-    needs: [ matrix, tests ]
+    needs: [ config, tests ]
     runs-on: ubuntu-latest
+    env:
+      LOGNAME: ${{ needs.config.outputs.logname }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v1
@@ -201,7 +212,7 @@ jobs:
         with:
           name: results
       - name: Aggregate results
-        run: python .github/workflows/aggregate.py --server ${{ join(fromJson(needs.matrix.outputs.servers), ',') }} --client ${{ join(fromJson(needs.matrix.outputs.clients), ',') }} --log-dir=${{ github.run_id }} --output result.json
+        run: python .github/workflows/aggregate.py --server ${{ join(fromJson(needs.config.outputs.servers), ',') }} --client ${{ join(fromJson(needs.config.outputs.clients), ',') }} --log-dir=$LOGNAME --output result.json
       - name: Upload result
         if: ${{ github.event_name == 'schedule' }}
         uses: appleboy/scp-action@master
@@ -210,7 +221,7 @@ jobs:
           username: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
           key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
           source: result.json
-          target: /mnt/logs/${{ github.run_id }}
+          target: /mnt/logs/$LOGNAME
       - name: Publish result
         if: ${{ github.event_name == 'schedule' }}
         uses: appleboy/ssh-action@master
@@ -220,5 +231,5 @@ jobs:
           key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
           script: |
             cd /mnt/logs
-            jq '. += [ "${{ github.run_id }}" ]' logs.json | sponge logs.json
-            rm latest && ln -s ${{ github.run_id }} latest
+            jq '. += [ "$LOGNAME" ]' logs.json | sponge logs.json
+            rm latest && ln -s $LOGNAME latest
