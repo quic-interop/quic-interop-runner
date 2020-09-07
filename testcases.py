@@ -22,11 +22,13 @@ class Perspective(Enum):
     SERVER = "server"
     CLIENT = "client"
 
+
 class ECN(IntEnum):
     NONE = 0
     ECT1 = 1
     ECT0 = 2
     CE = 3
+
 
 def random_string(length: int):
     """Generate a random string of fixed length """
