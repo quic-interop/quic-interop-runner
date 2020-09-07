@@ -807,7 +807,7 @@ class TestCaseECN(TestCaseHandshake):
         else:
             if ack_ecn_server_ok is False:
                 logging.info("Server did not send any ACK-ECN frames")
-            if ack_ecn_server_ok is True and ecn_client_all_ok is False:
+            elif ecn_client_all_ok is False:
                 logging.info(
                     "Not all client packets were consistently marked with ECT(0) or ECT(1)"
                 )
@@ -817,7 +817,7 @@ class TestCaseECN(TestCaseHandshake):
         else:
             if ack_ecn_client_ok is False:
                 logging.info("Client did not send any ACK-ECN frames")
-            if ack_ecn_client_ok and ecn_server_all_ok is False:
+            elif ecn_server_all_ok is False:
                 logging.info(
                     "Not all server packets were consistently marked with ECT(0) or ECT(1)"
                 )
