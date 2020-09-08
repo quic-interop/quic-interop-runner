@@ -9,4 +9,9 @@ interop.seemann.io:443
 root /logs/* /var/www/
 root * /var/www/web
 
+# Allow external sites to download our JSON files.
+handle *.json {
+  header Access-Control-Allow-Origin "*"
+}
+
 file_server browse
