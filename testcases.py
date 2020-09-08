@@ -752,10 +752,6 @@ class TestCaseECN(TestCaseHandshake):
     def abbreviation():
         return "E"
 
-    @staticmethod
-    def testname(p: Perspective):
-        return "handshake"
-
     def count_ecn(self, tr):
         ecn = [0] * (max(ECN) + 1)
         for p in tr:
