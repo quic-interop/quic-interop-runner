@@ -1,36 +1,15 @@
-@media (min-width: 1200px) {
-  .container {
-    max-width: 90%;
-  }
-}
-
-.runstats {
-  margin-top: 50px;
-  text-align: right;
-}
-
-#available-runs {
-  margin-left: 5px;
-  display: inline-block;
-}
-
 body.loading table.resulttable {
   opacity: 0.3;
 }
 
-table.resulttable td {
-  vertical-align: middle;
+table.resulttable td.results {
   font-size: 0.8rem;
-  padding: 0.6rem;
 }
 
 table.resulttable tr:first-child td,
 table.resulttable tr td:first-child {
   font-weight: bold;
-}
-
-table.resulttable .results div {
-  min-height: 1.4em;
+  vertical-align: middle;
 }
 
 table.resulttable .results a {
@@ -38,6 +17,7 @@ table.resulttable .results a {
 }
 
 table#interop .results a {
-  margin-right: 3px;
+  margin-right: .15rem;
   display: inline-block;
 }
+

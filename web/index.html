@@ -5,30 +5,51 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>QUIC Interop Runner</title>
-  <link rel="stylesheet" href="bootstrap.min.css">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootswatch/4.5.2/darkly/bootstrap.min.css" integrity="sha384-nNK9n28pDUDDgIiIqZ/MiyO3F4/9vsMtReZK39klb/MtkZI3/LtjSjlmyVPS3KdN" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.3/gh-fork-ribbon.min.css" />
 </head>
 <body>
   <a class="github-fork-ribbon" href="https://github.com/marten-seemann/quic-interop-runner" data-ribbon="Fork me on GitHub" title="Fork me on GitHub">Fork me on GitHub</a>
 
-  <div class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <span class="navbar-brand">QUIC Interop Runner</span>
-    <div class="collapse navbar-collapse"></div>
-  </div>
-
-  <div class="container">
-    <div class="runstats">
-      Run: <div id="available-runs"></div><br>
-      Start Time: <em><span id="lastrun-start"></span></em><br>
-      Duration: <em><span id="duration"></span></em><br>
-      End Time: <em><span id="lastrun-end"></span></em><br>
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a href="https://github.com/marten-seemann/quic-interop-runner">
+      <span class="navbar-brand">
+        <img src="https://github.com/quicwg/wg-materials/raw/master/badge/transparent/QUIC-Badge-Dark-RGB-Horiz.svg" height="45" class="d-inline-block align-middle" alt="QUIC" loading="lazy">
+        Interop Runner
+      </span>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav">
+        <div class="navbar-text px-4">
+            <span class="font-weight-bold">Run:</span><br>
+            <span id="available-runs"></span>
+        </div>
+        <div class="navbar-text px-4">
+          <span class="font-weight-bold">Start Time:</span><br>
+          <span id="lastrun-start"></span>
+        </div>
+        <div class="navbar-text px-4">
+          <span class="font-weight-bold">Duration:</span><br>
+          <span id="duration"></span>
+        </div>
+        <div class="navbar-text px-4">
+          <span class="font-weight-bold">End Time:</span><br>
+          <span id="lastrun-end"></span>
+        </div>
+      </ul>
     </div>
-    <h3>Interop</h3>
-    <table id="interop" class="resulttable table table-hover"></table>
+  </nav>
 
-    <h3>Measurements</h3>
-    <table id="measurements" class="resulttable table table-hover"></table>
+  <div class="container-fluid">
+    <h1 class="mt-4">Interop</h1>
+    <table id="interop" class="resulttable table table-hover table-sm"></table>
+
+    <h1>Measurements</h1>
+    <table id="measurements" class="resulttable table table-hover table-sm"></table>
   </div>
   <script src="script.js"></script>
 </body>
