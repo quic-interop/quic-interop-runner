@@ -786,6 +786,10 @@ class TestCaseECN(TestCaseHandshake):
         if not super(TestCaseECN, self).check():
             return False
 
+        if not self._keylog_file():
+            logging.info("No SSLKEYLOG file available")
+            return False
+
         tr_client = self._client_trace()._get_packets(
             self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
         )
