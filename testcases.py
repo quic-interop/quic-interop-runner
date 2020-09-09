@@ -409,6 +409,9 @@ class TestCaseMultiplexing(TestCase):
         return self._files
 
     def check(self) -> TestResult:
+        if not self._keylog_file():
+            logging.info("Can't check test result. SSLKEYLOG required.")
+            return TestResult.UNSUPPORTED
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
@@ -428,9 +431,8 @@ class TestCaseMultiplexing(TestCase):
                     logging.info("Server set a stream limit > 1000.")
                     return TestResult.FAILED
         if not checked_stream_limit:
-            logging.debug(
-                "WARNING: Couldn't check stream limit. No SSLKEYLOG file available?"
-            )
+            logging.info("Couldn't check stream limit.")
+            return TestResult.FAILED
         return TestResult.SUCCEEDED
 
 
