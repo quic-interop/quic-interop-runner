@@ -3,7 +3,7 @@
 set -ex
 
 flake8 .
-isort -c -df .
+isort --check --diff .
 black --check --diff .
 
 # test that we can parse implementations.json
