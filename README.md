@@ -65,6 +65,8 @@ Currently disabled due to #20.
 
 * **ChaCha20** (`chacha20`, only for the client): In this test, the client is expected to offer **only** ChaCha20 as a ciphersuite, and download the files.
 
+* **KeyUpdate** (`keyupdate`, only for the client): The client is expected to make sure that a key update happens early in the connection (during the first MB transferred). It doesn't matter which peer actually initiated the update.
+
 * **Retry** (`retry`): Tests that the server can generate a Retry, and that the client can act upon it (i.e. use the Token provided in the Retry packet in the Initial packet).
 
 * **Resumption** (`resumption`): Tests QUIC session resumption (without 0-RTT). The client is expected to establish a connection and download the first file. The server is expected to provide the client with a session ticket that allows it to resume the connection. After downloading the first file, the client has to close the connection, establish a resumed connection using the session ticket, and use this connection to download the remaining file(s).

@@ -652,6 +652,70 @@ class TestCaseBlackhole(TestCase):
         return TestResult.SUCCEEDED
 
 
+class TestCaseKeyUpdate(TestCaseHandshake):
+    @staticmethod
+    def name():
+        return "keyupdate"
+
+    @staticmethod
+    def testname(p: Perspective):
+        if p is Perspective.CLIENT:
+            return "keyupdate"
+        return "transfer"
+
+    @staticmethod
+    def abbreviation():
+        return "U"
+
+    def get_paths(self):
+        self._files = [self._generate_random_file(3 * MB)]
+        return self._files
+
+    def check(self) -> TestResult:
+        if not self._keylog_file():
+            logging.info("Can't check test result. SSLKEYLOG required.")
+            return TestResult.UNSUPPORTED
+
+        num_handshakes = self._count_handshakes()
+        if num_handshakes != 1:
+            logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+            return TestResult.FAILED
+        if not self._check_version_and_files():
+            return TestResult.FAILED
+
+        client = {0: 0, 1: 0}
+        for p in self._client_trace().get_1rtt(Direction.FROM_CLIENT):
+            client[int(p.key_phase)] += 1
+        server = {0: 0, 1: 0}
+        for p in self._server_trace().get_1rtt(Direction.FROM_SERVER):
+            server[int(p.key_phase)] += 1
+
+        succeeded = client[0] * client[1] * server[0] * server[1] > 0
+
+        log_level = logging.INFO
+        if succeeded:
+            log_level = logging.DEBUG
+
+        logging.log(
+            log_level,
+            "Client sent %d key phase 0 and %d key phase 1 packets.",
+            client[0],
+            client[1],
+        )
+        logging.log(
+            log_level,
+            "Server sent %d key phase 0 and %d key phase 1 packets.",
+            server[0],
+            server[1],
+        )
+        if not succeeded:
+            logging.info(
+                "Expected to see packets sent with two key phases from both client and server."
+            )
+            return TestResult.FAILED
+        return TestResult.SUCCEEDED
+
+
 class TestCaseHandshakeLoss(TestCase):
     _num_runs = 50
 
@@ -851,6 +915,7 @@ TESTCASES = [
     TestCaseZeroRTT,
     TestCaseHTTP3,
     TestCaseBlackhole,
+    TestCaseKeyUpdate,
     TestCaseHandshakeLoss,
     TestCaseTransferLoss,
     TestCaseHandshakeCorruption,
