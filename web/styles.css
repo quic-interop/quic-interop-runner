@@ -2,22 +2,8 @@ body.loading table.resulttable {
   opacity: 0.3;
 }
 
-table.resulttable td.results {
-  font-size: 0.8rem;
+.btn-xs {
+  margin: 0 .1rem .1rem 0;
+  padding: .01rem .025rem .01rem .025rem;
+  font-size: .7rem;
 }
-
-table.resulttable tr:first-child td,
-table.resulttable tr td:first-child {
-  font-weight: bold;
-  vertical-align: middle;
-}
-
-table.resulttable .results a {
-  color: inherit;
-}
-
-table#interop .results a {
-  margin-right: .15rem;
-  display: inline-block;
-}
-

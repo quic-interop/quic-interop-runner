@@ -8,56 +8,76 @@
     ].join(":").replace(/\b(\d)\b/g, "0$1")
   }
 
-  function getLogLink(log_dir, server, client, testcase, text) {
+  function getLogLink(log_dir, server, client, testcase, text, type) {
     var a = document.createElement("a");
     a.title = "Logs";
     a.href = "logs/" + log_dir + "/" + server + "_" + client + "/" + testcase;
     a.target = "_blank";
+    a.className = "btn btn-xs " + type;
     a.appendChild(document.createTextNode(text));
     return a;
   }
 
   function getUnsupported(text) {
     var a = document.createElement("a");
+    a.className = "btn btn-secondary btn-xs disabled";
     a.appendChild(document.createTextNode(text));
     return a;
+  }
+
+  function makeHeaderRow(t, result) {
+    var thead = t.createTHead();
+    var row = thead.insertRow(0);
+    var cell = document.createElement("th");
+    row.appendChild(cell);
+    cell.scope = "col";
+    cell.className = "table-light"
+    for(var i = 0; i < result.servers.length; i++) {
+      var cell = document.createElement("th");
+      row.appendChild(cell);
+      cell.scope = "col";
+      cell.className = "table-light"
+      cell.innerHTML = result.servers[i];
+    }
+  }
+
+  function makeColumnHeader(tbody, result, i) {
+    var row = tbody.insertRow(i);
+    var cell = document.createElement("th");
+    cell.scope = "row";
+    cell.className = "table-light"
+    cell.innerHTML = result.clients[i];
+    row.appendChild(cell);
+    return row;
   }
 
   function fillInteropTable(result) {
     var t = document.getElementById("interop");
     t.innerHTML = "";
-    var row = t.insertRow(0);
-    row.insertCell(0);
-    for(var i = 0; i < result.servers.length; i++) {
-      row.insertCell(i+1).innerHTML = result.servers[i];
-    }
+    makeHeaderRow(t, result);
+    var tbody = t.createTBody();
     var index = 0;
     for(var i = 0; i < result.clients.length; i++) {
-      var row = t.insertRow(i+1);
-      row.insertCell(0).innerHTML = result.clients[i];
+      var row = makeColumnHeader(tbody, result, i);
       for(var j = 0; j < result.servers.length; j++) {
         var cell = row.insertCell(j+1);
-        var appendResult = function(el, res) {
+        var appendResult = function(el, res, type) {
           result.results[index].forEach(function(item) {
             if(item.result != res) return;
             if(res == "unsupported") {
               el.appendChild(getUnsupported(item.abbr));
             } else {
-              el.appendChild(getLogLink(result.log_dir, result.servers[j], result.clients[i], item.name, item.abbr))
+              el.appendChild(getLogLink(result.log_dir, result.servers[j], result.clients[i], item.name, item.abbr, type))
             }
           });
           cell.appendChild(el);
         }
-        cell.className = "results";
-        var succeeded = document.createElement("div");
-        succeeded.className = "text-success";
-        appendResult(succeeded, "succeeded");
-        var unsupported = document.createElement("div");
-        unsupported.className = "text-secondary";
-        appendResult(unsupported, "unsupported");
-        var failed = document.createElement("div");
-        failed.className = "text-danger";
-        appendResult(failed, "failed");
+        var succeeded = document.createElement("span");
+        appendResult(succeeded, "succeeded", "btn-success");
+        var unsupported = document.createElement("span");
+        appendResult(unsupported, "unsupported", "btn-secondary");
+        var failed = document.createElement("span");
+        appendResult(failed, "failed", "btn-danger");
         index++;
       }
     }
@@ -66,15 +86,11 @@
   function fillMeasurementTable(result) {
     var t = document.getElementById("measurements");
     t.innerHTML = "";
-    var row = t.insertRow(0);
-    row.insertCell(0);
-    for(var i = 0; i < result.servers.length; i++) {
-      row.insertCell(i+1).innerHTML = result.servers[i];
-    }
+    makeHeaderRow(t, result);
+    var tbody = t.createTBody();
     var index = 0;
     for(var i = 0; i < result.clients.length; i++) {
-      var row = t.insertRow(i+1);
-      row.insertCell(0).innerHTML = result.clients[i];
+      var row = makeColumnHeader(tbody, result, i);
       for(var j = 0; j < result.servers.length; j++) {
         var res = result.measurements[index];
         var cell = row.insertCell(j+1);
@@ -85,16 +101,16 @@
           var link = getLogLink(result.log_dir, result.servers[j], result.clients[i], measurement.name, measurement.abbr);
           switch(measurement.result) {
             case "succeeded":
-              el.className = "text-success";
+              el.className = "btn btn-xs btn-success";
               el.appendChild(link);
               el.innerHTML += ": " + measurement.details;
               break;
             case "unsupported":
-              el.className = "text-secondary";
+              el.className = "btn btn-xs btn-secondary disabled";
               el.appendChild(getUnsupported(measurement.abbr));
               break;
             case "failed":
-              el.className = "text-danger";
+              el.className = "btn btn-xs btn-danger";
               el.appendChild(link);
               break;
           }
