@@ -12,6 +12,8 @@ from typing import List
 
 from Crypto.Cipher import AES
 
+from result import TestResult
+
 KB = 1 << 10
 MB = 1 << 20
 
@@ -89,7 +91,7 @@ class TestCase(abc.ABC):
             )
         return self._download_dir.name + "/"
 
-    def _keylog_file(self):
+    def _keylog_file(self) -> str:
         if os.path.isfile(self._client_keylog_file):
             logging.debug("Using the client's key log file.")
             return self._client_keylog_file
@@ -121,7 +123,7 @@ class TestCase(abc.ABC):
     def _retry_sent(self) -> bool:
         return len(self._client_trace().get_retry()) > 0
 
-    def _check_version_and_files(self):
+    def _check_version_and_files(self) -> bool:
         versions = self._get_versions()
         if len(versions) != 1:
             logging.info("Expected exactly one version. Got %s", versions)
@@ -214,7 +216,7 @@ class TestCase(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def check(self) -> bool:
+    def check(self) -> TestResult:
         pass
 
 
@@ -246,7 +248,7 @@ class TestCaseVersionNegotiation(TestCase):
     def get_paths(self):
         return [""]
 
-    def check(self):
+    def check(self) -> TestResult:
         tr = self._client_trace()
         initials = tr.get_initial(Direction.FROM_CLIENT)
         dcid = ""
@@ -255,13 +257,13 @@ class TestCaseVersionNegotiation(TestCase):
             break
         if dcid == "":
             logging.info("Didn't find an Initial / a DCID.")
-            return False
+            return TestResult.FAILED
         vnps = tr.get_vnp()
         for p in vnps:
             if p.scid == dcid:
-                return True
+                return TestResult.SUCCEEDED
         logging.info("Didn't find a Version Negotiation Packet with matching SCID.")
-        return False
+        return TestResult.FAILED
 
 
 class TestCaseHandshake(TestCase):
@@ -277,17 +279,17 @@ class TestCaseHandshake(TestCase):
         self._files = [self._generate_random_file(1 * KB)]
         return self._files
 
-    def check(self):
+    def check(self) -> TestResult:
         if not self._check_version_and_files():
-            return False
+            return TestResult.FAILED
         if self._retry_sent():
             logging.info("Didn't expect a Retry to be sent.")
-            return False
+            return TestResult.FAILED
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
-            return False
-        return True
+            return TestResult.FAILED
+        return TestResult.SUCCEEDED
 
 
 class TestCaseLongRTT(TestCaseHandshake):
@@ -308,9 +310,9 @@ class TestCaseLongRTT(TestCaseHandshake):
         """ Scenario for the ns3 simulator """
         return "simple-p2p --delay=750ms --bandwidth=10Mbps --queue=25"
 
-    def check(self):
+    def check(self) -> TestResult:
         if not super(TestCaseLongRTT, self).check():
-            return False
+            return TestResult.FAILED
         num_ch = 0
         for p in self._client_trace().get_initial(Direction.FROM_CLIENT):
             if hasattr(p, "tls_handshake_type"):
@@ -318,8 +320,8 @@ class TestCaseLongRTT(TestCaseHandshake):
                     num_ch += 1
         if num_ch < 2:
             logging.info("Expected at least 2 ClientHellos. Got: %d", num_ch)
-            return False
-        return True
+            return TestResult.FAILED
+        return TestResult.SUCCEEDED
 
 
 class TestCaseTransfer(TestCase):
@@ -339,12 +341,14 @@ class TestCaseTransfer(TestCase):
         ]
         return self._files
 
-    def check(self):
+    def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
-            return False
-        return self._check_version_and_files()
+            return TestResult.FAILED
+        if not self._check_version_and_files():
+            return TestResult.FAILED
+        return TestResult.SUCCEEDED
 
 
 class TestCaseChaCha20(TestCase):
@@ -366,11 +370,11 @@ class TestCaseChaCha20(TestCase):
         self._files = [self._generate_random_file(3 * MB)]
         return self._files
 
-    def check(self):
+    def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
-            return False
+            return TestResult.FAILED
         ciphersuites = []
         for p in self._client_trace().get_initial(Direction.FROM_CLIENT):
             if hasattr(p, "tls_handshake_ciphersuite"):
@@ -380,8 +384,10 @@ class TestCaseChaCha20(TestCase):
                 "Expected only ChaCha20 cipher suite to be offered. Got: %s",
                 set(ciphersuites),
             )
-            return False
-        return self._check_version_and_files()
+            return TestResult.FAILED
+        if not self._check_version_and_files():
+            return TestResult.FAILED
+        return TestResult.SUCCEEDED
 
 
 class TestCaseMultiplexing(TestCase):
@@ -402,13 +408,13 @@ class TestCaseMultiplexing(TestCase):
             self._files.append(self._generate_random_file(32))
         return self._files
 
-    def check(self):
+    def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
-            return False
+            return TestResult.FAILED
         if not self._check_version_and_files():
-            return False
+            return TestResult.FAILED
         # Check that the server set a bidirectional stream limit <= 1000
         checked_stream_limit = False
         for p in self._client_trace().get_handshake(Direction.FROM_SERVER):
@@ -420,12 +426,12 @@ class TestCaseMultiplexing(TestCase):
                 logging.debug("Server set bidirectional stream limit: %d", stream_limit)
                 if stream_limit > 1000:
                     logging.info("Server set a stream limit > 1000.")
-                    return False
+                    return TestResult.FAILED
         if not checked_stream_limit:
             logging.debug(
                 "WARNING: Couldn't check stream limit. No SSLKEYLOG file available?"
             )
-        return True
+        return TestResult.SUCCEEDED
 
 
 class TestCaseRetry(TestCase):
@@ -477,14 +483,16 @@ class TestCaseRetry(TestCase):
         logging.info("Didn't find any Initial packet using a Retry token.")
         return False
 
-    def check(self) -> bool:
+    def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
-            return False
+            return TestResult.FAILED
         if not self._check_version_and_files():
-            return False
-        return self._check_trace()
+            return TestResult.FAILED
+        if not self._check_trace():
+            return TestResult.FAILED
+        return TestResult.SUCCEEDED
 
 
 class TestCaseResumption(TestCase):
@@ -503,11 +511,11 @@ class TestCaseResumption(TestCase):
         ]
         return self._files
 
-    def check(self):
+    def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
         if num_handshakes != 2:
             logging.info("Expected exactly 2 handshake. Got: %d", num_handshakes)
-            return False
+            return TestResult.FAILED
 
         handshake_packets = self._client_trace().get_handshake(Direction.FROM_SERVER)
         cids = [p.scid for p in handshake_packets]
@@ -520,7 +528,7 @@ class TestCaseResumption(TestCase):
                 handshake_packets_second.append(p)
             else:
                 logging.info("This should never happen.")
-                return False
+                return TestResult.FAILED
         handshake_size_first = self._payload_size(handshake_packets_first)
         handshake_size_second = self._payload_size(handshake_packets_second)
         logging.debug(
@@ -536,8 +544,10 @@ class TestCaseResumption(TestCase):
             logging.info(
                 "Expected the size of the server's Handshake flight to be significantly smaller during the second connection."
             )
-            return False
-        return self._check_version_and_files()
+            return TestResult.FAILED
+        if not self._check_version_and_files():
+            return TestResult.FAILED
+        return TestResult.SUCCEEDED
 
 
 class TestCaseZeroRTT(TestCase):
@@ -560,13 +570,13 @@ class TestCaseZeroRTT(TestCase):
             )
         return self._files
 
-    def check(self) -> bool:
+    def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
         if num_handshakes != 2:
             logging.info("Expected exactly 2 handshakes. Got: %d", num_handshakes)
-            return False
+            return TestResult.FAILED
         if not self._check_version_and_files():
-            return False
+            return TestResult.FAILED
         tr = self._client_trace()
         zeroRTTSize = self._payload_size(tr.get_0rtt())
         oneRTTSize = self._payload_size(tr.get_1rtt(Direction.FROM_CLIENT))
@@ -574,11 +584,11 @@ class TestCaseZeroRTT(TestCase):
         logging.debug("1-RTT size: %d", oneRTTSize)
         if zeroRTTSize == 0:
             logging.info("Client didn't send any 0-RTT data.")
-            return False
+            return TestResult.FAILED
         if oneRTTSize > 0.5 * self.FILENAMELEN * self.NUM_FILES:
             logging.info("Client sent too much data in 1-RTT packets.")
-            return False
-        return True
+            return TestResult.FAILED
+        return TestResult.SUCCEEDED
 
 
 class TestCaseHTTP3(TestCase):
@@ -598,12 +608,14 @@ class TestCaseHTTP3(TestCase):
         ]
         return self._files
 
-    def check(self):
+    def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
-            return False
-        return self._check_version_and_files()
+            return TestResult.FAILED
+        if not self._check_version_and_files():
+            return TestResult.FAILED
+        return TestResult.SUCCEEDED
 
 
 class TestCaseBlackhole(TestCase):
@@ -628,12 +640,14 @@ class TestCaseBlackhole(TestCase):
         self._files = [self._generate_random_file(10 * MB)]
         return self._files
 
-    def check(self):
+    def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
-            return False
-        return self._check_version_and_files()
+            return TestResult.FAILED
+        if not self._check_version_and_files():
+            return TestResult.FAILED
+        return TestResult.SUCCEEDED
 
 
 class TestCaseHandshakeLoss(TestCase):
@@ -665,14 +679,16 @@ class TestCaseHandshakeLoss(TestCase):
             self._files.append(self._generate_random_file(1 * KB))
         return self._files
 
-    def check(self):
+    def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
         if num_handshakes != self._num_runs:
             logging.info(
                 "Expected %d handshakes. Got: %d", self._num_runs, num_handshakes
             )
-            return False
-        return self._check_version_and_files()
+            return TestResult.FAILED
+        if not self._check_version_and_files():
+            return TestResult.FAILED
+        return TestResult.SUCCEEDED
 
 
 class TestCaseTransferLoss(TestCase):
@@ -698,12 +714,14 @@ class TestCaseTransferLoss(TestCase):
         self._files = [self._generate_random_file(2 * MB)]
         return self._files
 
-    def check(self):
+    def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
-            return False
-        return self._check_version_and_files()
+            return TestResult.FAILED
+        if not self._check_version_and_files():
+            return TestResult.FAILED
+        return TestResult.SUCCEEDED
 
 
 class TestCaseHandshakeCorruption(TestCaseHandshakeLoss):
@@ -764,13 +782,13 @@ class MeasurementGoodput(Measurement):
         self._files = [self._generate_random_file(self.FILESIZE)]
         return self._files
 
-    def check(self) -> bool:
+    def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
-            return False
+            return TestResult.FAILED
         if not self._check_version_and_files():
-            return False
+            return TestResult.FAILED
 
         packets = self._client_trace().get_1rtt(Direction.FROM_SERVER)
         first, last = 0, 0
@@ -780,7 +798,7 @@ class MeasurementGoodput(Measurement):
             last = p.sniff_time
 
         if last - first == 0:
-            return False
+            return TestResult.FAILED
         time = (last - first) / timedelta(milliseconds=1)
         goodput = (8 * self.FILESIZE) / time
         logging.debug(
@@ -790,7 +808,7 @@ class MeasurementGoodput(Measurement):
             goodput,
         )
         self._result = goodput
-        return True
+        return TestResult.SUCCEEDED
 
     def result(self) -> float:
         return self._result

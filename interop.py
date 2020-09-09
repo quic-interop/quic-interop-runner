@@ -10,13 +10,13 @@ import subprocess
 import sys
 import tempfile
 from datetime import datetime
-from enum import Enum
 from typing import Callable, List, Tuple
 
 import prettytable
 from termcolor import colored
 
 import testcases
+from result import TestResult
 from testcases import Perspective
 
 
@@ -24,12 +24,6 @@ def random_string(length: int):
     """ Generate a random string of fixed length """
     letters = string.ascii_lowercase
     return "".join(random.choice(letters) for i in range(length))
-
-
-class TestResult(Enum):
-    SUCCEEDED = "succeeded"
-    FAILED = "failed"
-    UNSUPPORTED = "unsupported"
 
 
 class MeasurementResult:
@@ -384,8 +378,7 @@ class InteropRunner:
             if self._is_unsupported(lines):
                 status = TestResult.UNSUPPORTED
             elif any("client exited with code 0" in str(line) for line in lines):
-                if testcase.check():
-                    status = TestResult.SUCCEEDED
+                status = testcase.check()
 
         # save logs
         logging.getLogger().removeHandler(log_handler)
