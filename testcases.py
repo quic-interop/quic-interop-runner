@@ -684,11 +684,17 @@ class TestCaseKeyUpdate(TestCaseHandshake):
             return TestResult.FAILED
 
         client = {0: 0, 1: 0}
-        for p in self._client_trace().get_1rtt(Direction.FROM_CLIENT):
-            client[int(p.key_phase)] += 1
         server = {0: 0, 1: 0}
-        for p in self._server_trace().get_1rtt(Direction.FROM_SERVER):
-            server[int(p.key_phase)] += 1
+        try:
+            for p in self._client_trace().get_1rtt(Direction.FROM_CLIENT):
+                client[int(p.key_phase)] += 1
+            for p in self._server_trace().get_1rtt(Direction.FROM_SERVER):
+                server[int(p.key_phase)] += 1
+        except Exception:
+            logging.info(
+                "Failed to read key phase bits. Potentially incorrect SSLKEYLOG?"
+            )
+            return TestResult.FAILED
 
         succeeded = client[0] * client[1] * server[0] * server[1] > 0
 
