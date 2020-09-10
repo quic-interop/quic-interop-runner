@@ -3,21 +3,45 @@ on:
   schedule:
   - cron: "0 */8 * * *" # every 8h
 
+# Cache key for caching the Wireshark build.
+# To trigger a rebuild of Wireshark increment this value.
+# The rebuild will then build the current master of Wireshark and save it under the new key.
+env:
+  WIRESHARK_CACHEKEY: 1
+
 jobs:
   wireshark:
     runs-on: ubuntu-latest
     steps:
+      - name: Restore from cache
+        id: restore-cache
+        uses: actions/cache@v2
+        env:
+          VERSION: ${{ env.WIRESHARK_CACHEKEY }}
+        with:
+          key: wireshark-${{ env.VERSION }}
+          path: tshark.tar.gz
+      - name: Show tshark version information
+        if: steps.restore-cache.outputs.cache-hit == 'true'
+        run: |
+          tar xfz tshark.tar.gz
+          ./tshark -v
       - uses: actions/checkout@v2
+        if: steps.restore-cache.outputs.cache-hit != 'true'
         with:
           repository: wireshark/wireshark
       - name: Install dependencies
+        if: steps.restore-cache.outputs.cache-hit != 'true'
         run: sudo apt-get install -y cmake libglib2.0-dev libc-ares-dev libgcrypt20-dev flex bison byacc libpcap-dev ninja-build
       - name: Build Wireshark
+        if: steps.restore-cache.outputs.cache-hit != 'true'
         run: |
           cmake -GNinja -DBUILD_wireshark=0 -DBUILD_qtshark=0 -DBUILD_editcap=0 -DBUILD_capinfos=0 -DBUILD_text2pcap=0 -DBUILD_rawshark=0 -DBUILD_sdjournal=0 -DBUILD_sshdump=0 -DBUILD_ciscodump=0 -DENABLE_STATIC=1 -DENABLE_PLUGINS=0 -DENABLE_LIBXML2=0 -DUSE_STATIC=1 -DENABLE_GNUTLS=1 .
           ninja
       - run: run/tshark -v
+        if: steps.restore-cache.outputs.cache-hit != 'true'
       - name: Compress
+        if: steps.restore-cache.outputs.cache-hit != 'true'
         run: tar -czvf tshark.tar.gz -C run/ tshark
       - name: Upload
         uses: actions/upload-artifact@v2
