@@ -52,6 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       logname: ${{ steps.set-logname.outputs.logname }}
+      starttime: ${{ steps.set-starttime.outputs.starttime }}
       servers: ${{ steps.set-servers.outputs.servers }}
       clients: ${{ steps.set-clients.outputs.clients }}
       images: ${{ steps.set-images.outputs.images }}
@@ -62,6 +63,12 @@ jobs:
           LOGNAME=$(date -u +"%Y-%m-%dT%H:%M")
           echo $LOGNAME
           echo "::set-output name=logname::$LOGNAME"
+      - name: Save start time
+        id: set-starttime
+        run: |
+          STARTTIME=$(date +%s)
+          echo $STARTTIME
+          echo "::set-output name=starttime::$STARTTIME"
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v1
         with:
@@ -234,7 +241,13 @@ jobs:
         with:
           name: results
       - name: Aggregate results
-        run: python .github/workflows/aggregate.py --server ${{ join(fromJson(needs.config.outputs.servers), ',') }} --client ${{ join(fromJson(needs.config.outputs.clients), ',') }} --log-dir=$LOGNAME --output result.json
+        run: |
+          python .github/workflows/aggregate.py \
+            --start-time ${{ needs.config.outputs.starttime }} \
+            --server ${{ join(fromJson(needs.config.outputs.servers), ',') }} \
+            --client ${{ join(fromJson(needs.config.outputs.clients), ',') }} \
+            --log-dir=$LOGNAME \
+            --output result.json
       - name: Print result
         run: jq '.' result.json
       - name: Upload result to artifacts
