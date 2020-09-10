@@ -45,12 +45,34 @@
   </nav>
 
   <div class="container-fluid">
-    <h3 class="mt-4">Interop</h3>
-    <table id="interop" class="resulttable table table-hover"></table>
 
-    <h3>Measurements</h3>
-    <table id="measurements" class="resulttable table table-hover"></table>
+    <h3 class="mt-5">Results filter</h3>
+
+    <div class="mt-2 row">
+      <div class="col-2 col-sm-1">Client:</div>
+      <div id="client" class="col-10 col-sm-11 btn-group flex-wrap btn-group-sm" role="group" aria-label="Filter client implementations"></div>
+    </div>
+
+    <div class="mt-2 row">
+      <div class="col-2 col-sm-1">Server:</div>
+      <div id="server" class="col-10 col-sm-11 btn-group flex-wrap btn-group-sm" role="group" aria-label="Filter server implementations"></div>
+    </div>
+
+    <div class="mt-2 row">
+      <div class="col-2 col-sm-1">Test case:</div>
+      <div id="testcase" class="col-10 col-sm-11 btn-group flex-wrap btn-group-sm" role="group" aria-label="Filter test cases"></div>
+    </div>
+
+    <h3 class="mt-5">Interop status</h3>
+    <table id="interop" class="result table table-hover"></table>
+
+    <h3 class="mt-5">Measurement results</h3>
+    <table id="measurements" class="result table table-hover"></table>
   </div>
+
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
   <script src="script.js"></script>
 </body>
 </html>
