@@ -140,7 +140,7 @@
     map[type] = params.getAll(type).map(x => x.toLowerCase().split(",")).flat();
     if (map[type].length === 0)
       map[type] = $("#" + type + " :button").get().map(x => x.innerText.toLowerCase());
-    $("#" + type + " :button").removeClass("active").filter((i, e) => map[type].includes(e.innerText.toLowerCase())).addClass("active");
+    $("#" + type + " :button").removeClass("active font-weight-bold").addClass("text-muted font-weight-light").filter((i, e) => map[type].includes(e.innerText.toLowerCase())).addClass("active font-weight-bold").removeClass("text-muted font-weight-light");
 
     $(".result td").add(".result th").add(".result tr").add(".result td a").show().filter((i, e) => {
       var cand = [...e.classList].filter(x => x.startsWith(type + "-"))[0];
