@@ -1,4 +1,4 @@
-/* globals document, window, console, URLSearchParams, XMLHttpRequest, $ */
+/* globals document, window, console, URLSearchParams, XMLHttpRequest, $, history */
 
 (function() {
   "use strict";
@@ -136,13 +136,13 @@
   }
 
   function setButtonState(type) {
-    var params = new URLSearchParams(window.location.search);
+    var params = new URLSearchParams(history.state ? history.state.path : window.location.search);
     map[type] = params.getAll(type).map(x => x.toLowerCase().split(",")).flat();
     if (map[type].length === 0)
       map[type] = $("#" + type + " :button").get().map(x => x.innerText.toLowerCase());
-    $("#" + type + " :button").filter((i, e) => map[type].includes(e.innerText.toLowerCase())).toggleClass("active");
+    $("#" + type + " :button").removeClass("active").filter((i, e) => map[type].includes(e.innerText.toLowerCase())).addClass("active");
 
-    $(".result td").add(".result th").add(".result tr").add(".result td a").filter((i, e) => {
+    $(".result td").add(".result th").add(".result tr").add(".result td a").show().filter((i, e) => {
       var cand = [...e.classList].filter(x => x.startsWith(type + "-"))[0];
       if (cand === undefined) return false;
       cand = cand.replace(type + "-", "");
@@ -159,19 +159,27 @@
             array.splice(index, 1);
     }
 
+    e.target.blur();
     const type = [...e.target.classList].filter(x => Object.keys(map).includes(x))[0];
     const which = e.target.innerText.toLowerCase();
 
     var q;
-    var params = new URLSearchParams(window.location.search.toLowerCase);
+    var params = new URLSearchParams(history.state ? history.state.path : window.location.search);
     if (params.has(type))
       q = params.get(type).split(",");
     else
       q = map[type];
     toggle(q, which);
-    params.set(type, q);
-    window.location.search = decodeURIComponent(params.toString());
+
+    if (q.length === $("#" + type + " :button").length)
+      params.delete(type);
+    else
+      params.set(type, q);
+
+    var refresh = window.location.protocol + "//" + window.location.host + window.location.pathname + "?" + decodeURIComponent(params.toString());
+    window.history.pushState(null, null, refresh);
     toggle(map[type], which);
+    setButtonState(type);
   }
 
 
