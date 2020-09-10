@@ -186,6 +186,7 @@
     fillInteropTable(result);
     fillMeasurementTable(result);
 
+    $("#client").add("#server").add("#testcase").empty();
     $("#client").append(result.clients.map(e => makeButton("client", e))).click(clickButton);
     setButtonState("client");
 
