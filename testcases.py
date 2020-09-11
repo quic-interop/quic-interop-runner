@@ -327,7 +327,7 @@ class TestCaseLongRTT(TestCaseHandshake):
 
     @staticmethod
     def desc():
-        return "TODO"
+        return "The handshake completes on a connection with a long RTT."
 
     @staticmethod
     def scenario() -> str:
