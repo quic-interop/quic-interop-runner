@@ -18,7 +18,7 @@ KB = 1 << 10
 MB = 1 << 20
 
 QUIC_DRAFT = 29  # draft-29
-QUIC_VERSION = hex(0xff000000 + QUIC_DRAFT)
+QUIC_VERSION = hex(0xFF000000 + QUIC_DRAFT)
 
 
 class Perspective(Enum):
@@ -1013,6 +1013,10 @@ class MeasurementGoodput(Measurement):
         return "G"
 
     @staticmethod
+    def desc():
+        return "TODO"
+
+    @staticmethod
     def repetitions() -> int:
         return 5
 
@@ -1062,6 +1066,10 @@ class MeasurementCrossTraffic(MeasurementGoodput):
     @staticmethod
     def abbreviation():
         return "C"
+
+    @staticmethod
+    def desc():
+        return "TODO"
 
     @staticmethod
     def timeout() -> int:
