@@ -35,6 +35,7 @@ class TraceAnalyzer:
             self._filename,
             display_filter=f,
             override_prefs=override_prefs,
+            disable_protocol="http3",  # see https://github.com/marten-seemann/quic-interop-runner/pull/179/
             decode_as={"udp.port==443": "quic"},
         )
         packets = []
