@@ -396,7 +396,7 @@ class TestCaseChaCha20(TestCase):
 
     @staticmethod
     def desc():
-        return "TODO"
+        return "The handshake completes using ChaCha20."
 
     def get_paths(self):
         self._files = [self._generate_random_file(3 * MB)]
