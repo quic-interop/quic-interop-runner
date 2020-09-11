@@ -25,7 +25,7 @@
 
   function getUnsupported(text) {
     var a = document.createElement("a");
-    a.className = "btn btn-secondary btn-xs disabled" + text + " testcase-" + text.toLowerCase();
+    a.className = "btn btn-secondary btn-xs disabled testcase-" + text.toLowerCase();
     a.appendChild(document.createTextNode(text));
     return a;
   }
@@ -36,7 +36,7 @@
     var cell = document.createElement("th");
     row.appendChild(cell);
     cell.scope = "col";
-    cell.className = "table-light";
+    cell.className = "table-light client-any";
     for(var i = 0; i < result.servers.length; i++) {
       cell = document.createElement("th");
       row.appendChild(cell);
@@ -48,10 +48,9 @@
 
   function makeRowHeader(tbody, result, i) {
     var row = tbody.insertRow(i);
-    row.className = "client-" + result.clients[i];
     var cell = document.createElement("th");
     cell.scope = "row";
-    cell.className = "table-light";
+    cell.className = "table-light client-" + result.clients[i];
     cell.innerHTML = result.clients[i];
     row.appendChild(cell);
     return row;
@@ -101,7 +100,7 @@
         for(var k = 0; k < res.length; k++) {
           var measurement = res[k];
           var link = getLogLink(result.log_dir, result.servers[j], result.clients[i], measurement.name, measurement.abbr);
-          link.className = "btn btn-xs ";
+          link.className = "measurement btn btn-xs ";
           switch(measurement.result) {
             case "succeeded":
               link.className += " btn-success";
@@ -135,19 +134,25 @@
       return b;
   }
 
-  function setButtonState(type) {
+  function setButtonState() {
     var params = new URLSearchParams(history.state ? history.state.path : window.location.search);
-    map[type] = params.getAll(type).map(x => x.toLowerCase().split(",")).flat();
-    if (map[type].length === 0)
-      map[type] = $("#" + type + " :button").get().map(x => x.innerText.toLowerCase());
-    $("#" + type + " :button").removeClass("active font-weight-bold").addClass("text-muted font-weight-light").filter((i, e) => map[type].includes(e.innerText.toLowerCase())).addClass("active font-weight-bold").removeClass("text-muted font-weight-light");
+    var show = {};
+    Object.keys(map).forEach(type => {
+      map[type] = params.getAll(type).map(x => x.toLowerCase().split(",")).flat();
+      if (map[type].length === 0)
+        map[type] = $("#" + type + " :button").get().map(x => x.innerText.toLowerCase());
+      $("#" + type + " :button").removeClass("active font-weight-bold").addClass("text-muted font-weight-light").filter((i, e) => map[type].includes(e.innerText.toLowerCase())).addClass("active font-weight-bold").removeClass("text-muted font-weight-light");
+      show[type] = map[type].map(e => "." + type + "-" + e);
+    });
 
-    $(".result td").add(".result th").add(".result tr").add(".result td a").show().filter((i, e) => {
-      var cand = [...e.classList].filter(x => x.startsWith(type + "-"))[0];
-      if (cand === undefined) return false;
-      cand = cand.replace(type + "-", "");
-      return map[type].includes(cand) === false;
-    }).hide();
+    $(".result td").add(".result th").add(".result td a").hide();
+
+    const show_classes = show.client.map(el1 => show.server.map(el2 => el1 + el2)).flat().join();
+    $(".client-any," + show_classes).show();
+
+    $(".result " + show.client.map(e => "th" + e).join()).show();
+    $(".result " + show.server.map(e => "th" + e).join()).show();
+    $(".measurement," + show.testcase.join()).show();
   }
 
   function clickButton(e) {
@@ -163,12 +168,14 @@
     const type = [...e.target.classList].filter(x => Object.keys(map).includes(x))[0];
     const which = e.target.innerText.toLowerCase();
 
-    var q;
+    var q = [];
     var params = new URLSearchParams(history.state ? history.state.path : window.location.search);
-    if (params.has(type))
+    if (params.has(type) && params.get(type))
       q = params.get(type).split(",");
-    else
+    else {
       q = map[type];
+      params.delete(type);
+    }
     toggle(q, which);
 
     if (q.length === $("#" + type + " :button").length)
@@ -179,7 +186,7 @@
     var refresh = window.location.protocol + "//" + window.location.host + window.location.pathname + "?" + decodeURIComponent(params.toString());
     window.history.pushState(null, null, refresh);
     toggle(map[type], which);
-    setButtonState(type);
+    setButtonState();
   }
 
 
@@ -196,14 +203,10 @@
 
     $("#client").add("#server").add("#testcase").empty();
     $("#client").append(result.clients.map(e => makeButton("client", e))).click(clickButton);
-    setButtonState("client");
-
     $("#server").append(result.servers.map(e => makeButton("server", e))).click(clickButton);
-    setButtonState("server");
-
     const tcases = result.results.flat().map(x => [x.abbr, x.name]).filter((e, i, a) => a.map(x => x[0]).indexOf(e[0]) === i);
     $("#testcase").append(tcases.map(e => makeButton("testcase", e[0], e[1]))).click(clickButton);
-    setButtonState("testcase");
+    setButtonState();
   }
 
   function load(dir) {
