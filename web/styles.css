@@ -1,43 +1,9 @@
-@media (min-width: 1200px) {
-  .container {
-    max-width: 90%;
-  }
-}
-
-.runstats {
-  margin-top: 50px;
-  text-align: right;
-}
-
-#available-runs {
-  margin-left: 5px;
-  display: inline-block;
-}
-
 body.loading table.resulttable {
   opacity: 0.3;
 }
 
-table.resulttable td {
-  vertical-align: middle;
-  font-size: 0.8rem;
-  padding: 0.6rem;
-}
-
-table.resulttable tr:first-child td,
-table.resulttable tr td:first-child {
-  font-weight: bold;
-}
-
-table.resulttable .results div {
-  min-height: 1.4em;
-}
-
-table.resulttable .results a {
-  color: inherit;
-}
-
-table#interop .results a {
-  margin-right: 3px;
-  display: inline-block;
+.btn-xs {
+  margin: 0 .1rem .1rem 0;
+  padding: .01rem .025rem .01rem .025rem;
+  font-size: .7rem;
 }
