@@ -875,7 +875,7 @@ class TestCaseHandshakeCorruption(TestCaseHandshakeLoss):
 
     @staticmethod
     def desc():
-        return "TODO"
+        return "The handshake completes when a lot of packets are corrupted during the handshake."
 
     @staticmethod
     def scenario() -> str:
