@@ -201,6 +201,8 @@
     document.getElementById("lastrun-start").innerHTML = dateToString(startTime);
     document.getElementById("lastrun-end").innerHTML = dateToString(endTime);
     document.getElementById("duration").innerHTML = formatTime(duration);
+    document.getElementById("quic-vers").innerHTML = 
+      "<tt>" + result.quic_version + "</tt> (\"draft-" + result.quic_draft + "\")";
 
     fillInteropTable(result);
     fillMeasurementTable(result);
