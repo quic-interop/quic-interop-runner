@@ -548,7 +548,7 @@ class TestCaseResumption(TestCase):
 
     @staticmethod
     def desc():
-        return "Connection is established using TLS Resume Ticket."
+        return "Connection is established using TLS Session Resumption."
 
     def get_paths(self):
         self._files = [
