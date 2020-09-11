@@ -894,7 +894,7 @@ class TestCaseTransferCorruption(TestCaseTransferLoss):
 
     @staticmethod
     def desc():
-        return "TODO"
+        return "A transfer completes when packets are occasionally dropped after the handshake."
 
     @staticmethod
     def scenario() -> str:
