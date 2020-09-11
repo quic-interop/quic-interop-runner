@@ -228,7 +228,16 @@ class InteropRunner:
             "log_dir": self._log_dir,
             "servers": [name for name in self._servers],
             "clients": [name for name in self._clients],
-            "tests": list(map(lambda x: {"name": x.name(), "abbr": x.abbreviation(), "desc": x.desc()}, self._tests)),
+            "tests": list(
+                map(
+                    lambda x: {
+                        "name": x.name(),
+                        "abbr": x.abbreviation(),
+                        "desc": x.desc(),
+                    },
+                    self._tests,
+                )
+            ),
             "quic_draft": testcases.QUIC_DRAFT,
             "quic_version": testcases.QUIC_VERSION,
             "results": [],
@@ -243,7 +252,11 @@ class InteropRunner:
                     if hasattr(self.test_results[server][client][test], "value"):
                         r = self.test_results[server][client][test].value
                     results.append(
-                        {"abbr": test.abbreviation(), "result": r}
+                        {
+                            "abbr": test.abbreviation(),
+                            "name": test.name(),  # TODO: remove
+                            "result": r,
+                        }
                     )
                 out["results"].append(results)
 
@@ -254,6 +267,7 @@ class InteropRunner:
                         continue
                     measurements.append(
                         {
+                            "name": measurement.name(),  # TODO: remove
                             "abbr": measurement.abbreviation(),
                             "result": res.result.value,
                             "details": res.details,
