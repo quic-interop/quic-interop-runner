@@ -1069,7 +1069,7 @@ class MeasurementCrossTraffic(MeasurementGoodput):
 
     @staticmethod
     def desc():
-        return "TODO"
+        return "This test measures the throughput over a fixed-bandwidth pipe, when competing with TCP traffic."
 
     @staticmethod
     def timeout() -> int:
