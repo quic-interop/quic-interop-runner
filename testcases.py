@@ -1014,7 +1014,7 @@ class MeasurementGoodput(Measurement):
 
     @staticmethod
     def desc():
-        return "TODO"
+        return "This test measures the goodput over a fixed-bandwidth pipe."
 
     @staticmethod
     def repetitions() -> int:
