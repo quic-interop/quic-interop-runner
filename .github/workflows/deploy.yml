@@ -1,0 +1,21 @@
+name: Deploy website
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: appleboy/scp-action@master
+        with:
+          host: interop.seemann.io
+          username: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
+          key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
+          source: web/
+          target: ${{ secrets.INTEROP_SEEMANN_IO_WEBSITE_DIR }}
+          rm: true
+          strip_components: 1
