@@ -437,7 +437,7 @@ class TestCaseMultiplexing(TestCase):
 
     @staticmethod
     def desc():
-        return "TODO"
+        return "Thousands of files are transferred over a single connection."
 
     def get_paths(self):
         for _ in range(1, 2000):
