@@ -687,7 +687,7 @@ class TestCaseBlackhole(TestCase):
 
     @staticmethod
     def desc():
-        return "TODO"
+        return "A transfers succeeds if the underlying connection blacks out for a few seconds."
 
     @staticmethod
     def scenario() -> str:
