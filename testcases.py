@@ -17,7 +17,8 @@ from result import TestResult
 KB = 1 << 10
 MB = 1 << 20
 
-QUIC_VERSION = "0xff00001d"  # draft-29
+QUIC_DRAFT = 29  # draft-29
+QUIC_VERSION = hex(0xff000000 + QUIC_DRAFT)
 
 
 class Perspective(Enum):
@@ -59,6 +60,10 @@ class TestCase(abc.ABC):
 
     @abc.abstractmethod
     def name(self):
+        pass
+
+    @abc.abstractmethod
+    def desc(self):
         pass
 
     def __str__(self):
@@ -252,6 +257,10 @@ class TestCaseVersionNegotiation(TestCase):
     def abbreviation():
         return "V"
 
+    @staticmethod
+    def desc():
+        return "A version negotiation response is elicited and acted on."
+
     def get_paths(self):
         return [""]
 
@@ -281,6 +290,10 @@ class TestCaseHandshake(TestCase):
     @staticmethod
     def abbreviation():
         return "H"
+
+    @staticmethod
+    def desc():
+        return "The handshake completes successfully."
 
     def get_paths(self):
         self._files = [self._generate_random_file(1 * KB)]
@@ -313,6 +326,10 @@ class TestCaseLongRTT(TestCaseHandshake):
         return "handshake"
 
     @staticmethod
+    def desc():
+        return "TODO"
+
+    @staticmethod
     def scenario() -> str:
         """ Scenario for the ns3 simulator """
         return "simple-p2p --delay=750ms --bandwidth=10Mbps --queue=25"
@@ -339,6 +356,10 @@ class TestCaseTransfer(TestCase):
     @staticmethod
     def abbreviation():
         return "DC"
+
+    @staticmethod
+    def desc():
+        return "Stream data is being exchanged and ACK'ed. The connection close procedure completes with a zero error code."
 
     def get_paths(self):
         self._files = [
@@ -372,6 +393,10 @@ class TestCaseChaCha20(TestCase):
     @staticmethod
     def abbreviation():
         return "C20"
+
+    @staticmethod
+    def desc():
+        return "TODO"
 
     def get_paths(self):
         self._files = [self._generate_random_file(3 * MB)]
@@ -409,6 +434,10 @@ class TestCaseMultiplexing(TestCase):
     @staticmethod
     def abbreviation():
         return "M"
+
+    @staticmethod
+    def desc():
+        return "TODO"
 
     def get_paths(self):
         for _ in range(1, 2000):
@@ -451,6 +480,10 @@ class TestCaseRetry(TestCase):
     @staticmethod
     def abbreviation():
         return "S"
+
+    @staticmethod
+    def desc():
+        return "A handshake that includes a Retry packet completes successfully."
 
     def get_paths(self):
         self._files = [
@@ -513,6 +546,10 @@ class TestCaseResumption(TestCase):
     def abbreviation():
         return "R"
 
+    @staticmethod
+    def desc():
+        return "Connection is established using TLS Resume Ticket."
+
     def get_paths(self):
         self._files = [
             self._generate_random_file(5 * KB),
@@ -572,6 +609,10 @@ class TestCaseZeroRTT(TestCase):
     def abbreviation():
         return "Z"
 
+    @staticmethod
+    def desc():
+        return "0-RTT data is being sent and acted on."
+
     def get_paths(self):
         for _ in range(self.NUM_FILES):
             self._files.append(
@@ -609,6 +650,10 @@ class TestCaseHTTP3(TestCase):
     def abbreviation():
         return "3"
 
+    @staticmethod
+    def desc():
+        return "An H3 transaction succeeded."
+
     def get_paths(self):
         self._files = [
             self._generate_random_file(5 * KB),
@@ -639,6 +684,10 @@ class TestCaseBlackhole(TestCase):
     @staticmethod
     def abbreviation():
         return "B"
+
+    @staticmethod
+    def desc():
+        return "TODO"
 
     @staticmethod
     def scenario() -> str:
@@ -673,6 +722,10 @@ class TestCaseKeyUpdate(TestCaseHandshake):
     @staticmethod
     def abbreviation():
         return "U"
+
+    @staticmethod
+    def desc():
+        return "One endpoint updated keys and its peer responds correctly."
 
     def get_paths(self):
         self._files = [self._generate_random_file(3 * MB)]
@@ -745,6 +798,10 @@ class TestCaseHandshakeLoss(TestCase):
         return "L1"
 
     @staticmethod
+    def desc():
+        return "TODO"
+
+    @staticmethod
     def timeout() -> int:
         return 300
 
@@ -784,6 +841,10 @@ class TestCaseTransferLoss(TestCase):
         return "L2"
 
     @staticmethod
+    def desc():
+        return "TODO"
+
+    @staticmethod
     def scenario() -> str:
         """ Scenario for the ns3 simulator """
         return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=2 --rate_to_client=2"
@@ -813,6 +874,10 @@ class TestCaseHandshakeCorruption(TestCaseHandshakeLoss):
         return "C1"
 
     @staticmethod
+    def desc():
+        return "TODO"
+
+    @staticmethod
     def scenario() -> str:
         """ Scenario for the ns3 simulator """
         return "corrupt-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=30 --rate_to_client=30"
@@ -826,6 +891,10 @@ class TestCaseTransferCorruption(TestCaseTransferLoss):
     @staticmethod
     def abbreviation():
         return "C2"
+
+    @staticmethod
+    def desc():
+        return "TODO"
 
     @staticmethod
     def scenario() -> str:
