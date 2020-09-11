@@ -799,7 +799,7 @@ class TestCaseHandshakeLoss(TestCase):
 
     @staticmethod
     def desc():
-        return "TODO"
+        return "The handshake completes when a lot of packets are dropped during the handshake."
 
     @staticmethod
     def timeout() -> int:
