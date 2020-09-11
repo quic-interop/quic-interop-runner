@@ -16,6 +16,7 @@
   function getLogLink(log_dir, server, client, testcase, text, type) {
     var a = document.createElement("a");
     a.title = "Logs";
+    $(a).attr("data-toggle", "tooltip").attr("data-placement", "bottom").tooltip();
     a.href = "logs/" + log_dir + "/" + server + "_" + client + "/" + testcase;
     a.target = "_blank";
     a.className = "btn btn-xs " + type + " testcase-" + text.toLowerCase();
@@ -128,7 +129,10 @@
   function makeButton(type, text, tooltip) {
       var b = document.createElement("button");
       b.innerHTML = text;
-      if (tooltip) b.title = tooltip;
+      if (tooltip) {
+        b.title = tooltip;
+        $(b).attr("data-toggle", "tooltip").attr("data-placement", "bottom").tooltip();
+      }
       b.type = "button";
       b.className = type + " btn btn-light";
       return b;
@@ -205,7 +209,8 @@
     $("#client").append(result.clients.map(e => makeButton("client", e))).click(clickButton);
     $("#server").append(result.servers.map(e => makeButton("server", e))).click(clickButton);
     const tcases = result.results.flat().map(x => [x.abbr, x.name]).filter((e, i, a) => a.map(x => x[0]).indexOf(e[0]) === i);
-    $("#testcase").append(tcases.map(e => makeButton("testcase", e[0], e[1]))).click(clickButton);
+    const tdesc = Object.fromEntries(result.tests.map(x => [x.abbr, x.desc]));
+    $("#testcase").append(tcases.map(e => makeButton("testcase", e[0], tdesc[e[0]]))).click(clickButton);
     setButtonState();
   }
 
