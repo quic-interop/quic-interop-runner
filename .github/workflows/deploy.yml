@@ -19,3 +19,10 @@ jobs:
           target: ${{ secrets.INTEROP_SEEMANN_IO_WEBSITE_DIR }}
           rm: true
           strip_components: 1
+      - name: Restart server
+        uses: appleboy/ssh-action@master
+        with:
+          host: interop.seemann.io
+          username: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
+          key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
+          script: service website restart
