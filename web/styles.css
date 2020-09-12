@@ -1,4 +1,7 @@
-body.loading table.resulttable {
+body.loading table.resulttable,
+body.loading .navbar-nav .start-time,
+body.loading .navbar-nav .duration,
+body.loading .navbar-nav .end-time {
   opacity: 0.3;
 }
 
