@@ -1069,7 +1069,7 @@ class MeasurementCrossTraffic(MeasurementGoodput):
 
     @staticmethod
     def desc():
-        return "This test measures goodput over a 10Mbps link, when competing with a TCP (cubic) connection."
+        return "Measures goodput over a 10Mbps link when competing with a TCP (cubic) connection."
 
     @staticmethod
     def timeout() -> int:
