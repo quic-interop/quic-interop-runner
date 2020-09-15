@@ -228,14 +228,13 @@ class InteropRunner:
             "log_dir": self._log_dir,
             "servers": [name for name in self._servers],
             "clients": [name for name in self._clients],
-            "tests": [
-                {
+            "tests": {
+                x.abbreviation(): {
                     "name": x.name(),
-                    "abbr": x.abbreviation(),
                     "desc": x.desc(),
                 }
                 for x in self._tests + self._measurements
-            ],
+            },
             "quic_draft": testcases.QUIC_DRAFT,
             "quic_version": testcases.QUIC_VERSION,
             "results": [],
