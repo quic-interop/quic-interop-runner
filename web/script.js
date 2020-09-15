@@ -127,6 +127,7 @@
   }
 
   function makeButton(type, text, tooltip) {
+      console.log(text, tooltip);
       var b = document.createElement("button");
       b.innerHTML = text;
       if (tooltip) {
@@ -212,8 +213,7 @@
     $("#server").append(result.servers.map(e => makeButton("server", e))).click(clickButton);
     const tcases = result.results.flat().map(x => [x.abbr, x.name]).filter((e, i, a) => a.map(x => x[0]).indexOf(e[0]) === i);
     if (result.hasOwnProperty("tests")) {
-      const tdesc = Object.fromEntries(result.tests.map(x => [x.abbr, x.desc]));
-      $("#testcase").append(tcases.map(e => makeButton("testcase", e[0], tdesc[e[0]]))).click(clickButton);
+      $("#testcase").append(tcases.map(e => makeButton("testcase", e[0], result.tests[e[0]].desc))).click(clickButton);
     } else {
       // TODO: this else can eventually be removed, when all past runs have the test descriptions in the json
       $("#testcase").append(tcases.map(e => makeButton("testcase", e[0], ""))).click(clickButton);
