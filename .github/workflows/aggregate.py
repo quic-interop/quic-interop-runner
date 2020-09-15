@@ -26,6 +26,7 @@ result = {
     "start_time": int(get_args().start_time),
     "results": [],
     "measurements": [],
+    "tests": {},
 }
 
 
@@ -53,6 +54,9 @@ def parse_data(server: str, client: str, cat: str, data: object):
     if "end_time" not in result or data["end_time"] > result["end_time"]:
         result["end_time"] = data["end_time"]
     result[cat].append(data[cat][0])
+    result["quic_draft"] = data["quic_draft"]
+    result["quic_version"] = data["quic_version"]
+    result["tests"].update(data["tests"])
 
 
 for client in clients:
