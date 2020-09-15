@@ -48,7 +48,7 @@ def parse_data(server: str, client: str, cat: str, data: object):
         sys.exit("inconsistent server")
     if len(data["clients"]) != 1:
         sys.exit("expected exactly one client")
-    if data["servers"][0] != server:
+    if data["clients"][0] != client:
         sys.exit("inconsistent client")
     if "end_time" not in result or data["end_time"] > result["end_time"]:
         result["end_time"] = data["end_time"]
