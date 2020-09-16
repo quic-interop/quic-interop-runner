@@ -117,6 +117,7 @@
       }
       b.type = "button";
       b.className = type + " btn btn-light";
+      $(b).click(clickButton);
       return b;
   }
 
@@ -161,7 +162,6 @@
         $(b).hover(toggleHighlight, toggleHighlight);
         e.appendChild(b);
       });
-
     });
   }
 
@@ -179,29 +179,27 @@
     const type = [...b.classList].filter(x => Object.keys(map).includes(x))[0];
     const which = b.id.replace(type + "-", "");
 
-    var q = [];
     var params = new URLSearchParams(history.state ? history.state.path : window.location.search);
     if (params.has(type) && params.get(type))
-      q = params.get(type).split(",");
-    else {
-      q = map[type];
-      params.delete(type);
-    }
-    toggle(q, which);
-
-    if (q.length === $("#" + type + " :button").length)
-      params.delete(type);
+      map[type] = params.get(type).split(",");
     else
-      params.set(type, q);
+      map[type] = $("#" + type + " :button").get().map(e => e.id.replace(type + "-", ""));
 
-    var refresh = window.location.protocol + "//" + window.location.host + window.location.pathname + "?" + decodeURIComponent(params.toString());
-    window.history.pushState(null, null, refresh);
     toggle(map[type], which);
+    params.set(type, map[type]);
+    if (map[type].length === $("#" + type + " :button").length)
+      params.delete(type);
+
+    const comp = decodeURIComponent(params.toString());
+    var refresh = window.location.protocol + "//" + window.location.host + window.location.pathname + (comp ? "?" + comp : "");
+    window.history.pushState(null, null, refresh);
+
     setButtonState();
+    return false;
   }
 
   function makeTooltip(name, desc) {
-    return "<strong>" + name + (desc ? ":" : "") + "</strong>" + (desc ? "<br>" : "") + desc;
+    return "<strong>" + name + "</strong>" + (desc === undefined ? "" : "<br>" + desc);
   }
 
   function process(result) {
@@ -218,14 +216,14 @@
     fillMeasurementTable(result);
 
     $("#client").add("#server").add("#test").empty();
-    $("#client").append(result.clients.map(e => makeButton("client", e))).click(clickButton);
-    $("#server").append(result.servers.map(e => makeButton("server", e))).click(clickButton);
+    $("#client").append(result.clients.map(e => makeButton("client", e)));
+    $("#server").append(result.servers.map(e => makeButton("server", e)));
     if (result.hasOwnProperty("tests"))
-      $("#test").append(Object.keys(result.tests).map(e => makeButton("test", e, makeTooltip(result.tests[e].name, result.tests[e].desc)))).click(clickButton);
+      $("#test").append(Object.keys(result.tests).map(e => makeButton("test", e, makeTooltip(result.tests[e].name, result.tests[e].desc))));
     else {
       // TODO: this else can eventually be removed, when all past runs have the test descriptions in the json
-      const tcases = result.results.flat().map(x => [x.abbr, x.name]).filter((e, i, a) => a.map(x => x[0]).indexOf(e[0]) === i);
-      $("#test").append(tcases.map(e => makeButton("test", e[0], ""))).click(clickButton);
+      const tcases = result.results.concat(result.measurements).flat().map(x => [x.abbr, x.name]).filter((e, i, a) => a.map(x => x[0]).indexOf(e[0]) === i);
+      $("#test").append(tcases.map(e => makeButton("test", e[0], makeTooltip(e[1]))));
     }
     setButtonState();
   }
