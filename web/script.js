@@ -2,7 +2,8 @@
 
 (function() {
   "use strict";
-  const map = { client: {}, server: {}, testcase: {} };
+  const map = { client: {}, server: {}, test: {} };
+  const btn_type = { succeeded: "btn-success", unsupported: "btn-secondary disabled", failed: "btn-danger"};
 
   // see https://stackoverflow.com/a/43466724/
   function formatTime(seconds) {
@@ -13,20 +14,15 @@
     ].join(":").replace(/\b(\d)\b/g, "0$1");
   }
 
-  function getLogLink(log_dir, server, client, testcase, text, type) {
+  function getLogLink(log_dir, server, client, test, text, res) {
     var a = document.createElement("a");
     a.title = "Logs";
     $(a).attr("data-toggle", "tooltip").attr("data-placement", "bottom").tooltip();
-    a.href = "logs/" + log_dir + "/" + server + "_" + client + "/" + testcase;
-    a.target = "_blank";
-    a.className = "btn btn-xs " + type + " testcase-" + text.toLowerCase();
-    a.appendChild(document.createTextNode(text));
-    return a;
-  }
-
-  function getUnsupported(text) {
-    var a = document.createElement("a");
-    a.className = "btn btn-secondary btn-xs disabled testcase-" + text.toLowerCase();
+    if (res !== "unsupported") {
+      a.href = "logs/" + log_dir + "/" + server + "_" + client + "/" + test;
+      a.target = "_blank";
+    }
+    a.className = "btn btn-xs " + btn_type[res] + " " + res + " test-" + text.toLowerCase();
     a.appendChild(document.createTextNode(text));
     return a;
   }
@@ -59,13 +55,10 @@
 
   function fillInteropTable(result) {
     var index = 0;
-    var appendResult = function(el, res, type, i, j) {
+    var appendResult = function(el, res, i, j) {
       result.results[index].forEach(function(item) {
         if(item.result !== res) return;
-        if(res === "unsupported")
-          el.appendChild(getUnsupported(item.abbr));
-        else
-          el.appendChild(getLogLink(result.log_dir, result.servers[j], result.clients[i], item.name, item.abbr, type));
+        el.appendChild(getLogLink(result.log_dir, result.servers[j], result.clients[i], item.name, item.abbr, res));
       });
     };
 
@@ -78,9 +71,9 @@
       for(var j = 0; j < result.servers.length; j++) {
         var cell = row.insertCell(j+1);
         cell.className = "server-" + result.servers[j] + " client-" + result.clients[i];
-        appendResult(cell, "succeeded", "btn-success", i, j);
-        appendResult(cell, "unsupported", "btn-secondary", i, j);
-        appendResult(cell, "failed", "btn-danger", i, j);
+        appendResult(cell, "succeeded", i, j);
+        appendResult(cell, "unsupported", i, j);
+        appendResult(cell, "failed", i, j);
         index++;
       }
     }
@@ -100,21 +93,9 @@
         cell.className = "server-" + result.servers[j] + " client-" + result.clients[i];
         for(var k = 0; k < res.length; k++) {
           var measurement = res[k];
-          var link = getLogLink(result.log_dir, result.servers[j], result.clients[i], measurement.name, measurement.abbr);
-          link.className = "measurement btn btn-xs ";
-          switch(measurement.result) {
-            case "succeeded":
-              link.className += " btn-success";
+          var link = getLogLink(result.log_dir, result.servers[j], result.clients[i], measurement.name, measurement.abbr, measurement.result);
+          if (measurement.result === "succeeded")
               link.innerHTML += ": " + measurement.details;
-              break;
-            case "unsupported":
-              link.className += " btn-secondary disabled";
-              link.appendChild(getUnsupported(measurement.abbr));
-              break;
-            case "failed":
-              link.className += " btn-danger";
-              break;
-          }
           cell.appendChild(link);
         }
         index++;
@@ -127,16 +108,22 @@
   }
 
   function makeButton(type, text, tooltip) {
-      console.log(text, tooltip);
       var b = document.createElement("button");
       b.innerHTML = text;
+      b.id = type + "-" + text.toLowerCase();
       if (tooltip) {
         b.title = tooltip;
-        $(b).attr("data-toggle", "tooltip").attr("data-placement", "bottom").tooltip();
+        $(b).attr("data-toggle", "tooltip").attr("data-placement", "bottom").attr("data-html", true).tooltip();
       }
       b.type = "button";
       b.className = type + " btn btn-light";
       return b;
+  }
+
+  function toggleHighlight(e) {
+    const comp = e.target.id.split("-");
+    const which = "." + comp[0] + "-" + comp[1] + "." + comp[2];
+    $(which).toggleClass("btn-highlight");
   }
 
   function setButtonState() {
@@ -145,8 +132,8 @@
     Object.keys(map).forEach(type => {
       map[type] = params.getAll(type).map(x => x.toLowerCase().split(",")).flat();
       if (map[type].length === 0)
-        map[type] = $("#" + type + " :button").get().map(x => x.innerText.toLowerCase());
-      $("#" + type + " :button").removeClass("active font-weight-bold").addClass("text-muted font-weight-light").filter((i, e) => map[type].includes(e.innerText.toLowerCase())).addClass("active font-weight-bold").removeClass("text-muted font-weight-light");
+        map[type] = $("#" + type + " :button").get().map(x => x.id.replace(type + "-", ""));
+      $("#" + type + " :button").removeClass("active font-weight-bold").addClass("text-muted font-weight-light").filter((i, e) => map[type].includes(e.id.replace(type + "-", ""))).addClass("active font-weight-bold").removeClass("text-muted font-weight-light");
       show[type] = map[type].map(e => "." + type + "-" + e);
     });
 
@@ -157,7 +144,25 @@
 
     $(".result " + show.client.map(e => "th" + e).join()).show();
     $(".result " + show.server.map(e => "th" + e).join()).show();
-    $(".measurement," + show.testcase.join()).show();
+    $(".measurement," + show.test.join()).show();
+
+    $("#test :button").each((i, e) => {
+      $(e).find("span,br").remove();
+      var count = { succeeded: 0, unsupported: 0, failed: 0};
+      Object.keys(count).map(c => count[c] = $(".btn." + e.id + "." + c + ":visible").length);
+      Object.keys(count).map(c => {
+        e.appendChild(document.createElement("br"));
+        var b = document.createElement("span");
+        b.innerHTML = count[c];
+        b.className = "btn btn-xs " + btn_type[c];
+        if (e.classList.contains("active") === false)
+          b.className += " disabled";
+        b.id = e.id + "-" + c;
+        $(b).hover(toggleHighlight, toggleHighlight);
+        e.appendChild(b);
+      });
+
+    });
   }
 
   function clickButton(e) {
@@ -169,9 +174,10 @@
             array.splice(index, 1);
     }
 
-    e.target.blur();
-    const type = [...e.target.classList].filter(x => Object.keys(map).includes(x))[0];
-    const which = e.target.innerText.toLowerCase();
+    var b = $(e.target).closest(":button")[0];
+    b.blur();
+    const type = [...b.classList].filter(x => Object.keys(map).includes(x))[0];
+    const which = b.id.replace(type + "-", "");
 
     var q = [];
     var params = new URLSearchParams(history.state ? history.state.path : window.location.search);
@@ -194,6 +200,9 @@
     setButtonState();
   }
 
+  function makeTooltip(name, desc) {
+    return "<strong>" + name + (desc ? ":" : "") + "</strong>" + (desc ? "<br>" : "") + desc;
+  }
 
   function process(result) {
     var startTime = new Date(1000*result.start_time);
@@ -208,15 +217,15 @@
     fillInteropTable(result);
     fillMeasurementTable(result);
 
-    $("#client").add("#server").add("#testcase").empty();
+    $("#client").add("#server").add("#test").empty();
     $("#client").append(result.clients.map(e => makeButton("client", e))).click(clickButton);
     $("#server").append(result.servers.map(e => makeButton("server", e))).click(clickButton);
-    const tcases = result.results.flat().map(x => [x.abbr, x.name]).filter((e, i, a) => a.map(x => x[0]).indexOf(e[0]) === i);
-    if (result.hasOwnProperty("tests")) {
-      $("#testcase").append(tcases.map(e => makeButton("testcase", e[0], result.tests[e[0]].desc))).click(clickButton);
-    } else {
+    if (result.hasOwnProperty("tests"))
+      $("#test").append(Object.keys(result.tests).map(e => makeButton("test", e, makeTooltip(result.tests[e].name, result.tests[e].desc)))).click(clickButton);
+    else {
       // TODO: this else can eventually be removed, when all past runs have the test descriptions in the json
-      $("#testcase").append(tcases.map(e => makeButton("testcase", e[0], ""))).click(clickButton);
+      const tcases = result.results.flat().map(x => [x.abbr, x.name]).filter((e, i, a) => a.map(x => x[0]).indexOf(e[0]) === i);
+      $("#test").append(tcases.map(e => makeButton("test", e[0], ""))).click(clickButton);
     }
     setButtonState();
   }
@@ -229,8 +238,7 @@
     xhr.onreadystatechange = function() {
       if(xhr.readyState !== XMLHttpRequest.DONE) return;
       if(xhr.status !== 200) {
-        console.log("Received status");
-        console.log(xhr.status);
+        console.log("Received status: ", xhr.status);
         return;
       }
       process(xhr.response);
@@ -248,8 +256,7 @@
   xhr.onreadystatechange = function() {
     if(xhr.readyState !== XMLHttpRequest.DONE) return;
     if(xhr.status !== 200) {
-      console.log("Received status");
-      console.log(xhr.status);
+      console.log("Received status: ", xhr.status);
       return;
     }
     var s = document.createElement("select");
