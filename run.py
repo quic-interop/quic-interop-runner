@@ -76,7 +76,7 @@ def main():
             name, image = pair[0], pair[1]
             if name not in IMPLEMENTATIONS:
                 sys.exit("Implementation " + name + " not found.")
-            implementations[name] = image
+            implementations[name]["image"] = image
 
     def get_impls(arg, availableImpls, role) -> List[str]:
         if not arg:
