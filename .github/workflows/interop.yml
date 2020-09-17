@@ -126,7 +126,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Run docker pull
         run: |
-          URL=$(jq -r '.["${{ matrix.image }}"].url' implementations.json)
+          URL=$(jq -r '.["${{ matrix.image }}"].image' implementations.json)
           echo $URL
           docker pull $URL
           echo "::set-env name=URL::$URL"
