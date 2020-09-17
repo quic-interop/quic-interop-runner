@@ -17,7 +17,6 @@
   function getLogLink(log_dir, server, client, test, text, res) {
     var a = document.createElement("a");
     a.title = "Logs";
-    $(a).attr("data-toggle", "tooltip").attr("data-placement", "bottom").tooltip();
     if (res !== "unsupported") {
       a.href = "logs/" + log_dir + "/" + server + "_" + client + "/" + test;
       a.target = "_blank";
@@ -66,10 +65,16 @@
   function fillInteropTable(result) {
     var index = 0;
     var appendResult = function(el, res, i, j) {
-      result.results[index].forEach(function(item) {
+      function makeResult(item) {
         if(item.result !== res) return;
-        el.appendChild(getLogLink(result.log_dir, result.servers[j], result.clients[i], item.name, item.abbr, res));
-      });
+        var link = getLogLink(result.log_dir, result.servers[j], result.clients[i], item.name, item.abbr, res)
+        if (item.hasOwnProperty("details"))
+          link.title = "<strong>" + item.details + "</strong><br>" + link.title;
+        $(link).attr("data-toggle", "tooltip").attr("data-placement", "bottom").attr("data-html", true).tooltip();
+        el.appendChild(link);
+      }
+      result.results[index].forEach(makeResult);
+      result.measurements[index].forEach(makeResult);
     };
 
     var t = document.getElementById("interop");
@@ -84,30 +89,6 @@
         appendResult(cell, "succeeded", i, j);
         appendResult(cell, "unsupported", i, j);
         appendResult(cell, "failed", i, j);
-        index++;
-      }
-    }
-  }
-
-  function fillMeasurementTable(result) {
-    var t = document.getElementById("measurements");
-    t.innerHTML = "";
-    makeColumnHeaders(t, result);
-    var tbody = t.createTBody();
-    var index = 0;
-    for(var i = 0; i < result.clients.length; i++) {
-      var row = makeRowHeader(tbody, result, i);
-      for(var j = 0; j < result.servers.length; j++) {
-        var res = result.measurements[index];
-        var cell = row.insertCell(j+1);
-        cell.className = "server-" + result.servers[j] + " client-" + result.clients[i];
-        for(var k = 0; k < res.length; k++) {
-          var measurement = res[k];
-          var link = getLogLink(result.log_dir, result.servers[j], result.clients[i], measurement.name, measurement.abbr, measurement.result);
-          if (measurement.result === "succeeded")
-              link.innerHTML += ": " + measurement.details;
-          cell.appendChild(link);
-        }
         index++;
       }
     }
@@ -223,7 +204,6 @@
       "<tt>" + result.quic_version + "</tt> (\"draft-" + result.quic_draft + "\")";
 
     fillInteropTable(result);
-    fillMeasurementTable(result);
 
     $("#client").add("#server").add("#test").empty();
     $("#client").append(result.clients.map(e => makeButton("client", e)));
