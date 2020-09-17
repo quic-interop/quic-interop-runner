@@ -96,6 +96,10 @@ class InteropRunner:
                 self.measurement_results[server][client] = {}
                 for measurement in measurements:
                     self.measurement_results[server][client][measurement] = {}
+        # check that certificate directory exists
+        if not os.path.isdir("./certs"):
+            print("./certs not found. Did you run certs.sh?")
+            sys.exit(1)
 
     def _is_unsupported(self, lines: List[str]) -> bool:
         return any("exited with code 127" in str(line) for line in lines) or any(
