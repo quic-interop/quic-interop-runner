@@ -1,54 +1,67 @@
 {
   "quic-go": {
-    "url": "martenseemann/quic-go-interop:latest",
+    "image": "martenseemann/quic-go-interop:latest",
+    "url": "https://github.com/lucas-clemente/quic-go",
     "role": "both"
   },
   "quicly": {
-    "url": "h2oserver/quicly-interop-runner:latest",
+    "image": "h2oserver/quicly-interop-runner:latest",
+    "url": "https://github.com/h2o/quicly",
     "role": "both"
   },
   "ngtcp2": {
-    "url": "ghcr.io/ngtcp2/ngtcp2-interop:latest",
+    "image": "ghcr.io/ngtcp2/ngtcp2-interop:latest",
+    "url": "https://github.com/ngtcp2/ngtcp2",
     "role": "both"
   },
   "quant": {
-    "url": "ntap/quant:interop",
+    "image": "ntap/quant:interop",
+    "url": "https://github.com/NTAP/quant",
     "role": "both"
   },
   "mvfst": {
-    "url": "lnicco/mvfst-qns:latest",
+    "image": "lnicco/mvfst-qns:latest",
+    "url": "https://github.com/facebookincubator/mvfst",
     "role": "both"
   },
   "quiche": {
-    "url": "cloudflare/quiche-qns:latest",
+    "image": "cloudflare/quiche-qns:latest",
+    "url": "https://github.com/cloudflare/quiche",
     "role": "both"
   },
   "kwik": {
-    "url": "peterdoornbosch/kwik_n_flupke-interop",
+    "image": "peterdoornbosch/kwik_n_flupke-interop",
+    "url": "https://github.com/ptrd/kwik",
     "role": "client"
   },
   "picoquic": {
-    "url": "privateoctopus/picoquic:latest",
+    "image": "privateoctopus/picoquic:latest",
+    "url": "https://github.com/private-octopus/picoquic",
     "role": "both"
   },
   "aioquic": {
-    "url": "aiortc/aioquic-qns:latest",
+    "image": "aiortc/aioquic-qns:latest",
+    "url": "https://github.com/aiortc/aioquic",
     "role": "both"
   },
   "neqo": {
-    "url": "neqoquic/neqo-qns:latest",
+    "image": "neqoquic/neqo-qns:latest",
+    "url": "https://github.com/mozilla/neqo",
     "role": "both"
   },
   "nginx": {
-    "url": "nginx/nginx-quic-qns:latest",
+    "image": "nginx/nginx-quic-qns:latest",
+    "url": "https://quic.nginx.org/",
     "role": "server"
   },
   "msquic": {
-    "url": "mcr.microsoft.com/msquic/qns:latest",
+    "image": "mcr.microsoft.com/msquic/qns:latest",
+    "url": "https://github.com/microsoft/msquic",
     "role": "both"
   },
   "pquic": {
-    "url": "pquic/pquic-interop:latest",
+    "image": "pquic/pquic-interop:latest",
+    "url": "https://pquic.org/",
     "role": "both"
   }
 }

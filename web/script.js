@@ -27,6 +27,12 @@
     return a;
   }
 
+  function makeClickable(e, url) {
+    e.title = url;
+    $(e).attr("role", "button").attr("data-href", url).attr("data-toggle", "tooltip").tooltip();
+    e.onclick = function(e) { window.open(e.target.getAttribute("data-href")); };
+  }
+
   function makeColumnHeaders(t, result) {
     var thead = t.createTHead();
     var row = thead.insertRow(0);
@@ -39,6 +45,8 @@
       row.appendChild(cell);
       cell.scope = "col";
       cell.className = "table-light server-" + result.servers[i];
+      if (result.hasOwnProperty("urls"))
+        makeClickable(cell, result.urls[result.servers[i]]);
       cell.innerHTML = result.servers[i];
     }
   }
@@ -48,6 +56,8 @@
     var cell = document.createElement("th");
     cell.scope = "row";
     cell.className = "table-light client-" + result.clients[i];
+    if (result.hasOwnProperty("urls"))
+      makeClickable(cell, result.urls[result.clients[i]]);
     cell.innerHTML = result.clients[i];
     row.appendChild(cell);
     return row;
