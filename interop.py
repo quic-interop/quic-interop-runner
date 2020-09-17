@@ -125,7 +125,7 @@ class InteropRunner:
             "WWW=" + www_dir.name + " "
             "DOWNLOADS=" + downloads_dir.name + " "
             'SCENARIO="simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25" '
-            "CLIENT=" + self._implementations[name] + " "
+            "CLIENT=" + self._implementations[name]["image"] + " "
             "docker-compose up --timeout 0 --abort-on-container-exit -V sim client"
         )
         output = subprocess.run(
@@ -147,7 +147,7 @@ class InteropRunner:
             "CLIENT_LOGS=/dev/null "
             "WWW=" + www_dir.name + " "
             "DOWNLOADS=" + downloads_dir.name + " "
-            "SERVER=" + self._implementations[name] + " "
+            "SERVER=" + self._implementations[name]["image"] + " "
             "docker-compose up -V server"
         )
         output = subprocess.run(
@@ -221,13 +221,13 @@ class InteropRunner:
     def _export_results(self):
         if not self._output:
             return
-
         out = {
             "start_time": self._start_time.timestamp(),
             "end_time": datetime.now().timestamp(),
             "log_dir": self._log_dir,
             "servers": [name for name in self._servers],
             "clients": [name for name in self._clients],
+            "urls": {x: self._implementations[x]["url"] for x in self._implementations},
             "tests": {
                 x.abbreviation(): {
                     "name": x.name(),
@@ -339,8 +339,8 @@ class InteropRunner:
             "SERVER_LOGS=" + server_log_dir.name + " "
             "CLIENT_LOGS=" + client_log_dir.name + " "
             'SCENARIO="{}" '
-            "CLIENT=" + self._implementations[client] + " "
-            "SERVER=" + self._implementations[server] + " "
+            "CLIENT=" + self._implementations[client]["image"] + " "
+            "SERVER=" + self._implementations[server]["image"] + " "
             'REQUESTS="' + reqs + '" '
         ).format(testcase.scenario())
         params += " ".join(testcase.additional_envs())
@@ -455,9 +455,9 @@ class InteropRunner:
                 logging.debug(
                     "Running with server %s (%s) and client %s (%s)",
                     server,
-                    self._implementations[server],
+                    self._implementations[server]["image"],
                     client,
-                    self._implementations[client],
+                    self._implementations[client]["image"],
                 )
                 if not (
                     self._check_impl_is_compliant(server)

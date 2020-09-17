@@ -28,4 +28,4 @@ else:
 
 for name, value in implementations.items():
     print("\nPulling " + name + "...")
-    os.system("docker pull " + value["url"])
+    os.system("docker pull " + value["image"])

@@ -9,7 +9,10 @@ from implementations import IMPLEMENTATIONS, Role
 from interop import InteropRunner
 from testcases import MEASUREMENTS, TESTCASES
 
-implementations = {name: value["url"] for name, value in IMPLEMENTATIONS.items()}
+implementations = {
+    name: {"image": value["image"], "url": value["url"]}
+    for name, value in IMPLEMENTATIONS.items()
+}
 client_implementations = [
     name
     for name, value in IMPLEMENTATIONS.items()
