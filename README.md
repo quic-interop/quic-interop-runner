@@ -29,6 +29,8 @@ Equivalently, the Interop Runner mounts `/downloads` into your client Docker con
 After the transfer is completed, the client container is expected to exit with exit status 0. If an error occurred during the transfer, the client is expected to exit with exit status 1.
 After completion of the test case, the Interop Runner will verify that the client downloaded the files it was expected to transfer, and that the file contents match. Additionally, for certain test cases, the Interop Runner will use the pcap of the transfer to verify that the implementations fulfilled the requirements of the test (for example, for the Retry test case, the pcap should show that a Retry packet was sent, and that the client used the Token provided in that packet).
 
+The Interop Runner generates a key and a certificate chain and mounts it into `/certs`. The server needs to load its private key from `priv.key`, and the certificate chain from `cert.pem`.
+
 ### Examples
 
 If you're not familiar with Docker, it might be helpful to have a look at the Dockerfiles and scripts that other implementations use:
