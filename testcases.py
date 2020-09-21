@@ -5,6 +5,7 @@ import os
 import random
 import string
 import subprocess
+import sys
 import tempfile
 from datetime import timedelta
 from enum import Enum, IntEnum
@@ -38,6 +39,17 @@ def random_string(length: int):
     """Generate a random string of fixed length """
     letters = string.ascii_lowercase
     return "".join(random.choice(letters) for i in range(length))
+
+
+def generate_cert_chain(directory: str):
+    cmd = "./certs.sh " + directory
+    r = subprocess.run(
+        cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+    )
+    logging.debug("%s", r.stdout.decode("utf-8"))
+    if r.returncode != 0:
+        logging.info("Unable to create certificates")
+        sys.exit(1)
 
 
 class TestCase(abc.ABC):
@@ -108,11 +120,7 @@ class TestCase(abc.ABC):
     def certs_dir(self):
         if not self._cert_dir:
             self._cert_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="certs_")
-            cmd = "./certs.sh " + self._cert_dir.name
-            output = subprocess.run(
-                cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-            )
-            logging.debug("%s", output.stdout.decode("utf-8"))
+            generate_cert_chain(self._cert_dir.name)
         return self._cert_dir.name + "/"
 
     def _keylog_file(self) -> str:

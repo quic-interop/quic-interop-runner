@@ -117,13 +117,7 @@ class InteropRunner:
             dir="/tmp", prefix="compliance_downloads_"
         )
 
-        output = subprocess.run(
-            "./certs.sh " + certs_dir.name,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        )
-        logging.debug("%s", output.stdout.decode("utf-8"))
+        testcases.generate_cert_chain(certs_dir.name)
 
         # check that the client is capable of returning UNSUPPORTED
         logging.debug("Checking compliance of %s client", name)
