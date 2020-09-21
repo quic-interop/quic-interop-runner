@@ -233,7 +233,10 @@ class InteropRunner:
             "log_dir": self._log_dir,
             "servers": [name for name in self._servers],
             "clients": [name for name in self._clients],
-            "urls": {x: self._implementations[x]["url"] for x in self._servers + self._clients},
+            "urls": {
+                x: self._implementations[x]["url"]
+                for x in self._servers + self._clients
+            },
             "tests": {
                 x.abbreviation(): {
                     "name": x.name(),
