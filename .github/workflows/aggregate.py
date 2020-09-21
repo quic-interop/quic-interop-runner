@@ -27,6 +27,7 @@ result = {
     "results": [],
     "measurements": [],
     "tests": {},
+    "urls": {},
 }
 
 
@@ -56,6 +57,7 @@ def parse_data(server: str, client: str, cat: str, data: object):
     result[cat].append(data[cat][0])
     result["quic_draft"] = data["quic_draft"]
     result["quic_version"] = data["quic_version"]
+    result["urls"].update(data["urls"])
     result["tests"].update(data["tests"])
 
 
