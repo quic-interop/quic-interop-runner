@@ -207,6 +207,7 @@ jobs:
           CRON: "true"
         run: |
           python run.py --client ${{ matrix.client }} --server ${{ matrix.server }} --log-dir logs_measurement --json ${{ matrix.server }}_${{ matrix.client }}_measurements.json -t onlyMeasurements || true
+          if [ ! -d "logs_measurement" ]; then exit 0; fi
           find logs_measurement -depth -name "sim" -type d -exec rm -r "{}" \;
           find logs_measurement -depth -name "client" -type d -exec rm -r "{}" \;
           find logs_measurement -depth -name "server" -type d -exec rm -r "{}" \;
