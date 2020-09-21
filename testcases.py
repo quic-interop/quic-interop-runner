@@ -4,6 +4,7 @@ import logging
 import os
 import random
 import string
+import subprocess
 import tempfile
 from datetime import timedelta
 from enum import Enum, IntEnum
@@ -46,6 +47,7 @@ class TestCase(abc.ABC):
     _server_keylog_file = None
     _download_dir = None
     _sim_log_dir = None
+    _cert_dir = None
 
     def __init__(
         self,
@@ -102,6 +104,16 @@ class TestCase(abc.ABC):
                 dir="/tmp", prefix="download_"
             )
         return self._download_dir.name + "/"
+
+    def certs_dir(self):
+        if not self._cert_dir:
+            self._cert_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="certs_")
+            cmd = "./certs.sh " + self._cert_dir.name
+            output = subprocess.run(
+                cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            )
+            logging.debug("%s", output.stdout.decode("utf-8"))
+        return self._cert_dir.name + "/"
 
     def _keylog_file(self) -> str:
         if os.path.isfile(self._client_keylog_file):

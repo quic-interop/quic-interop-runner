@@ -96,10 +96,6 @@ class InteropRunner:
                 self.measurement_results[server][client] = {}
                 for measurement in measurements:
                     self.measurement_results[server][client][measurement] = {}
-        # check that certificate directory exists
-        if not os.path.isdir("./certs"):
-            print("./certs not found. Did you run certs.sh?")
-            sys.exit(1)
 
     def _is_unsupported(self, lines: List[str]) -> bool:
         return any("exited with code 127" in str(line) for line in lines) or any(
@@ -116,14 +112,23 @@ class InteropRunner:
 
         client_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_client_")
         www_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="compliance_www_")
+        certs_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="compliance_certs_")
         downloads_dir = tempfile.TemporaryDirectory(
             dir="/tmp", prefix="compliance_downloads_"
         )
 
+        output = subprocess.run(
+            "./certs.sh " + certs_dir.name,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        logging.debug("%s", output.stdout.decode("utf-8"))
+
         # check that the client is capable of returning UNSUPPORTED
         logging.debug("Checking compliance of %s client", name)
         cmd = (
-            "CERTS=./certs" + " "
+            "CERTS=" + certs_dir.name + " "
             "TESTCASE_CLIENT=" + random_string(6) + " "
             "SERVER_LOGS=/dev/null "
             "CLIENT_LOGS=" + client_log_dir.name + " "
@@ -147,7 +152,7 @@ class InteropRunner:
         logging.debug("Checking compliance of %s server", name)
         server_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_server_")
         cmd = (
-            "CERTS=./certs" + " "
+            "CERTS=" + certs_dir.name + " "
             "TESTCASE_SERVER=" + random_string(6) + " "
             "SERVER_LOGS=" + server_log_dir.name + " "
             "CLIENT_LOGS=/dev/null "
@@ -338,7 +343,7 @@ class InteropRunner:
         reqs = " ".join(["https://server:443/" + p for p in testcase.get_paths()])
         logging.debug("Requests: %s", reqs)
         params = (
-            "CERTS=./certs" + " "
+            "CERTS=" + testcase.certs_dir() + " "
             "TESTCASE_SERVER=" + testcase.testname(Perspective.SERVER) + " "
             "TESTCASE_CLIENT=" + testcase.testname(Perspective.CLIENT) + " "
             "WWW=" + testcase.www_dir() + " "

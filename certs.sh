@@ -2,7 +2,13 @@
 
 set -e
 
-CERTDIR="certs"
+if [ -z $1 ]; then
+  echo "$0 <cert dir>"
+  exit 1
+fi
+
+CERTDIR=$1
+
 
 mkdir -p $CERTDIR || true
 
