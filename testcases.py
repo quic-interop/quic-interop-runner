@@ -41,8 +41,8 @@ def random_string(length: int):
     return "".join(random.choice(letters) for i in range(length))
 
 
-def generate_cert_chain(directory: str):
-    cmd = "./certs.sh " + directory + " 1"
+def generate_cert_chain(directory: str, length: int = 1):
+    cmd = "./certs.sh " + directory + " " + str(length)
     r = subprocess.run(
         cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
@@ -692,6 +692,87 @@ class TestCaseHTTP3(TestCase):
         return TestResult.SUCCEEDED
 
 
+class TestCaseAmplificationLimit(TestCase):
+    @staticmethod
+    def name():
+        return "amplificationlimit"
+
+    @staticmethod
+    def testname(p: Perspective):
+        return "transfer"
+
+    @staticmethod
+    def abbreviation():
+        return "A"
+
+    @staticmethod
+    def desc():
+        return "The server obeys the 3x amplification limit."
+
+    def certs_dir(self):
+        if not self._cert_dir:
+            self._cert_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="certs_")
+            generate_cert_chain(self._cert_dir.name, 9)
+        return self._cert_dir.name + "/"
+
+    @staticmethod
+    def scenario() -> str:
+        """ Scenario for the ns3 simulator """
+        # Let the ClientHello pass, but drop a bunch of retransmissions afterwards.
+        return "droplist --delay=15ms --bandwidth=10Mbps --queue=25 --drops_to_server=2,3,4,5,6,7"
+
+    def get_paths(self):
+        self._files = [self._generate_random_file(5 * KB)]
+        return self._files
+
+    def check(self) -> TestResult:
+        if not self._keylog_file():
+            logging.info("Can't check test result. SSLKEYLOG required.")
+            return TestResult.UNSUPPORTED
+        num_handshakes = self._count_handshakes()
+        if num_handshakes != 1:
+            logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+            return TestResult.FAILED
+        if not self._check_version_and_files():
+            return TestResult.FAILED
+        # Check the highest offset of CRYPTO frames sent by the server.
+        # This way we can make sure that it actually used the provided cert chain.
+        max_handshake_offset = 0
+        for p in self._server_trace().get_handshake(Direction.FROM_SERVER):
+            if hasattr(p, "crypto_offset"):
+                max_handshake_offset = max(
+                    max_handshake_offset, int(p.crypto_offset) + int(p.crypto_length)
+                )
+        if max_handshake_offset < 7500:
+            logging.info(
+                "Server sent too little Handshake CRYPTO data (%d bytes). Not using the provided cert chain?",
+                max_handshake_offset,
+            )
+            return TestResult.FAILED
+        logging.debug(
+            "Server sent %d bytes in Handshake CRYPTO frames", max_handshake_offset
+        )
+        # Check that the server didn't send more than 3x what the client sent.
+        client_packets = self._server_trace().get_raw_packets(Direction.FROM_CLIENT)
+        second_packet_send_time = client_packets[1].sniff_time
+        first_packet_size = int(client_packets[0].ip.len)
+        server_sent = 0
+        for p in self._server_trace().get_raw_packets(Direction.FROM_SERVER):
+            if p.sniff_time > second_packet_send_time:
+                break
+            server_sent += int(p.ip.len)
+        logging.debug(
+            "Client Initial Size: %d (=> amplification limit: %d). Server sent: %d",
+            first_packet_size,
+            3 * first_packet_size,
+            server_sent,
+        )
+        if server_sent > 3 * first_packet_size:
+            logging.info("Server sent too much data.")
+            return TestResult.FAILED
+        return TestResult.SUCCEEDED
+
+
 class TestCaseBlackhole(TestCase):
     @staticmethod
     def name():
@@ -1117,6 +1198,7 @@ TESTCASES = [
     TestCaseBlackhole,
     TestCaseKeyUpdate,
     TestCaseECN,
+    TestCaseAmplificationLimit,
     TestCaseHandshakeLoss,
     TestCaseTransferLoss,
     TestCaseHandshakeCorruption,

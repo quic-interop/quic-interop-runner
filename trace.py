@@ -49,6 +49,12 @@ class TraceAnalyzer:
             logging.debug(e)
         return packets
 
+    def get_raw_packets(self, direction: Direction = Direction.ALL) -> List:
+        packets = []
+        for packet in self._get_packets(self._get_direction_filter(direction) + "quic"):
+            packets.append(packet)
+        return packets
+
     def get_1rtt(self, direction: Direction = Direction.ALL) -> List:
         """ Get all QUIC packets, one or both directions. """
         packets = []
