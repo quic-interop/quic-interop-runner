@@ -335,7 +335,11 @@ class TestCaseLongRTT(TestCaseHandshake):
         return "simple-p2p --delay=750ms --bandwidth=10Mbps --queue=25"
 
     def check(self) -> TestResult:
-        if not super(TestCaseLongRTT, self).check():
+        num_handshakes = self._count_handshakes()
+        if num_handshakes != 1:
+            logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+            return TestResult.FAILED
+        if not self._check_version_and_files():
             return TestResult.FAILED
         num_ch = 0
         for p in self._client_trace().get_initial(Direction.FROM_CLIENT):
