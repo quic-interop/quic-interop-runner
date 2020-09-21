@@ -42,7 +42,7 @@ def random_string(length: int):
 
 
 def generate_cert_chain(directory: str):
-    cmd = "./certs.sh " + directory
+    cmd = "./certs.sh " + directory + " 1"
     r = subprocess.run(
         cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
