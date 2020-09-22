@@ -34,6 +34,8 @@
   }
 
   function makeColumnHeaders(t, result) {
+    for(var i = 0; i < result.servers.length; i++)
+      t.appendChild(document.createElement("colgroup"));
     var thead = t.createTHead();
     var row = thead.insertRow(0);
     var cell = document.createElement("th");
@@ -236,6 +238,19 @@
       $("#test").append(tcases.map(e => makeButton("test", e[0], makeTooltip(e[1]))));
     }
     setButtonState();
+
+    $("table.result").delegate("td", "mouseover mouseleave", function(e) {
+        const t = $(this).closest("table.result");
+        if (e.type === "mouseover") {
+          $(this).parent().addClass("hover-xy");
+          t.children("colgroup").eq($(this).index()).addClass("hover-xy");
+          t.find("th").eq($(this).index()).addClass("hover-xy");
+        } else {
+          $(this).parent().removeClass("hover-xy");
+          t.children("colgroup").eq($(this).index()).removeClass("hover-xy");
+          t.find("th").eq($(this).index()).removeClass("hover-xy");
+        }
+    });
   }
 
   function load(dir) {
