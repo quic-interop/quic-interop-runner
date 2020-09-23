@@ -1,89 +1,80 @@
 import logging
+import shutil
 import subprocess
 import threading
-import typing
 
 
 class DockerRunner:
-    _containers = []
+    _containers = None
     _cond = None
     _timeout = 0  # in seconds
+    _expired = False
 
     def __init__(self, timeout: int):
+        self._containers = []
         self._cond = threading.Condition()
         self._timeout = timeout
 
-    def add_container(self, name: str, container: str, env: str):
-        self._containers.append({"name": name, "container": container, "env": env})
+    def add_container(self, name: str, env: dict):
+        self._containers.append({"name": name, "env": env})
 
-    def _execute(self, cmd: str, log_file: typing.TextIO, name: str):
-        logging.debug("Running: %s", cmd)
+    def _run_container(self, cmd: str, env: dict, name: str):
+        self._execute(cmd, env, name)
+        with self._cond:
+            logging.debug("%s container returned.", name)
+            self._cond.notify()
+
+    def _execute(self, cmd: str, env: dict = {}, name: str = ""):
         p = subprocess.Popen(
             cmd.split(" "),
             bufsize=1,
+            env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
         )
         for line in p.stdout:
-            l = name + ": " + line.rstrip()
-            log_file.write(l + "\n")
+            l = ""
+            if name:
+                l = name + ": "
+            l = l + line.rstrip()
             logging.debug(l)
-        with self._cond:
-            logging.debug("%s container returned.", name)
-            self._cond.notify()
 
     def _run_timer(self):
-        logging.info("Timer expired. Stopping all containers.")
+        logging.debug("Timer expired. Stopping all containers.")
+        self._expired = True
         with self._cond:
             self._cond.notify()
 
-    def run(self):
+    def run(self) -> bool:  # returns if the timer expired
         threads = []
-        with open("test.log", "w") as f:
-            # Start all containers (in separate threads)
-            for e in self._containers:
+        # Start all containers (in separate threads)
+        docker_compose = shutil.which("docker-compose")
+        for e in self._containers:
+            t = threading.Thread(
+                target=self._run_container,
+                kwargs={
+                    "cmd": docker_compose + " up " + e["name"],
+                    "env": e["env"],
+                    "name": e["name"],
+                },
+            )
+            t.start()
+            threads.append(t)
+        # set a timer
+        timer = threading.Timer(self._timeout, self._run_timer)
+        timer.start()
 
-                def run_container():
-                    self._execute(
-                        "docker run --rm --name {} --env {} {}".format(
-                            e["name"], e["env"], e["container"]
-                        ),
-                        f,
-                        e["name"],
-                    )
-
-                t = threading.Thread(target=run_container)
-                t.start()
-                threads.append(t)
-            # set a timer
-            timer = threading.Timer(self._timeout, self._run_timer)
-            timer.start()
-
-            # Wait for the first container to exit.
-            # Then stop all other docker containers.
-            with self._cond:
-                self._cond.wait()
-                names = [x["name"] for x in self._containers]
-                subprocess.run(
-                    "docker stop " + " ".join(names),
-                    shell="True",
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-            # wait for all threads to finish
-            for t in threads:
-                t.join()
-            timer.cancel()
-
-
-def main():
-    logging.getLogger().setLevel(logging.DEBUG)
-    r = DockerRunner(10)
-    r.add_container("client", "traptest", "DURATION=3")
-    r.add_container("server", "traptest", "DURATION=2000")
-    r.run()
-
-
-if __name__ == "__main__":
-    main()
+        # Wait for the first container to exit.
+        # Then stop all other docker containers.
+        with self._cond:
+            self._cond.wait()
+            names = [x["name"] for x in self._containers]
+            self._execute(
+                shutil.which("docker-compose") + " stop -t 5 " + " ".join(names)
+            )
+        # wait for all threads to finish
+        for t in threads:
+            t.join()
+        timer.cancel()
+        return self._expired
