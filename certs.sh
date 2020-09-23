@@ -13,7 +13,7 @@ openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 \
 
 echo "Generating CSR"
 openssl req -out $CERTDIR/cert.csr -new -newkey rsa:2048 -nodes -keyout $CERTDIR/priv.key \
-  -subj "/O=interop runner/"
+  -subj "/O=interop runner/CN=interoprunner/"
 
 echo "Sign certificate:"
 openssl x509 -req -sha256 -days 365 -in $CERTDIR/cert.csr -out $CERTDIR/cert.pem \
