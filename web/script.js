@@ -3,7 +3,7 @@
 (function() {
   "use strict";
   const map = { client: {}, server: {}, test: {} };
-  const btn_type = { succeeded: "btn-success", unsupported: "btn-secondary disabled", failed: "btn-danger"};
+  const color_type = { succeeded: "success", unsupported: "secondary disabled", failed: "danger"};
 
   // see https://stackoverflow.com/a/43466724/
   function formatTime(seconds) {
@@ -15,16 +15,30 @@
   }
 
   function getLogLink(log_dir, server, client, test, text, res) {
+    var ttip = "<b>Test:</b> " + test + "<br>" +
+               "<b>Client:</b> " + client + "<br>" +
+               "<b>Server:</b> " + server + "<br>" +
+               "<b>Result: <span class=\"text-" + color_type[res] + "\">" + res + "</span></b>";
+
     var a = document.createElement("a");
-    a.title = "Logs";
-    $(a).attr("data-toggle", "tooltip").attr("data-placement", "bottom").tooltip();
+    a.className = "btn btn-xs btn-" + color_type[res] + " " + res + " test-" + text.toLowerCase();
+    var ttip_target = a;
     if (res !== "unsupported") {
       a.href = "logs/" + log_dir + "/" + server + "_" + client + "/" + test;
       a.target = "_blank";
+      ttip += "<br><br>(Click for logs.)";
+    } else {
+      var s = document.createElement("span");
+      s.className = "d-inline-block";
+      s.tabIndex = 0;
+      a.style = "pointer-events: none;";
+      s.appendChild(a);
+      ttip_target = s;
     }
-    a.className = "btn btn-xs " + btn_type[res] + " " + res + " test-" + text.toLowerCase();
+    ttip_target.title = ttip;
+    $(ttip_target).attr("data-toggle", "tooltip").attr("data-placement", "bottom").attr("data-html", true).tooltip();
     a.appendChild(document.createTextNode(text));
-    return a;
+    return ttip_target;
   }
 
   function makeClickable(e, url) {
@@ -167,7 +181,7 @@
         e.appendChild(document.createElement("br"));
         var b = document.createElement("span");
         b.innerHTML = count[c];
-        b.className = "btn btn-xs " + btn_type[c];
+        b.className = "btn btn-xs btn-" + color_type[c];
         if (e.classList.contains("active") === false)
           b.className += " disabled";
         b.id = e.id + "-" + c;
