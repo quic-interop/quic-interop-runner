@@ -64,9 +64,15 @@ class TraceAnalyzer:
         return packets
 
     def get_vnp(self, direction: Direction = Direction.ALL) -> List:
-        return self._get_packets(
+        packets = []
+        for packet in self._get_packets(
             self._get_direction_filter(direction) + "quic.version==0"
-        )
+        ):
+            for layer in packet.layers:
+                if layer.layer_name == "quic":
+                    layer.sniff_time = packet.sniff_time
+                    packets.append(layer)
+        return packets
 
     def get_retry(self, direction: Direction = Direction.ALL) -> List:
         packets = []

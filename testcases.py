@@ -85,11 +85,11 @@ class TestCase(abc.ABC):
 
     @staticmethod
     def additional_envs() -> List[str]:
-        return [""]
+        return []
 
     @staticmethod
     def additional_containers() -> List[str]:
-        return [""]
+        return []
 
     def www_dir(self):
         if not self._www_dir:
@@ -256,6 +256,11 @@ class TestCaseVersionNegotiation(TestCase):
     @staticmethod
     def abbreviation():
         return "V"
+
+    def testname(self, p: Perspective):
+        if p == Perspective.SERVER:
+            return "transfer"
+        return self.name()
 
     @staticmethod
     def desc():
@@ -1080,8 +1085,8 @@ class MeasurementCrossTraffic(MeasurementGoodput):
         return 180
 
     @staticmethod
-    def additional_envs() -> List[str]:
-        return ["IPERF_CONGESTION=cubic"]
+    def additional_envs() -> dict:
+        return {"IPERF_CONGESTION": "cubic"}
 
     @staticmethod
     def additional_containers() -> List[str]:
@@ -1089,6 +1094,7 @@ class MeasurementCrossTraffic(MeasurementGoodput):
 
 
 TESTCASES = [
+    TestCaseVersionNegotiation,
     TestCaseHandshake,
     TestCaseTransfer,
     TestCaseLongRTT,

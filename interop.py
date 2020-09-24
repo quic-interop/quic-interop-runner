@@ -16,6 +16,7 @@ import prettytable
 from termcolor import colored
 
 import testcases
+from docker import DockerRunner
 from result import TestResult
 from testcases import Perspective
 
@@ -122,23 +123,24 @@ class InteropRunner:
 
         # check that the client is capable of returning UNSUPPORTED
         logging.debug("Checking compliance of %s client", name)
-        cmd = (
-            "CERTS=./certs" + " "
-            "TESTCASE_CLIENT=" + random_string(6) + " "
-            "SERVER_LOGS=/dev/null "
-            "CLIENT_LOGS=" + client_log_dir.name + " "
-            "WWW=" + www_dir.name + " "
-            "DOWNLOADS=" + downloads_dir.name + " "
-            'SCENARIO="simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25" '
-            "CLIENT=" + self._implementations[name]["image"] + " "
-            "docker-compose up --timeout 0 --abort-on-container-exit -V sim client"
-        )
-        output = subprocess.run(
-            cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-        )
-        if not self._is_unsupported(output.stdout.splitlines()):
+        env_sim = {"SCENARIO": "simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25"}
+        env_client = {
+            "CERTS": "./certs",
+            "TESTCASE_CLIENT": random_string(6),
+            "DOWNLOADS": downloads_dir.name,
+            "CLIENT_LOGS": client_log_dir.name,
+            "CLIENT": self._implementations[name]["image"],
+        }
+        env = {}
+        env.update(env_sim)
+        env.update(env_client)
+        r = DockerRunner(5)
+        r.add_container("client", env)
+        r.add_container("sim", env)
+        output, expired = r.run()
+        if expired or not self._is_unsupported(output.splitlines()):
             logging.error("%s client not compliant.", name)
-            logging.debug("%s", output.stdout.decode("utf-8"))
+            logging.debug("%s", output)
             self.compliant[name] = False
             return False
         logging.debug("%s client compliant.", name)
@@ -146,22 +148,23 @@ class InteropRunner:
         # check that the server is capable of returning UNSUPPORTED
         logging.debug("Checking compliance of %s server", name)
         server_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_server_")
-        cmd = (
-            "CERTS=./certs" + " "
-            "TESTCASE_SERVER=" + random_string(6) + " "
-            "SERVER_LOGS=" + server_log_dir.name + " "
-            "CLIENT_LOGS=/dev/null "
-            "WWW=" + www_dir.name + " "
-            "DOWNLOADS=" + downloads_dir.name + " "
-            "SERVER=" + self._implementations[name]["image"] + " "
-            "docker-compose up -V server"
-        )
-        output = subprocess.run(
-            cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-        )
-        if not self._is_unsupported(output.stdout.splitlines()):
+        env_server = {
+            "CERTS": "./certs",
+            "TESTCASE_SERVER": random_string(6),
+            "SERVER_LOGS": server_log_dir.name,
+            "WWW": www_dir.name,
+            "SERVER": self._implementations[name]["image"],
+        }
+        env = {}
+        env.update(env_sim)
+        env.update(env_server)
+        r = DockerRunner(5)
+        r.add_container("server", env)
+        r.add_container("sim", env)
+        output, expired = r.run()
+        if expired or not self._is_unsupported(output.splitlines()):
             logging.error("%s server not compliant.", name)
-            logging.debug("%s", output.stdout.decode("utf-8"))
+            logging.debug("%s", output)
             self.compliant[name] = False
             return False
         logging.debug("%s server compliant.", name)
@@ -330,73 +333,53 @@ class InteropRunner:
             server_keylog_file=server_log_dir.name + "/keys.log",
         )
         print(
-            "Server: "
-            + server
-            + ". Client: "
-            + client
-            + ". Running test case: "
-            + str(testcase)
+            "Server: {}. Client: {}. Running test: {}".format(
+                server, client, str(testcase)
+            )
         )
 
         reqs = " ".join(["https://server:443/" + p for p in testcase.get_paths()])
         logging.debug("Requests: %s", reqs)
-        params = (
-            "CERTS=./certs" + " "
-            "TESTCASE_SERVER=" + testcase.testname(Perspective.SERVER) + " "
-            "TESTCASE_CLIENT=" + testcase.testname(Perspective.CLIENT) + " "
-            "WWW=" + testcase.www_dir() + " "
-            "DOWNLOADS=" + testcase.download_dir() + " "
-            "SERVER_LOGS=" + server_log_dir.name + " "
-            "CLIENT_LOGS=" + client_log_dir.name + " "
-            'SCENARIO="{}" '
-            "CLIENT=" + self._implementations[client]["image"] + " "
-            "SERVER=" + self._implementations[server]["image"] + " "
-            'REQUESTS="' + reqs + '" '
-        ).format(testcase.scenario())
-        params += " ".join(testcase.additional_envs())
-        containers = "sim client server " + " ".join(testcase.additional_containers())
-        cmd = (
-            params
-            + " docker-compose up --abort-on-container-exit --timeout 1 "
-            + containers
-        )
-        logging.debug("Command: %s", cmd)
+        r = DockerRunner(timeout=testcase.timeout())
+        env_server = {
+            "CERTS": "./certs",
+            "TESTCASE_SERVER": testcase.testname(Perspective.SERVER),
+            "WWW": testcase.www_dir(),
+            "SERVER_LOGS": server_log_dir.name,
+            "SERVER": self._implementations[server]["image"],
+        }
+        env_client = {
+            "CERTS": "./certs",
+            "TESTCASE_CLIENT": testcase.testname(Perspective.CLIENT),
+            "DOWNLOADS": testcase.download_dir(),
+            "CLIENT_LOGS": client_log_dir.name,
+            "CLIENT": self._implementations[client]["image"],
+            "REQUESTS": reqs,
+        }
+        env_sim = {"SCENARIO": testcase.scenario()}
+        env = {}
+        env.update(env_server)
+        env.update(env_client)
+        env.update(env_sim)
+        r.add_container(name="server", env=env)
+        r.add_container(name="client", env=env)
+        r.add_container(name="sim", env=env)
+        print(testcase.additional_containers())
+        for c in testcase.additional_containers():
+            print("adding", c)
+            r.add_container(name=c, env=testcase.additional_envs())
+        output, expired = r.run()
 
         status = TestResult.FAILED
-        output = ""
-        expired = False
-        try:
-            r = subprocess.run(
-                cmd,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                timeout=testcase.timeout(),
-            )
-            output = r.stdout
-        except subprocess.TimeoutExpired as ex:
-            output = ex.stdout
-            expired = True
-
-        logging.debug("%s", output.decode("utf-8"))
-
-        if expired:
-            logging.debug("Test failed: took longer than %ds.", testcase.timeout())
-            r = subprocess.run(
-                "docker-compose stop " + containers,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                timeout=60,
-            )
-            logging.debug("%s", r.stdout.decode("utf-8"))
 
         # copy the pcaps from the simulator
         self._copy_logs("sim", sim_log_dir)
         self._copy_logs("client", client_log_dir)
         self._copy_logs("server", server_log_dir)
 
-        if not expired:
+        if expired:
+            logging.debug("Test failed: took longer than %ds.", testcase.timeout())
+        else:
             lines = output.splitlines()
             if self._is_unsupported(lines):
                 status = TestResult.UNSUPPORTED
