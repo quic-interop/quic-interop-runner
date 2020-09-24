@@ -257,6 +257,11 @@ class TestCaseVersionNegotiation(TestCase):
     def abbreviation():
         return "V"
 
+    def testname(self, p: Perspective):
+        if p == Perspective.SERVER:
+            return "transfer"
+        return self.name()
+
     @staticmethod
     def desc():
         return "A version negotiation packet is elicited and acted on."
@@ -1089,6 +1094,7 @@ class MeasurementCrossTraffic(MeasurementGoodput):
 
 
 TESTCASES = [
+    TestCaseVersionNegotiation,
     TestCaseHandshake,
     TestCaseTransfer,
     TestCaseLongRTT,
