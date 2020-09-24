@@ -1,8 +1,5 @@
 name: interop
-on:
-  schedule:
-  - cron: "0 */8 * * *" # every 8h
-
+on: [ push ]
 # Cache key for caching the Wireshark build.
 # To trigger a rebuild of Wireshark increment this value.
 # The rebuild will then build the current master of Wireshark and save it under the new key.
@@ -199,7 +196,7 @@ jobs:
         env:
           CRON: "true"
         run: |
-          (python run.py --client ${{ matrix.client }} --server ${{ matrix.server }} --log-dir logs --json ${{ matrix.server }}_${{ matrix.client }}_results.json -t onlyTests || true) | tee output.txt
+          (python run.py --client ${{ matrix.client }} --server ${{ matrix.server }} --log-dir logs --json ${{ matrix.server }}_${{ matrix.client }}_results.json -t onlyTests -d || true) | tee output.txt
           mkdir -p logs/${{ matrix.server }}_${{ matrix.client }}
           mv output.txt logs/${{ matrix.server }}_${{ matrix.client }}/
       - name: Run measurements
