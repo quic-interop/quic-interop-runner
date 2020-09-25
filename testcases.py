@@ -1023,7 +1023,7 @@ class TestCaseNAT(TestCaseTransfer):
 
     @staticmethod
     def abbreviation():
-        return "RN"
+        return "BN"
 
     @staticmethod
     def testname(p: Perspective):
@@ -1037,7 +1037,7 @@ class TestCaseNAT(TestCaseTransfer):
 
     def get_paths(self):
         self._files = [
-            self._generate_random_file(1 * MB),
+            self._generate_random_file(2 * MB),
         ]
         return self._files
 
@@ -1045,6 +1045,24 @@ class TestCaseNAT(TestCaseTransfer):
     def scenario() -> str:
         """ Scenario for the ns3 simulator """
         return "nat --delay=15ms --bandwidth=10Mbps --queue=25 --first_rebind=1s --rebind_freq=3s"
+
+    def check(self) -> TestResult:
+        result = super(TestCaseNAT, self).check()
+        if result != TestResult.SUCCEEDED:
+            return result
+
+        tr_server = self._server_trace()._get_packets(
+            self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
+        )
+
+        ports = list(set(getattr(p["udp"], "dstport") for p in tr_server))
+
+        logging.info("Server saw these client ports: %s", ports)
+        if len(ports) > 1:
+            return TestResult.SUCCEEDED
+
+        logging.info("Didn't see multiple ports in use; test broken?")
+        return TestResult.FAILED
 
 
 class TestCaseCGN(TestCaseNAT):
@@ -1054,7 +1072,7 @@ class TestCaseCGN(TestCaseNAT):
 
     @staticmethod
     def abbreviation():
-        return "RC"
+        return "BC"
 
     @staticmethod
     def desc():
@@ -1064,6 +1082,46 @@ class TestCaseCGN(TestCaseNAT):
     def scenario() -> str:
         """ Scenario for the ns3 simulator """
         return super(TestCaseCGN, TestCaseCGN).scenario() + " --cgn"
+
+    def check(self) -> TestResult:
+        if not self._keylog_file():
+            logging.info("Can't check test result. SSLKEYLOG required.")
+            return TestResult.UNSUPPORTED
+
+        result = super(TestCaseCGN, self).check()
+        if result != TestResult.SUCCEEDED:
+            return result
+
+        tr_server = self._server_trace()._get_packets(
+            self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
+        )
+
+        ips = list(set(getattr(p["ip"], "dst") for p in tr_server))
+
+        logging.info("Server saw these client addresses: %s", ips)
+        if len(ips) <= 1:
+            logging.info("Didn't see multiple IP addresses in use; test broken?")
+            return TestResult.FAILED
+
+        last = None
+        for p in tr_server:
+            cur = (getattr(p["ip"], "dst"), int(getattr(p["udp"], "dstport")))
+            if last is None:
+                last = cur
+                continue
+
+            if last != cur:
+                last = cur
+                # packet to different IP/port, should have a PATH_CHALLENGE frame
+                if hasattr(p["quic"], "path_challenge.data") == False:
+                    logging.info(
+                        "First packet to new destination %s did not contain a PATH_CHALLENGE frame",
+                        cur,
+                    )
+                    logging.info(p["quic"])
+                    return TestResult.FAILED
+
+        return TestResult.SUCCEEDED
 
 
 class MeasurementGoodput(Measurement):
