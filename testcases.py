@@ -1100,7 +1100,9 @@ class TestCaseCGN(TestCaseNAT):
 
         logging.info("Server saw these client addresses: %s", ips)
         if len(ips) <= 1:
-            logging.info("Server saw only a single client IP addresses in use; test broken?")
+            logging.info(
+                "Server saw only a single client IP addresses in use; test broken?"
+            )
             return TestResult.FAILED
 
         last = None
