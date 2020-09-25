@@ -1061,7 +1061,7 @@ class TestCaseCGN(TestCaseNAT):
     @staticmethod
     def scenario() -> str:
         """ Scenario for the ns3 simulator """
-        return super(TestCaseCGN, TestCaseCGN).scenario() + " --addr"
+        return super(TestCaseCGN, TestCaseCGN).scenario() + " --cgn"
 
 
 class MeasurementGoodput(Measurement):
