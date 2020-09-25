@@ -27,6 +27,7 @@ services:
     tty: true
     volumes:
       - $WWW:/www:delegated
+      - $CERTS:/certs
     environment:
       - CRON=$CRON
       - ROLE=server
@@ -52,6 +53,7 @@ services:
     tty: true
     volumes:
       - $DOWNLOADS:/downloads:delegated
+      - $CERTS:/certs
     environment:
       - CRON=$CRON
       - ROLE=client

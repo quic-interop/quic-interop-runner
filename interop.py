@@ -96,6 +96,10 @@ class InteropRunner:
                 self.measurement_results[server][client] = {}
                 for measurement in measurements:
                     self.measurement_results[server][client][measurement] = {}
+        # check that certificate directory exists
+        if not os.path.isdir("./certs"):
+            print("./certs not found. Did you run certs.sh?")
+            sys.exit(1)
 
     def _is_unsupported(self, lines: List[str]) -> bool:
         return any("exited with code 127" in str(line) for line in lines) or any(
@@ -119,6 +123,7 @@ class InteropRunner:
         # check that the client is capable of returning UNSUPPORTED
         logging.debug("Checking compliance of %s client", name)
         cmd = (
+            "CERTS=./certs" + " "
             "TESTCASE_CLIENT=" + random_string(6) + " "
             "SERVER_LOGS=/dev/null "
             "CLIENT_LOGS=" + client_log_dir.name + " "
@@ -142,6 +147,7 @@ class InteropRunner:
         logging.debug("Checking compliance of %s server", name)
         server_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_server_")
         cmd = (
+            "CERTS=./certs" + " "
             "TESTCASE_SERVER=" + random_string(6) + " "
             "SERVER_LOGS=" + server_log_dir.name + " "
             "CLIENT_LOGS=/dev/null "
@@ -227,7 +233,10 @@ class InteropRunner:
             "log_dir": self._log_dir,
             "servers": [name for name in self._servers],
             "clients": [name for name in self._clients],
-            "urls": {x: self._implementations[x]["url"] for x in self._implementations},
+            "urls": {
+                x: self._implementations[x]["url"]
+                for x in self._servers + self._clients
+            },
             "tests": {
                 x.abbreviation(): {
                     "name": x.name(),
@@ -332,6 +341,7 @@ class InteropRunner:
         reqs = " ".join(["https://server:443/" + p for p in testcase.get_paths()])
         logging.debug("Requests: %s", reqs)
         params = (
+            "CERTS=./certs" + " "
             "TESTCASE_SERVER=" + testcase.testname(Perspective.SERVER) + " "
             "TESTCASE_CLIENT=" + testcase.testname(Perspective.CLIENT) + " "
             "WWW=" + testcase.www_dir() + " "

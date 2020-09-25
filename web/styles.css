@@ -18,3 +18,13 @@ body.loading .navbar-nav .end-time {
   background-color: yellow !important;
   color: black !important;
 }
+
+.hover-xy {
+  background-color: #ecf0f1;
+  color: #e74c3c;
+}
+
+tr.hover-xy > th, th.hover-xy {
+  background-color: #cfd9db;
+  color: #e74c3c;
+}

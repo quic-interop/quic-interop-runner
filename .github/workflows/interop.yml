@@ -126,7 +126,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Run docker pull
         run: |
-          URL=$(jq -r '.["${{ matrix.image }}"].url' implementations.json)
+          URL=$(jq -r '.["${{ matrix.image }}"].image' implementations.json)
           echo $URL
           docker pull $URL
           echo "::set-env name=URL::$URL"
@@ -193,6 +193,8 @@ jobs:
         run: |
           pip install -U pip
           pip install -r requirements.txt
+      - name: Generate certificates
+        run: ./certs.sh
       - name: Run tests
         env:
           CRON: "true"
@@ -205,6 +207,7 @@ jobs:
           CRON: "true"
         run: |
           python run.py --client ${{ matrix.client }} --server ${{ matrix.server }} --log-dir logs_measurement --json ${{ matrix.server }}_${{ matrix.client }}_measurements.json -t onlyMeasurements || true
+          if [ ! -d "logs_measurement" ]; then exit 0; fi
           find logs_measurement -depth -name "sim" -type d -exec rm -r "{}" \;
           find logs_measurement -depth -name "client" -type d -exec rm -r "{}" \;
           find logs_measurement -depth -name "server" -type d -exec rm -r "{}" \;
