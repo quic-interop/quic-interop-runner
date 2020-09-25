@@ -1031,7 +1031,9 @@ class TestCaseNAT(TestCaseTransfer):
 
     @staticmethod
     def desc():
-        return "Transfer completes under frequent NAT port rebindings on the client side."
+        return (
+            "Transfer completes under frequent NAT port rebindings on the client side."
+        )
 
     def get_paths(self):
         self._files = [
@@ -1056,7 +1058,7 @@ class TestCaseCGN(TestCaseNAT):
 
     @staticmethod
     def desc():
-        return "Transfer completes under frequent \"carrier-grade NAT\" IP and port rebindings on the client side."
+        return 'Transfer completes under frequent "carrier-grade NAT" IP and port rebindings on the client side.'
 
     @staticmethod
     def scenario() -> str:
