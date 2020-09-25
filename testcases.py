@@ -1061,7 +1061,7 @@ class TestCaseNAT(TestCaseTransfer):
         if len(ports) > 1:
             return TestResult.SUCCEEDED
 
-        logging.info("Didn't see multiple ports in use; test broken?")
+        logging.info("Server saw only a single client ports in use; test broken?")
         return TestResult.FAILED
 
 
@@ -1100,7 +1100,7 @@ class TestCaseCGN(TestCaseNAT):
 
         logging.info("Server saw these client addresses: %s", ips)
         if len(ips) <= 1:
-            logging.info("Didn't see multiple IP addresses in use; test broken?")
+            logging.info("Server saw only a single client IP addresses in use; test broken?")
             return TestResult.FAILED
 
         last = None
@@ -1115,7 +1115,7 @@ class TestCaseCGN(TestCaseNAT):
                 # packet to different IP/port, should have a PATH_CHALLENGE frame
                 if hasattr(p["quic"], "path_challenge.data") is False:
                     logging.info(
-                        "First packet to new destination %s did not contain a PATH_CHALLENGE frame",
+                        "First server packet to new client destination %s did not contain a PATH_CHALLENGE frame",
                         cur,
                     )
                     logging.info(p["quic"])
