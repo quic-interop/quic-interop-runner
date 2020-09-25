@@ -1037,7 +1037,7 @@ class TestCaseNAT(TestCaseTransfer):
 
     def get_paths(self):
         self._files = [
-            self._generate_random_file(2 * MB),
+            self._generate_random_file(10 * MB),
         ]
         return self._files
 
@@ -1113,7 +1113,7 @@ class TestCaseCGN(TestCaseNAT):
             if last != cur:
                 last = cur
                 # packet to different IP/port, should have a PATH_CHALLENGE frame
-                if hasattr(p["quic"], "path_challenge.data") == False:
+                if hasattr(p["quic"], "path_challenge.data") is False:
                     logging.info(
                         "First packet to new destination %s did not contain a PATH_CHALLENGE frame",
                         cur,
