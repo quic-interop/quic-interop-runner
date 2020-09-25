@@ -1023,7 +1023,7 @@ class TestCaseNAT(TestCaseTransfer):
 
     @staticmethod
     def abbreviation():
-        return "B"
+        return "RN"
 
     @staticmethod
     def testname(p: Perspective):
@@ -1031,7 +1031,7 @@ class TestCaseNAT(TestCaseTransfer):
 
     @staticmethod
     def desc():
-        return "Transfer completes under frequent NAT rebindings on the client side."
+        return "Transfer completes under frequent NAT port rebindings on the client side."
 
     def get_paths(self):
         self._files = [
@@ -1042,7 +1042,26 @@ class TestCaseNAT(TestCaseTransfer):
     @staticmethod
     def scenario() -> str:
         """ Scenario for the ns3 simulator """
-        return "nat --delay=15ms --bandwidth=10Mbps --queue=25 --first_rebind=1s"  # --rebind_freq=5s"
+        return "nat --delay=15ms --bandwidth=10Mbps --queue=25 --first_rebind=1s --rebind_freq=3s"
+
+
+class TestCaseCGN(TestCaseNAT):
+    @staticmethod
+    def name():
+        return "cgn"
+
+    @staticmethod
+    def abbreviation():
+        return "RC"
+
+    @staticmethod
+    def desc():
+        return "Transfer completes under frequent \"carrier-grade NAT\" IP and port rebindings on the client side."
+
+    @staticmethod
+    def scenario() -> str:
+        """ Scenario for the ns3 simulator """
+        return super(TestCaseCGN, TestCaseCGN).scenario() + " --addr"
 
 
 class MeasurementGoodput(Measurement):
@@ -1155,6 +1174,7 @@ TESTCASES = [
     TestCaseHandshakeCorruption,
     TestCaseTransferCorruption,
     TestCaseNAT,
+    TestCaseCGN,
 ]
 
 MEASUREMENTS = [
