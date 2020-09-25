@@ -1016,6 +1016,35 @@ class TestCaseECN(TestCaseHandshake):
         return TestResult.FAILED
 
 
+class TestCaseNAT(TestCaseTransfer):
+    @staticmethod
+    def name():
+        return "nat"
+
+    @staticmethod
+    def abbreviation():
+        return "B"
+
+    @staticmethod
+    def testname(p: Perspective):
+        return "transfer"
+
+    @staticmethod
+    def desc():
+        return "Transfer completes under frequent NAT rebindings on the client side."
+
+    def get_paths(self):
+        self._files = [
+            self._generate_random_file(1 * MB),
+        ]
+        return self._files
+
+    @staticmethod
+    def scenario() -> str:
+        """ Scenario for the ns3 simulator """
+        return "nat --delay=15ms --bandwidth=10Mbps --queue=25 --first_rebind=1s"  # --rebind_freq=5s"
+
+
 class MeasurementGoodput(Measurement):
     FILESIZE = 10 * MB
     _result = 0.0
@@ -1125,6 +1154,7 @@ TESTCASES = [
     TestCaseTransferLoss,
     TestCaseHandshakeCorruption,
     TestCaseTransferCorruption,
+    TestCaseNAT,
 ]
 
 MEASUREMENTS = [
