@@ -26,8 +26,8 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - $WWW:/www:delegated
-      - $CERTS:/certs
+      - $WWW:/www:ro
+      - $CERTS:/certs:ro
     environment:
       - CRON=$CRON
       - ROLE=server
@@ -53,7 +53,7 @@ services:
     tty: true
     volumes:
       - $DOWNLOADS:/downloads:delegated
-      - $CERTS:/certs
+      - $CERTS:/certs:ro
     environment:
       - CRON=$CRON
       - ROLE=client
