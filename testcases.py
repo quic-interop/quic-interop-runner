@@ -1031,9 +1031,7 @@ class TestCasePortRebinding(TestCaseTransfer):
 
     @staticmethod
     def desc():
-        return (
-            "Transfer completes under frequent port rebindings on the client side."
-        )
+        return "Transfer completes under frequent port rebindings on the client side."
 
     def get_paths(self):
         self._files = [
@@ -1076,12 +1074,15 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
 
     @staticmethod
     def desc():
-        return 'Transfer completes under frequent IP address and port rebindings on the client side.'
+        return "Transfer completes under frequent IP address and port rebindings on the client side."
 
     @staticmethod
     def scenario() -> str:
         """ Scenario for the ns3 simulator """
-        return super(TestCaseAddressRebinding, TestCaseAddressRebinding).scenario() + " --rebind-addr"
+        return (
+            super(TestCaseAddressRebinding, TestCaseAddressRebinding).scenario()
+            + " --rebind-addr"
+        )
 
     def check(self) -> TestResult:
         if not self._keylog_file():
