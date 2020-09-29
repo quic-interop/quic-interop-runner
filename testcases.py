@@ -1048,7 +1048,7 @@ class TestCasePortRebinding(TestCaseTransfer):
     @staticmethod
     def scenario() -> str:
         """ Scenario for the ns3 simulator """
-        return "rebind --delay=15ms --bandwidth=10Mbps --queue=25 --first-rebind=1s --rebind-freq=3s"
+        return "rebind --delay=15ms --bandwidth=10Mbps --queue=25 --first-rebind=1s --rebind-freq=5s"
 
     def check(self) -> TestResult:
         result = super(TestCasePortRebinding, self).check()
