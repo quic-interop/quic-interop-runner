@@ -1016,14 +1016,14 @@ class TestCaseECN(TestCaseHandshake):
         return TestResult.FAILED
 
 
-class TestCaseNAT(TestCaseTransfer):
+class TestCasePortRebinding(TestCaseTransfer):
     @staticmethod
     def name():
-        return "nat"
+        return "rebind-port"
 
     @staticmethod
     def abbreviation():
-        return "BN"
+        return "BP"
 
     @staticmethod
     def testname(p: Perspective):
@@ -1032,7 +1032,7 @@ class TestCaseNAT(TestCaseTransfer):
     @staticmethod
     def desc():
         return (
-            "Transfer completes under frequent NAT port rebindings on the client side."
+            "Transfer completes under frequent port rebindings on the client side."
         )
 
     def get_paths(self):
@@ -1044,10 +1044,10 @@ class TestCaseNAT(TestCaseTransfer):
     @staticmethod
     def scenario() -> str:
         """ Scenario for the ns3 simulator """
-        return "nat --delay=15ms --bandwidth=10Mbps --queue=25 --first_rebind=1s --rebind_freq=3s"
+        return "rebind --delay=15ms --bandwidth=10Mbps --queue=25 --first-rebind=1s --rebind-freq=3s"
 
     def check(self) -> TestResult:
-        result = super(TestCaseNAT, self).check()
+        result = super(TestCasePortRebinding, self).check()
         if result != TestResult.SUCCEEDED:
             return result
 
@@ -1065,30 +1065,30 @@ class TestCaseNAT(TestCaseTransfer):
         return TestResult.FAILED
 
 
-class TestCaseCGN(TestCaseNAT):
+class TestCaseAddressRebinding(TestCasePortRebinding):
     @staticmethod
     def name():
-        return "cgn"
+        return "rebind-addr"
 
     @staticmethod
     def abbreviation():
-        return "BC"
+        return "BA"
 
     @staticmethod
     def desc():
-        return 'Transfer completes under frequent "carrier-grade NAT" IP and port rebindings on the client side.'
+        return 'Transfer completes under frequent IP address and port rebindings on the client side.'
 
     @staticmethod
     def scenario() -> str:
         """ Scenario for the ns3 simulator """
-        return super(TestCaseCGN, TestCaseCGN).scenario() + " --cgn"
+        return super(TestCaseAddressRebinding, TestCaseAddressRebinding).scenario() + " --rebind-addr"
 
     def check(self) -> TestResult:
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
             return TestResult.UNSUPPORTED
 
-        result = super(TestCaseCGN, self).check()
+        result = super(TestCaseAddressRebinding, self).check()
         if result != TestResult.SUCCEEDED:
             return result
 
@@ -1235,8 +1235,8 @@ TESTCASES = [
     TestCaseTransferLoss,
     TestCaseHandshakeCorruption,
     TestCaseTransferCorruption,
-    TestCaseNAT,
-    TestCaseCGN,
+    TestCasePortRebinding,
+    TestCaseAddressRebinding,
 ]
 
 MEASUREMENTS = [
