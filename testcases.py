@@ -60,6 +60,8 @@ class TestCase(abc.ABC):
     _download_dir = None
     _sim_log_dir = None
     _cert_dir = None
+    _cached_server_trace = None
+    _cached_client_trace = None
 
     def __init__(
         self,
@@ -133,14 +135,18 @@ class TestCase(abc.ABC):
         logging.debug("No key log file found.")
 
     def _client_trace(self):
-        return TraceAnalyzer(
-            self._sim_log_dir.name + "/trace_node_left.pcap", self._keylog_file()
-        )
+        if self._cached_client_trace is None:
+            self._cached_client_trace = TraceAnalyzer(
+                self._sim_log_dir.name + "/trace_node_left.pcap", self._keylog_file()
+            )
+        return self._cached_client_trace
 
     def _server_trace(self):
-        return TraceAnalyzer(
-            self._sim_log_dir.name + "/trace_node_right.pcap", self._keylog_file()
-        )
+        if self._cached_server_trace is None:
+            self._cached_server_trace = TraceAnalyzer(
+                self._sim_log_dir.name + "/trace_node_right.pcap", self._keylog_file()
+            )
+        return self._cached_server_trace
 
     # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
     def _generate_random_file(self, size: int, filename_len=10) -> str:
@@ -1123,6 +1129,31 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
                     )
                     logging.info(p["quic"])
                     return TestResult.FAILED
+
+        tr_client = self._client_trace()._get_packets(
+            self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
+        )
+
+        challenges = list(
+            set(
+                getattr(p["quic"], "path_challenge.data")
+                for p in tr_server
+                if hasattr(p["quic"], "path_challenge.data")
+            )
+        )
+
+        responses = list(
+            set(
+                getattr(p["quic"], "path_response.data")
+                for p in tr_client
+                if hasattr(p["quic"], "path_response.data")
+            )
+        )
+
+        unresponded = [c for c in challenges if c not in responses]
+        if unresponded != []:
+            logging.info("PATH_CHALLENGE without a PATH_RESPONSE: %s", unresponded)
+            return TestResult.FAILED
 
         return TestResult.SUCCEEDED
 
