@@ -193,8 +193,6 @@ jobs:
         run: |
           pip install -U pip
           pip install -r requirements.txt
-      - name: Generate certificates
-        run: ./certs.sh
       - name: Run tests
         env:
           CRON: "true"
