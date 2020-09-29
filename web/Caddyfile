@@ -10,7 +10,10 @@ root /logs/* /var/www/
 root * /var/www/web
 
 # Allow external sites to download our JSON files.
-handle *.json {
+@json {
+  path *.json
+}
+handle @json {
   header Access-Control-Allow-Origin "*"
 }
 
