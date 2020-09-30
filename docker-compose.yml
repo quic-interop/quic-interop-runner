@@ -111,11 +111,15 @@ services:
 networks:
   leftnet:
     driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: 'false'
     ipam:
       config:
         - subnet: 193.167.0.0/24
   rightnet:
     driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: 'false'
     ipam:
       config:
         - subnet: 193.167.100.0/24

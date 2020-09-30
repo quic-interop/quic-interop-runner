@@ -60,6 +60,8 @@ class TestCase(abc.ABC):
     _download_dir = None
     _sim_log_dir = None
     _cert_dir = None
+    _cached_server_trace = None
+    _cached_client_trace = None
 
     def __init__(
         self,
@@ -133,14 +135,18 @@ class TestCase(abc.ABC):
         logging.debug("No key log file found.")
 
     def _client_trace(self):
-        return TraceAnalyzer(
-            self._sim_log_dir.name + "/trace_node_left.pcap", self._keylog_file()
-        )
+        if self._cached_client_trace is None:
+            self._cached_client_trace = TraceAnalyzer(
+                self._sim_log_dir.name + "/trace_node_left.pcap", self._keylog_file()
+            )
+        return self._cached_client_trace
 
     def _server_trace(self):
-        return TraceAnalyzer(
-            self._sim_log_dir.name + "/trace_node_right.pcap", self._keylog_file()
-        )
+        if self._cached_server_trace is None:
+            self._cached_server_trace = TraceAnalyzer(
+                self._sim_log_dir.name + "/trace_node_right.pcap", self._keylog_file()
+            )
+        return self._cached_server_trace
 
     # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
     def _generate_random_file(self, size: int, filename_len=10) -> str:
@@ -1016,6 +1022,142 @@ class TestCaseECN(TestCaseHandshake):
         return TestResult.FAILED
 
 
+class TestCasePortRebinding(TestCaseTransfer):
+    @staticmethod
+    def name():
+        return "rebind-port"
+
+    @staticmethod
+    def abbreviation():
+        return "BP"
+
+    @staticmethod
+    def testname(p: Perspective):
+        return "transfer"
+
+    @staticmethod
+    def desc():
+        return "Transfer completes under frequent port rebindings on the client side."
+
+    def get_paths(self):
+        self._files = [
+            self._generate_random_file(10 * MB),
+        ]
+        return self._files
+
+    @staticmethod
+    def scenario() -> str:
+        """ Scenario for the ns3 simulator """
+        return "rebind --delay=15ms --bandwidth=10Mbps --queue=25 --first-rebind=1s --rebind-freq=5s"
+
+    def check(self) -> TestResult:
+        result = super(TestCasePortRebinding, self).check()
+        if result != TestResult.SUCCEEDED:
+            return result
+
+        tr_server = self._server_trace()._get_packets(
+            self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
+        )
+
+        ports = list(set(getattr(p["udp"], "dstport") for p in tr_server))
+
+        logging.info("Server saw these client ports: %s", ports)
+        if len(ports) > 1:
+            return TestResult.SUCCEEDED
+
+        logging.info("Server saw only a single client ports in use; test broken?")
+        return TestResult.FAILED
+
+
+class TestCaseAddressRebinding(TestCasePortRebinding):
+    @staticmethod
+    def name():
+        return "rebind-addr"
+
+    @staticmethod
+    def abbreviation():
+        return "BA"
+
+    @staticmethod
+    def desc():
+        return "Transfer completes under frequent IP address and port rebindings on the client side."
+
+    @staticmethod
+    def scenario() -> str:
+        """ Scenario for the ns3 simulator """
+        return (
+            super(TestCaseAddressRebinding, TestCaseAddressRebinding).scenario()
+            + " --rebind-addr"
+        )
+
+    def check(self) -> TestResult:
+        if not self._keylog_file():
+            logging.info("Can't check test result. SSLKEYLOG required.")
+            return TestResult.UNSUPPORTED
+
+        result = super(TestCaseAddressRebinding, self).check()
+        if result != TestResult.SUCCEEDED:
+            return result
+
+        tr_server = self._server_trace()._get_packets(
+            self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
+        )
+
+        ips = list(set(getattr(p["ip"], "dst") for p in tr_server))
+
+        logging.info("Server saw these client addresses: %s", ips)
+        if len(ips) <= 1:
+            logging.info(
+                "Server saw only a single client IP addresses in use; test broken?"
+            )
+            return TestResult.FAILED
+
+        last = None
+        for p in tr_server:
+            cur = (getattr(p["ip"], "dst"), int(getattr(p["udp"], "dstport")))
+            if last is None:
+                last = cur
+                continue
+
+            if last != cur:
+                last = cur
+                # packet to different IP/port, should have a PATH_CHALLENGE frame
+                if hasattr(p["quic"], "path_challenge.data") is False:
+                    logging.info(
+                        "First server packet to new client destination %s did not contain a PATH_CHALLENGE frame",
+                        cur,
+                    )
+                    logging.info(p["quic"])
+                    return TestResult.FAILED
+
+        tr_client = self._client_trace()._get_packets(
+            self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
+        )
+
+        challenges = list(
+            set(
+                getattr(p["quic"], "path_challenge.data")
+                for p in tr_server
+                if hasattr(p["quic"], "path_challenge.data")
+            )
+        )
+
+        responses = list(
+            set(
+                getattr(p["quic"], "path_response.data")
+                for p in tr_client
+                if hasattr(p["quic"], "path_response.data")
+            )
+        )
+
+        unresponded = [c for c in challenges if c not in responses]
+        if unresponded != []:
+            logging.info("PATH_CHALLENGE without a PATH_RESPONSE: %s", unresponded)
+            return TestResult.FAILED
+
+        return TestResult.SUCCEEDED
+
+
 class MeasurementGoodput(Measurement):
     FILESIZE = 10 * MB
     _result = 0.0
@@ -1125,6 +1267,8 @@ TESTCASES = [
     TestCaseTransferLoss,
     TestCaseHandshakeCorruption,
     TestCaseTransferCorruption,
+    TestCasePortRebinding,
+    TestCaseAddressRebinding,
 ]
 
 MEASUREMENTS = [
