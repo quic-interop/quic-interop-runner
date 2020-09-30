@@ -780,7 +780,7 @@ class TestCaseKeyUpdate(TestCaseHandshake):
             )
             return TestResult.FAILED
 
-        succeeded = client[0] * client[1] * server[0] * server[1] > 0
+        succeeded = client[1] * server[1] > 0
 
         log_level = logging.INFO
         if succeeded:
@@ -800,7 +800,7 @@ class TestCaseKeyUpdate(TestCaseHandshake):
         )
         if not succeeded:
             logging.info(
-                "Expected to see packets sent with two key phases from both client and server."
+                "Expected to see packets sent with key phase 1 from both client and server."
             )
             return TestResult.FAILED
         return TestResult.SUCCEEDED
