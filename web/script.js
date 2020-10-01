@@ -37,6 +37,7 @@
     }
     ttip_target.title = ttip;
     $(ttip_target).attr("data-toggle", "tooltip").attr("data-placement", "bottom").attr("data-html", true).tooltip();
+    $(ttip_target).click(function() { $(this).blur(); });
     a.appendChild(document.createTextNode(text));
     return ttip_target;
   }
