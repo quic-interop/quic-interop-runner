@@ -107,7 +107,18 @@ def main():
             elif t in [tc.name() for tc in MEASUREMENTS]:
                 measurements += [tc for tc in MEASUREMENTS if tc.name() == t]
             else:
-                sys.exit("Test case " + t + " not found.")
+                print(
+                    (
+                        "Test case {} not found.\n"
+                        "Avaiable testcases: {}\n"
+                        "Available measurements: {}"
+                    ).format(
+                        t,
+                        ", ".join([t.name() for t in TESTCASES]),
+                        ", ".join([t.name() for t in MEASUREMENTS]),
+                    )
+                )
+                sys.exit()
         return tests, measurements
 
     t = get_tests_and_measurements(get_args().test)
