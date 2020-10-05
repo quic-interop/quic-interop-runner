@@ -9,7 +9,7 @@ import sys
 import tempfile
 from datetime import timedelta
 from enum import Enum, IntEnum
-from trace import Direction, TraceAnalyzer
+from trace import Direction, PacketType, TraceAnalyzer, get_direction, get_packet_type
 from typing import List
 
 from Crypto.Cipher import AES
@@ -750,27 +750,47 @@ class TestCaseAmplificationLimit(TestCase):
             )
             return TestResult.FAILED
         logging.debug(
-            "Server sent %d bytes in Handshake CRYPTO frames", max_handshake_offset
+            "Server sent %d bytes in Handshake CRYPTO frames.", max_handshake_offset
         )
+
         # Check that the server didn't send more than 3x what the client sent.
-        client_packets = self._server_trace().get_raw_packets(Direction.FROM_CLIENT)
-        second_packet_send_time = client_packets[1].sniff_time
-        first_packet_size = int(client_packets[0].ip.len)
-        server_sent = 0
-        for p in self._server_trace().get_raw_packets(Direction.FROM_SERVER):
-            if p.sniff_time > second_packet_send_time:
-                break
-            server_sent += int(p.ip.len)
-        logging.debug(
+        allowed = 0
+        client_sent, server_sent = 0, 0  # only for debug messages
+        res = TestResult.FAILED
+        for p in self._server_trace().get_raw_packets():
+            direction = get_direction(p)
+            packet_type = get_packet_type(p)
+            packet_size = int(p.ip.len)
+            if packet_type == PacketType.INVALID:
+                logging.debug("Couldn't determine packet type.")
+                return TestResult.FAILED
+            if direction == Direction.FROM_CLIENT:
+                if packet_type is PacketType.HANDSHAKE:
+                    res = TestResult.SUCCEEDED
+                    break
+                if packet_type is PacketType.INITIAL:
+                    client_sent += packet_size
+                    allowed += 3 * packet_size
+            elif direction == Direction.FROM_SERVER:
+                server_sent += packet_size
+                if packet_size > allowed:
+                    break
+                allowed -= packet_size
+            else:
+                logging.debug("Couldn't determine sender of packet.")
+                return TestResult.FAILED
+
+        log_level = logging.DEBUG
+        if res == TestResult.FAILED:
+            log_level = logging.INFO
+        logging.log(
+            log_level,
             "Client Initial Size: %d (=> amplification limit: %d). Server sent: %d",
-            first_packet_size,
-            3 * first_packet_size,
+            client_sent,
+            3 * client_sent,
             server_sent,
         )
-        if server_sent > 3 * first_packet_size:
-            logging.info("Server sent too much data.")
-            return TestResult.FAILED
-        return TestResult.SUCCEEDED
+        return res
 
 
 class TestCaseBlackhole(TestCase):

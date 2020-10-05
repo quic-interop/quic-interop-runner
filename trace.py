@@ -4,11 +4,47 @@ from typing import List, Optional
 
 import pyshark
 
+IP_CLIENT = "193.167.0.100"
+IP_SERVER = "193.167.100.100"
+
 
 class Direction(Enum):
     ALL = 0
     FROM_CLIENT = 1
     FROM_SERVER = 2
+    INVALID = 3
+
+
+class PacketType(Enum):
+    INITIAL = 1
+    HANDSHAKE = 2
+    ZERORTT = 3
+    ONERTT = 4
+    INVALID = 5
+
+
+WIRESHARK_PACKET_TYPES = {
+    PacketType.INITIAL: "0",
+    PacketType.ZERORTT: "1",
+    PacketType.HANDSHAKE: "2",
+}
+
+
+def get_direction(p) -> Direction:
+    if p.ip.src == IP_CLIENT:
+        return Direction.FROM_CLIENT
+    if p.ip.src == IP_SERVER:
+        return Direction.FROM_SERVER
+    return Direction.INVALID
+
+
+def get_packet_type(p) -> PacketType:
+    if p.quic.header_form == "0":
+        return PacketType.ONERTT
+    for t, num in WIRESHARK_PACKET_TYPES.items():
+        if p.quic.long_packet_type == num:
+            return t
+    return PacketType.INVALID
 
 
 class TraceAnalyzer:
@@ -21,9 +57,9 @@ class TraceAnalyzer:
     def _get_direction_filter(self, d: Direction) -> str:
         f = "(quic && !icmp) && "
         if d == Direction.FROM_CLIENT:
-            return f + "ip.src==193.167.0.100 && "
+            return f + "ip.src==" + IP_CLIENT + " && "
         elif d == Direction.FROM_SERVER:
-            return f + "ip.src==193.167.100.100 && "
+            return f + "ip.src==" + IP_SERVER + " && "
         else:
             return f
 
@@ -94,7 +130,8 @@ class TraceAnalyzer:
                 if (
                     layer.layer_name == "quic"
                     and hasattr(layer, "long_packet_type")
-                    and layer.long_packet_type == "0"
+                    and layer.long_packet_type
+                    == WIRESHARK_PACKET_TYPES[PacketType.INITIAL]
                 ):
                     packets.append(layer)
         return packets
@@ -109,7 +146,8 @@ class TraceAnalyzer:
                 if (
                     layer.layer_name == "quic"
                     and hasattr(layer, "long_packet_type")
-                    and layer.long_packet_type == "2"
+                    and layer.long_packet_type
+                    == WIRESHARK_PACKET_TYPES[PacketType.HANDSHAKE]
                 ):
                     packets.append(layer)
         return packets
@@ -124,7 +162,8 @@ class TraceAnalyzer:
                 if (
                     layer.layer_name == "quic"
                     and hasattr(layer, "long_packet_type")
-                    and layer.long_packet_type == "1"
+                    and layer.long_packet_type
+                    == WIRESHARK_PACKET_TYPES[PacketType.ZERORTT]
                 ):
                     packets.append(layer)
         return packets
