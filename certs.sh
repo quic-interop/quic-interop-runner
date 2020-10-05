@@ -16,7 +16,7 @@ mkdir -p $CERTDIR || true
 openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 \
   -keyout $CERTDIR/ca_0.key -out $CERTDIR/cert_0.pem \
   -subj "/O=interop runner Root Certificate Authority/" \
-  -config config.txt \
+  -config cert_config.txt \
   -extensions v3_ca \
   2> /dev/null
 
@@ -35,7 +35,7 @@ for i in $(seq 1 $CHAINLEN); do
   if [[ $i < $CHAINLEN ]]; then
     openssl x509 -req -sha256 -days 365 -in $CERTDIR/cert.csr -out $CERTDIR/cert_$i.pem \
       -CA $CERTDIR/cert_$j.pem -CAkey $CERTDIR/ca_$j.key -CAcreateserial \
-      -extfile config.txt \
+      -extfile cert_config.txt \
       -extensions v3_ca \
       2> /dev/null
   else
