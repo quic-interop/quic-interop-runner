@@ -9,7 +9,7 @@ import sys
 import tempfile
 from datetime import timedelta
 from enum import Enum, IntEnum
-from trace import Direction, TraceAnalyzer
+from trace import Direction, PacketType, TraceAnalyzer, get_direction, get_packet_type
 from typing import List
 
 from Crypto.Cipher import AES
@@ -41,8 +41,8 @@ def random_string(length: int):
     return "".join(random.choice(letters) for i in range(length))
 
 
-def generate_cert_chain(directory: str):
-    cmd = "./certs.sh " + directory
+def generate_cert_chain(directory: str, length: int = 1):
+    cmd = "./certs.sh " + directory + " " + str(length)
     r = subprocess.run(
         cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
@@ -702,6 +702,107 @@ class TestCaseHTTP3(TestCase):
         return TestResult.SUCCEEDED
 
 
+class TestCaseAmplificationLimit(TestCase):
+    @staticmethod
+    def name():
+        return "amplificationlimit"
+
+    @staticmethod
+    def testname(p: Perspective):
+        return "transfer"
+
+    @staticmethod
+    def abbreviation():
+        return "A"
+
+    @staticmethod
+    def desc():
+        return "The server obeys the 3x amplification limit."
+
+    def certs_dir(self):
+        if not self._cert_dir:
+            self._cert_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="certs_")
+            generate_cert_chain(self._cert_dir.name, 9)
+        return self._cert_dir.name + "/"
+
+    @staticmethod
+    def scenario() -> str:
+        """ Scenario for the ns3 simulator """
+        # Let the ClientHello pass, but drop a bunch of retransmissions afterwards.
+        return "droplist --delay=15ms --bandwidth=10Mbps --queue=25 --drops_to_server=2,3,4,5,6,7"
+
+    def get_paths(self):
+        self._files = [self._generate_random_file(5 * KB)]
+        return self._files
+
+    def check(self) -> TestResult:
+        if not self._keylog_file():
+            logging.info("Can't check test result. SSLKEYLOG required.")
+            return TestResult.UNSUPPORTED
+        num_handshakes = self._count_handshakes()
+        if num_handshakes != 1:
+            logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+            return TestResult.FAILED
+        if not self._check_version_and_files():
+            return TestResult.FAILED
+        # Check the highest offset of CRYPTO frames sent by the server.
+        # This way we can make sure that it actually used the provided cert chain.
+        max_handshake_offset = 0
+        for p in self._server_trace().get_handshake(Direction.FROM_SERVER):
+            if hasattr(p, "crypto_offset"):
+                max_handshake_offset = max(
+                    max_handshake_offset, int(p.crypto_offset) + int(p.crypto_length)
+                )
+        if max_handshake_offset < 7500:
+            logging.info(
+                "Server sent too little Handshake CRYPTO data (%d bytes). Not using the provided cert chain?",
+                max_handshake_offset,
+            )
+            return TestResult.FAILED
+        logging.debug(
+            "Server sent %d bytes in Handshake CRYPTO frames.", max_handshake_offset
+        )
+
+        # Check that the server didn't send more than 3x what the client sent.
+        allowed = 0
+        client_sent, server_sent = 0, 0  # only for debug messages
+        res = TestResult.FAILED
+        for p in self._server_trace().get_raw_packets():
+            direction = get_direction(p)
+            packet_type = get_packet_type(p)
+            packet_size = int(p.ip.len)
+            if packet_type == PacketType.INVALID:
+                logging.debug("Couldn't determine packet type.")
+                return TestResult.FAILED
+            if direction == Direction.FROM_CLIENT:
+                if packet_type is PacketType.HANDSHAKE:
+                    res = TestResult.SUCCEEDED
+                    break
+                if packet_type is PacketType.INITIAL:
+                    client_sent += packet_size
+                    allowed += 3 * packet_size
+            elif direction == Direction.FROM_SERVER:
+                server_sent += packet_size
+                if packet_size > allowed:
+                    break
+                allowed -= packet_size
+            else:
+                logging.debug("Couldn't determine sender of packet.")
+                return TestResult.FAILED
+
+        log_level = logging.DEBUG
+        if res == TestResult.FAILED:
+            log_level = logging.INFO
+        logging.log(
+            log_level,
+            "Client Initial Size: %d (=> amplification limit: %d). Server sent: %d",
+            client_sent,
+            3 * client_sent,
+            server_sent,
+        )
+        return res
+
+
 class TestCaseBlackhole(TestCase):
     @staticmethod
     def name():
@@ -1263,6 +1364,7 @@ TESTCASES = [
     TestCaseBlackhole,
     TestCaseKeyUpdate,
     TestCaseECN,
+    TestCaseAmplificationLimit,
     TestCaseHandshakeLoss,
     TestCaseTransferLoss,
     TestCaseHandshakeCorruption,
