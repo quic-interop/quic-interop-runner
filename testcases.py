@@ -416,9 +416,7 @@ class TestCaseChaCha20(TestCase):
 
     @staticmethod
     def testname(p: Perspective):
-        if p is Perspective.CLIENT:
-            return "chacha20"
-        return "transfer"
+        return "chacha20"
 
     @staticmethod
     def abbreviation():
