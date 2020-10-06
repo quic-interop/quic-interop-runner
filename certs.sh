@@ -50,7 +50,7 @@ mv $CERTDIR/cert_0.pem $CERTDIR/ca.pem
 cp $CERTDIR/ca_$CHAINLEN.key $CERTDIR/priv.key
 
 # combine certificates
-for i in $(seq $CHAINLEN 1); do
+for i in $(seq $CHAINLEN -1 1); do
   cat $CERTDIR/cert_$i.pem >> $CERTDIR/cert.pem
   rm $CERTDIR/cert_$i.pem $CERTDIR/ca_$i.key
 done
