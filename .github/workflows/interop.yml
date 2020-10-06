@@ -102,7 +102,7 @@ jobs:
       run: |
         URL="martenseemann/${{ matrix.image }}"
         docker pull $URL
-        echo "::set-env name=URL::$URL"
+        echo "URL=$URL" >> $GITHUB_ENV
     - name: Docker inspect
       run: docker image inspect $URL
     - name: Save Docker image
@@ -129,7 +129,7 @@ jobs:
           URL=$(jq -r '.["${{ matrix.image }}"].image' implementations.json)
           echo $URL
           docker pull $URL
-          echo "::set-env name=URL::$URL"
+          echo "URL=$URL" >> $GITHUB_ENV
       - name: Docker inspect
         run: docker image inspect $URL
       - name: Save Docker image
