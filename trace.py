@@ -19,14 +19,16 @@ class PacketType(Enum):
     INITIAL = 1
     HANDSHAKE = 2
     ZERORTT = 3
-    ONERTT = 4
-    INVALID = 5
+    RETRY = 4
+    ONERTT = 5
+    INVALID = 6
 
 
 WIRESHARK_PACKET_TYPES = {
     PacketType.INITIAL: "0",
     PacketType.ZERORTT: "1",
     PacketType.HANDSHAKE: "2",
+    PacketType.RETRY: "3",
 }
 
 
@@ -110,60 +112,34 @@ class TraceAnalyzer:
             self._get_direction_filter(direction) + "quic.version==0"
         )
 
-    def get_retry(self, direction: Direction = Direction.ALL) -> List:
+    def _get_long_header_packets(
+        self, packet_type: PacketType, direction: Direction
+    ) -> List:
         packets = []
         for packet in self._get_packets(
-            self._get_direction_filter(direction) + "quic.long.packet_type==Retry"
+            self._get_direction_filter(direction) + "quic.long.packet_type"
         ):
             for layer in packet.layers:
-                if layer.layer_name == "quic":
+                if (
+                    layer.layer_name == "quic"
+                    and hasattr(layer, "long_packet_type")
+                    and layer.long_packet_type == WIRESHARK_PACKET_TYPES[packet_type]
+                ):
                     packets.append(layer)
         return packets
 
     def get_initial(self, direction: Direction = Direction.ALL) -> List:
         """ Get all Initial packets. """
-        packets = []
-        for packet in self._get_packets(
-            self._get_direction_filter(direction) + "quic.long.packet_type"
-        ):
-            for layer in packet.layers:
-                if (
-                    layer.layer_name == "quic"
-                    and hasattr(layer, "long_packet_type")
-                    and layer.long_packet_type
-                    == WIRESHARK_PACKET_TYPES[PacketType.INITIAL]
-                ):
-                    packets.append(layer)
-        return packets
+        return self._get_long_header_packets(PacketType.INITIAL, direction)
+
+    def get_retry(self, direction: Direction = Direction.ALL) -> List:
+        """ Get all Retry packets. """
+        return self._get_long_header_packets(PacketType.RETRY, direction)
 
     def get_handshake(self, direction: Direction = Direction.ALL) -> List:
         """ Get all Handshake packets. """
-        packets = []
-        for packet in self._get_packets(
-            self._get_direction_filter(direction) + "quic.long.packet_type"
-        ):
-            for layer in packet.layers:
-                if (
-                    layer.layer_name == "quic"
-                    and hasattr(layer, "long_packet_type")
-                    and layer.long_packet_type
-                    == WIRESHARK_PACKET_TYPES[PacketType.HANDSHAKE]
-                ):
-                    packets.append(layer)
-        return packets
+        return self._get_long_header_packets(PacketType.INITIAL, direction)
 
     def get_0rtt(self) -> List:
         """ Get all 0-RTT packets. """
-        packets = []
-        for packet in self._get_packets(
-            self._get_direction_filter(Direction.FROM_CLIENT) + "quic.long.packet_type"
-        ):
-            for layer in packet.layers:
-                if (
-                    layer.layer_name == "quic"
-                    and hasattr(layer, "long_packet_type")
-                    and layer.long_packet_type
-                    == WIRESHARK_PACKET_TYPES[PacketType.ZERORTT]
-                ):
-                    packets.append(layer)
-        return packets
+        return self._get_long_header_packets(PacketType.INITIAL, Direction.FROM_CLIENT)
