@@ -2,11 +2,13 @@ version: "3.5"
 
 services:
   sim:
-    image: martenseemann/quic-network-simulator
+    image: lars/qns:v6
     container_name: sim
     hostname: sim
     stdin_open: true
     tty: true
+    volumes:
+      - $DOWNLOADS:/logs:delegated
     environment:
       - WAITFORSERVER=$WAITFORSERVER
       - SCENARIO=$SCENARIO
@@ -78,6 +80,7 @@ services:
         ipv6_address: fd00:cafe:cafe:0::100
     extra_hosts:
       - "server:193.167.100.100"
+      - "server:fd00:cafe:cafe:100::100"
   
   iperf_server:
     image: martenseemann/quic-interop-iperf-endpoint
@@ -96,6 +99,7 @@ services:
         ipv6_address: fd00:cafe:cafe:100::110
     extra_hosts:
       - "client: 193.167.0.90"
+      - "client: fd00:cafe:cafe:0::100"
 
   iperf_client:
     image: martenseemann/quic-interop-iperf-endpoint
