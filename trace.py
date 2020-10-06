@@ -138,8 +138,8 @@ class TraceAnalyzer:
 
     def get_handshake(self, direction: Direction = Direction.ALL) -> List:
         """ Get all Handshake packets. """
-        return self._get_long_header_packets(PacketType.INITIAL, direction)
+        return self._get_long_header_packets(PacketType.HANDSHAKE, direction)
 
     def get_0rtt(self) -> List:
         """ Get all 0-RTT packets. """
-        return self._get_long_header_packets(PacketType.INITIAL, Direction.FROM_CLIENT)
+        return self._get_long_header_packets(PacketType.ZERORTT, Direction.FROM_CLIENT)
