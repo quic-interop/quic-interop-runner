@@ -768,7 +768,7 @@ class TestCaseAmplificationLimit(TestCase):
         for p in self._server_trace().get_raw_packets():
             direction = get_direction(p)
             packet_type = get_packet_type(p)
-            packet_size = int(p.ip.len)
+            packet_size = int(p.udp.length)
             if packet_type == PacketType.INVALID:
                 logging.debug("Couldn't determine packet type.")
                 return TestResult.FAILED
