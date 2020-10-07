@@ -8,6 +8,7 @@ services:
     stdin_open: true
     tty: true
     environment:
+      - WAITFORSERVER=$WAITFORSERVER
       - SCENARIO=$SCENARIO
     cap_add: 
       - NET_ADMIN
