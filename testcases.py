@@ -765,6 +765,7 @@ class TestCaseAmplificationLimit(TestCase):
         allowed = 0
         client_sent, server_sent = 0, 0  # only for debug messages
         res = TestResult.FAILED
+        log_output = []
         for p in self._server_trace().get_raw_packets():
             direction = get_direction(p)
             packet_type = get_packet_type(p)
@@ -779,11 +780,21 @@ class TestCaseAmplificationLimit(TestCase):
                 if packet_type is PacketType.INITIAL:
                     client_sent += packet_size
                     allowed += 3 * packet_size
+                    log_output.append(
+                        "Received a {} byte Initial packet from the client. Amplification limit: {}".format(
+                            packet_size, 3 * client_sent
+                        )
+                    )
             elif direction == Direction.FROM_SERVER:
                 server_sent += packet_size
                 if packet_size > allowed:
                     break
                 allowed -= packet_size
+                log_output.append(
+                    "Received a {} byte Handshake packet from the server. Total: {}".format(
+                        packet_size, server_sent
+                    )
+                )
             else:
                 logging.debug("Couldn't determine sender of packet.")
                 return TestResult.FAILED
@@ -791,13 +802,8 @@ class TestCaseAmplificationLimit(TestCase):
         log_level = logging.DEBUG
         if res == TestResult.FAILED:
             log_level = logging.INFO
-        logging.log(
-            log_level,
-            "Client Initial Size: %d (=> amplification limit: %d). Server sent: %d",
-            client_sent,
-            3 * client_sent,
-            server_sent,
-        )
+        for msg in log_output:
+            logging.log(log_level, msg)
         return res
 
 
