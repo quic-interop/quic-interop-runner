@@ -1150,6 +1150,10 @@ class TestCasePortRebinding(TestCaseTransfer):
         return "rebind --delay=15ms --bandwidth=10Mbps --queue=25 --first-rebind=1s --rebind-freq=5s"
 
     def check(self) -> TestResult:
+        if not self._keylog_file():
+            logging.info("Can't check test result. SSLKEYLOG required.")
+            return TestResult.UNSUPPORTED
+
         result = super(TestCasePortRebinding, self).check()
         if result != TestResult.SUCCEEDED:
             return result
@@ -1161,54 +1165,8 @@ class TestCasePortRebinding(TestCaseTransfer):
         ports = list(set(getattr(p["udp"], "dstport") for p in tr_server))
 
         logging.info("Server saw these client ports: %s", ports)
-        if len(ports) > 1:
-            return TestResult.SUCCEEDED
-
-        logging.info("Server saw only a single client ports in use; test broken?")
-        return TestResult.FAILED
-
-
-class TestCaseAddressRebinding(TestCasePortRebinding):
-    @staticmethod
-    def name():
-        return "rebind-addr"
-
-    @staticmethod
-    def abbreviation():
-        return "BA"
-
-    @staticmethod
-    def desc():
-        return "Transfer completes under frequent IP address and port rebindings on the client side."
-
-    @staticmethod
-    def scenario() -> str:
-        """ Scenario for the ns3 simulator """
-        return (
-            super(TestCaseAddressRebinding, TestCaseAddressRebinding).scenario()
-            + " --rebind-addr"
-        )
-
-    def check(self) -> TestResult:
-        if not self._keylog_file():
-            logging.info("Can't check test result. SSLKEYLOG required.")
-            return TestResult.UNSUPPORTED
-
-        result = super(TestCaseAddressRebinding, self).check()
-        if result != TestResult.SUCCEEDED:
-            return result
-
-        tr_server = self._server_trace()._get_packets(
-            self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
-        )
-
-        ips = list(set(getattr(p["ip"], "dst") for p in tr_server))
-
-        logging.info("Server saw these client addresses: %s", ips)
-        if len(ips) <= 1:
-            logging.info(
-                "Server saw only a single client IP addresses in use; test broken?"
-            )
+        if len(ports) <= 1:
+            logging.info("Server saw only a single client port in use; test broken?")
             return TestResult.FAILED
 
         last = None
@@ -1240,6 +1198,7 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
                 if hasattr(p["quic"], "path_challenge.data")
             )
         )
+        logging.info(challenges)
 
         responses = list(
             set(
@@ -1248,11 +1207,58 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
                 if hasattr(p["quic"], "path_response.data")
             )
         )
+        logging.info(responses)
 
         unresponded = [c for c in challenges if c not in responses]
         if unresponded != []:
             logging.info("PATH_CHALLENGE without a PATH_RESPONSE: %s", unresponded)
             return TestResult.FAILED
+
+        return TestResult.SUCCEEDED
+
+
+class TestCaseAddressRebinding(TestCasePortRebinding):
+    @staticmethod
+    def name():
+        return "rebind-addr"
+
+    @staticmethod
+    def abbreviation():
+        return "BA"
+
+    @staticmethod
+    def desc():
+        return "Transfer completes under frequent IP address and port rebindings on the client side."
+
+    @staticmethod
+    def scenario() -> str:
+        """ Scenario for the ns3 simulator """
+        return (
+            super(TestCaseAddressRebinding, TestCaseAddressRebinding).scenario()
+            + " --rebind-addr"
+        )
+
+    def check(self) -> TestResult:
+        if not self._keylog_file():
+            logging.info("Can't check test result. SSLKEYLOG required.")
+            return TestResult.UNSUPPORTED
+
+        tr_server = self._server_trace()._get_packets(
+            self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
+        )
+
+        ips = list(set(getattr(p["ip"], "dst") for p in tr_server))
+
+        logging.info("Server saw these client addresses: %s", ips)
+        if len(ips) <= 1:
+            logging.info(
+                "Server saw only a single client IP address in use; test broken?"
+            )
+            return TestResult.FAILED
+
+        result = super(TestCaseAddressRebinding, self).check()
+        if result != TestResult.SUCCEEDED:
+            return result
 
         return TestResult.SUCCEEDED
 
