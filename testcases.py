@@ -787,14 +787,15 @@ class TestCaseAmplificationLimit(TestCase):
                     )
             elif direction == Direction.FROM_SERVER:
                 server_sent += packet_size
-                if packet_size > allowed:
-                    break
-                allowed -= packet_size
                 log_output.append(
                     "Received a {} byte Handshake packet from the server. Total: {}".format(
                         packet_size, server_sent
                     )
                 )
+                if packet_size > allowed:
+                    log_output.append("Server violated the amplification limit.")
+                    break
+                allowed -= packet_size
             else:
                 logging.debug("Couldn't determine sender of packet.")
                 return TestResult.FAILED
