@@ -769,10 +769,10 @@ class TestCaseAmplificationLimit(TestCase):
         for p in self._server_trace().get_raw_packets():
             direction = get_direction(p)
             packet_type = get_packet_type(p)
-            packet_size = int(p.udp.length)
             if packet_type == PacketType.VERSIONNEGOTIATION:
                 logging.info("Didn't expect a Version Negotiation packet.")
                 return TestResult.FAILED
+            packet_size = int(p.udp.length) - 8  # subtract the UDP header length
             if packet_type == PacketType.INVALID:
                 logging.debug("Couldn't determine packet type.")
                 return TestResult.FAILED
