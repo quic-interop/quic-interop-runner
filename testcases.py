@@ -1294,10 +1294,24 @@ class TestCaseIPv6(TestCaseTransfer):
     def get_paths(self):
         self._files = [
             self._generate_random_file(5 * KB),
-            # self._generate_random_file(10 * KB),
-            # self._generate_random_file(500 * KB),
+            self._generate_random_file(10 * KB),
         ]
         return self._files
+
+    def check(self) -> TestResult:
+        result = super(TestCaseIPv6, self).check()
+        if result != TestResult.SUCCEEDED:
+            return result
+
+        tr_server = self._server_trace()._get_packets(
+            self._server_trace()._get_direction_filter(Direction.FROM_SERVER)
+            + " quic && ip"
+        )
+
+        if tr_server:
+            logging.info("Packet trace contains %s IPv4 packets.", len(tr_server))
+            return TestResult.FAILED
+        return TestResult.SUCCEEDED
 
 
 class MeasurementGoodput(Measurement):
@@ -1412,7 +1426,7 @@ TESTCASES = [
     TestCaseTransferCorruption,
     TestCasePortRebinding,
     TestCaseAddressRebinding,
-    TestCaseIPv6
+    TestCaseIPv6,
 ]
 
 MEASUREMENTS = [

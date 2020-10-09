@@ -35,9 +35,9 @@ WIRESHARK_PACKET_TYPES = {
 
 
 def get_direction(p) -> Direction:
-    if p.ip.src == IP4_CLIENT:
+    if p.ip.src == IP4_CLIENT or p.ipv6.src == IP6_CLIENT:
         return Direction.FROM_CLIENT
-    if p.ip.src == IP4_SERVER:
+    if p.ip.src == IP4_SERVER or p.ipv6.src == IP6_SERVER:
         return Direction.FROM_SERVER
     return Direction.INVALID
 
