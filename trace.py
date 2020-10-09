@@ -21,7 +21,8 @@ class PacketType(Enum):
     ZERORTT = 3
     RETRY = 4
     ONERTT = 5
-    INVALID = 6
+    VERSIONNEGOTIATION = 6
+    INVALID = 7
 
 
 WIRESHARK_PACKET_TYPES = {
@@ -43,6 +44,8 @@ def get_direction(p) -> Direction:
 def get_packet_type(p) -> PacketType:
     if p.quic.header_form == "0":
         return PacketType.ONERTT
+    if p.quic.version == "0x00000000":
+        return PacketType.VERSIONNEGOTIATION
     for t, num in WIRESHARK_PACKET_TYPES.items():
         if p.quic.long_packet_type == num:
             return t
