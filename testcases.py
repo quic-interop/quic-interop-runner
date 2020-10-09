@@ -1270,6 +1270,36 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
         return TestResult.SUCCEEDED
 
 
+class TestCaseIPv6(TestCaseTransfer):
+    @staticmethod
+    def name():
+        return "ipv6"
+
+    @staticmethod
+    def abbreviation():
+        return "6"
+
+    @staticmethod
+    def testname(p: Perspective):
+        return "transfer"
+
+    @staticmethod
+    def additional_envs() -> List[str]:
+        return ["IP4_NAME_PREFIX=ipv4_"]
+
+    @staticmethod
+    def desc():
+        return "A transfer across an IPv6-only network succeeded."
+
+    def get_paths(self):
+        self._files = [
+            self._generate_random_file(5 * KB),
+            # self._generate_random_file(10 * KB),
+            # self._generate_random_file(500 * KB),
+        ]
+        return self._files
+
+
 class MeasurementGoodput(Measurement):
     FILESIZE = 10 * MB
     _result = 0.0
@@ -1382,6 +1412,7 @@ TESTCASES = [
     TestCaseTransferCorruption,
     TestCasePortRebinding,
     TestCaseAddressRebinding,
+    TestCaseIPv6
 ]
 
 MEASUREMENTS = [

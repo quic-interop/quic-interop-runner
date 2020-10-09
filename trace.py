@@ -61,9 +61,13 @@ class TraceAnalyzer:
     def _get_direction_filter(self, d: Direction) -> str:
         f = "(quic && !icmp) && "
         if d == Direction.FROM_CLIENT:
-            return f + "(ip.src==" + IP4_CLIENT + " || ipv6.src==" + IP6_CLIENT + ") && "
+            return (
+                f + "(ip.src==" + IP4_CLIENT + " || ipv6.src==" + IP6_CLIENT + ") && "
+            )
         elif d == Direction.FROM_SERVER:
-            return f + "(ip.src==" + IP4_SERVER + " || ipv6.src==" + IP6_SERVER + ") && "
+            return (
+                f + "(ip.src==" + IP4_SERVER + " || ipv6.src==" + IP6_SERVER + ") && "
+            )
         else:
             return f
 
