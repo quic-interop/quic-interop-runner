@@ -337,7 +337,7 @@ class InteropRunner:
             + str(testcase)
         )
 
-        reqs = " ".join(["https://server:443/" + p for p in testcase.get_paths()])
+        reqs = " ".join([testcase.urlprefix() + p for p in testcase.get_paths()])
         logging.debug("Requests: %s", reqs)
         params = (
             "WAITFORSERVER=server:443 "

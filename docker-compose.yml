@@ -77,8 +77,10 @@ services:
         ipv4_address: 193.167.0.100
         ipv6_address: fd00:cafe:cafe:0::100
     extra_hosts:
-      - "${IP4_NAME_PREFIX}server:193.167.100.100"
-      - "${IP6_NAME_PREFIX}server:fd00:cafe:cafe:100::100"
+      - "server4:193.167.100.100"
+      - "server6:fd00:cafe:cafe:100::100"
+      - "server46:193.167.100.100"
+      - "server46:fd00:cafe:cafe:100::100"
   
   iperf_server:
     image: martenseemann/quic-interop-iperf-endpoint
@@ -96,8 +98,10 @@ services:
         ipv4_address: 193.167.100.110
         ipv6_address: fd00:cafe:cafe:100::110
     extra_hosts:
-      - "${IP4_NAME_PREFIX}client:193.167.0.90"
-      - "${IP6_NAME_PREFIX}client:fd00:cafe:cafe:0::100"
+      - "client4:193.167.0.90"
+      - "client6:fd00:cafe:cafe:0::100"
+      - "client46:193.167.0.90"
+      - "client46:fd00:cafe:cafe:0::100"
 
   iperf_client:
     image: martenseemann/quic-interop-iperf-endpoint
@@ -115,7 +119,10 @@ services:
         ipv4_address: 193.167.0.90
         ipv6_address: fd00:cafe:cafe:0::90
     extra_hosts:
-      - "${IP4_NAME_PREFIX}server:193.167.100.110"
+      - "server4:193.167.100.110"
+      - "server6:fd00:cafe:cafe:100::110"
+      - "server46:193.167.100.110"
+      - "server46:fd00:cafe:cafe:100::110"
 
 networks:
   leftnet:

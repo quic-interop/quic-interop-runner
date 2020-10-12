@@ -100,6 +100,11 @@ class TestCase(abc.ABC):
         return 60
 
     @staticmethod
+    def urlprefix() -> str:
+        """ URL prefix """
+        return "https://server4:443/"
+
+    @staticmethod
     def additional_envs() -> List[str]:
         return [""]
 
@@ -1284,8 +1289,8 @@ class TestCaseIPv6(TestCaseTransfer):
         return "transfer"
 
     @staticmethod
-    def additional_envs() -> List[str]:
-        return ["IP4_NAME_PREFIX=ipv4_"]
+    def urlprefix() -> str:
+        return "https://server6:443/"
 
     @staticmethod
     def desc():
