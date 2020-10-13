@@ -4,8 +4,10 @@ from typing import List, Optional
 
 import pyshark
 
-IP_CLIENT = "193.167.0.100"
-IP_SERVER = "193.167.100.100"
+IP4_CLIENT = "193.167.0.100"
+IP4_SERVER = "193.167.100.100"
+IP6_CLIENT = "fd00:cafe:cafe:0::100"
+IP6_SERVER = "fd00:cafe:cafe:100::100"
 
 
 class Direction(Enum):
@@ -34,9 +36,9 @@ WIRESHARK_PACKET_TYPES = {
 
 
 def get_direction(p) -> Direction:
-    if p.ip.src == IP_CLIENT:
+    if p.ip.src == IP4_CLIENT or p.ipv6.src == IP6_CLIENT:
         return Direction.FROM_CLIENT
-    if p.ip.src == IP_SERVER:
+    if p.ip.src == IP4_SERVER or p.ipv6.src == IP6_SERVER:
         return Direction.FROM_SERVER
     return Direction.INVALID
 
@@ -62,9 +64,13 @@ class TraceAnalyzer:
     def _get_direction_filter(self, d: Direction) -> str:
         f = "(quic && !icmp) && "
         if d == Direction.FROM_CLIENT:
-            return f + "ip.src==" + IP_CLIENT + " && "
+            return (
+                f + "(ip.src==" + IP4_CLIENT + " || ipv6.src==" + IP6_CLIENT + ") && "
+            )
         elif d == Direction.FROM_SERVER:
-            return f + "ip.src==" + IP_SERVER + " && "
+            return (
+                f + "(ip.src==" + IP4_SERVER + " || ipv6.src==" + IP6_SERVER + ") && "
+            )
         else:
             return f
 

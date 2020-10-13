@@ -41,7 +41,7 @@ for i in $(seq 1 $CHAINLEN); do
   else
     openssl x509 -req -sha256 -days 365 -in $CERTDIR/cert.csr -out $CERTDIR/cert_$i.pem \
       -CA $CERTDIR/cert_$j.pem -CAkey $CERTDIR/ca_$j.key -CAcreateserial \
-      -extfile <(printf "subjectAltName=DNS:server") \
+      -extfile <(printf "subjectAltName=DNS:server,DNS:server4,DNS:server6,DNS:server46") \
       2> /dev/null
   fi
 done
