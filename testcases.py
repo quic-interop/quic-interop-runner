@@ -1185,6 +1185,7 @@ class TestCasePortRebinding(TestCaseTransfer):
             return TestResult.FAILED
 
         last = None
+        num_migrations = 0
         for p in tr_server:
             cur = (
                 getattr(p["ipv6"], "dst")
@@ -1198,6 +1199,7 @@ class TestCasePortRebinding(TestCaseTransfer):
 
             if last != cur:
                 last = cur
+                num_migrations += 1
                 # packet to different IP/port, should have a PATH_CHALLENGE frame
                 if hasattr(p["quic"], "path_challenge.data") is False:
                     logging.info(
@@ -1218,6 +1220,13 @@ class TestCasePortRebinding(TestCaseTransfer):
                 if hasattr(p["quic"], "path_challenge.data")
             )
         )
+        if len(challenges) < num_migrations:
+            logging.info(
+                "Saw %d migrations, but only %d unique PATH_CHALLENGE frames",
+                len(challenges),
+                num_migrations,
+            )
+            return TestResult.FAILED
 
         responses = list(
             set(
@@ -1265,16 +1274,12 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
             self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
         )
 
-        ips = list(
-            set(
-                (
-                    getattr(p["ipv6"], "dst")
-                    if "IPV6" in str(p.layers)
-                    else getattr(p["ip"], "dst")
-                )
-                for p in tr_server
-            )
-        )
+        ips = set()
+        for p in tr_server:
+            ip_vers = "ip"
+            if "IPV6" in str(p.layers):
+                ip_vers = "ipv6"
+            ips.add(getattr(p[ip_vers], "dst"))
 
         logging.info("Server saw these client addresses: %s", ips)
         if len(ips) <= 1:
