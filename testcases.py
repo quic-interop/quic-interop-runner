@@ -1369,6 +1369,8 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
         return self._files
 
     def check(self) -> TestResult:
+        # The parent check() method ensures that the client changed addresses
+        # and that PATH_CHALLENGE/RESPONSE frames were sent and received
         result = super(TestCaseConnectionMigration, self).check()
         if result != TestResult.SUCCEEDED:
             return result
