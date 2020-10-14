@@ -157,6 +157,8 @@ jobs:
       - uses: actions/setup-python@v1
         with:
           python-version: 3.8
+      - name: Enable IPv6 support
+        run: sudo modprobe ip6table_filter
       - run: docker image ls
       - name: Download tools Docker images
         uses: actions/download-artifact@v2
