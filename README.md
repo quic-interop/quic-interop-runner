@@ -17,6 +17,10 @@ Run the interop tests:
 python3 run.py
 ```
 
+## IPv6 support
+
+To enable IPv6 support for the simulator on Linux, the `ip6table_filter` kernel module needs to be loaded on the host. If it isn't loaded on your machine, you'll need to run `sudo modprobe ip6table_filter`.
+
 ## Building a QUIC endpoint
 
 To include your QUIC implementation in the Interop Runner, create a Docker image following the instructions for [setting up an endpoint in the quic-network-simulator](https://github.com/marten-seemann/quic-network-simulator), publish it on [Docker Hub](https://hub.docker.com) and add it to [implementations.json](implementations.json). Once your implementation is ready to interop, please send us a PR with this addition. Read on for more instructions on what to do within the Docker image.
