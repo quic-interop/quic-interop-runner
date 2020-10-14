@@ -36,10 +36,16 @@ WIRESHARK_PACKET_TYPES = {
 
 
 def get_direction(p) -> Direction:
-    if p.ip.src == IP4_CLIENT or p.ipv6.src == IP6_CLIENT:
+    if (hasattr(p, "ip") and p.ip.src == IP4_CLIENT) or (
+        hasattr(p, "ipv6") and p.ipv6.src == IP6_CLIENT
+    ):
         return Direction.FROM_CLIENT
-    if p.ip.src == IP4_SERVER or p.ipv6.src == IP6_SERVER:
+
+    if (hasattr(p, "ip") and p.ip.src == IP4_SERVER) or (
+        hasattr(p, "ipv6") and p.ipv6.src == IP6_SERVER
+    ):
         return Direction.FROM_SERVER
+
     return Direction.INVALID
 
 
