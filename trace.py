@@ -100,6 +100,15 @@ class TraceAnalyzer:
             cap.close()
         except Exception as e:
             logging.debug(e)
+
+        if self._keylog_file is not None:
+            for p in packets:
+                if hasattr(p["quic"], "decryption_failed"):
+                    logging.info(
+                        "At least one QUIC packet could not be decrypted; wireshark bug?"
+                    )
+                    logging.info(p)
+                    break
         return packets
 
     def get_raw_packets(self, direction: Direction = Direction.ALL) -> List:
