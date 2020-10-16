@@ -89,6 +89,7 @@ services:
     tty: true
     environment:
       - ROLE=server
+      - CLIENT=client4
       - IPERF_CONGESTION=$IPERF_CONGESTION
     depends_on:
       - sim
