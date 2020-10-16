@@ -2,6 +2,9 @@ name: interop
 on:
   schedule:
   - cron: "0 */8 * * *" # every 8h
+  pull_request:
+    branches:
+      - master
 
 # Cache key for caching the Wireshark build.
 # To trigger a rebuild of Wireshark increment this value.
@@ -76,19 +79,33 @@ jobs:
       - name: Determine servers
         id: set-servers
         run: |
-          SERVERS=$(jq -c 'with_entries(select(.value.role == "server" or .value.role == "both")) | keys_unsorted' implementations.json)
+          if [[ "$EVENT_NAME"=="pull_request" ]]; then
+            SERVERS="['quic-go','quant']"
+          else
+            SERVERS=$(jq -c 'with_entries(select(.value.role == "server" or .value.role == "both")) | keys_unsorted' implementations.json)
+          fi
           echo $SERVERS
           echo "::set-output name=servers::$SERVERS"
       - name: Determine clients
         id: set-clients
         run: |
-          CLIENTS=$(jq -c 'with_entries(select(.value.role == "client" or .value.role == "both")) | keys_unsorted' implementations.json)
+          if [[ "$EVENT_NAME"=="pull_request" ]]; then
+            CLIENTS="['quic-go','quant']"
+          else
+            CLIENTS=$(jq -c 'with_entries(select(.value.role == "client" or .value.role == "both")) | keys_unsorted' implementations.json)
+          fi
           echo $CLIENTS
           echo "::set-output name=clients::$CLIENTS"
       - name: Determine Docker images
         id: set-images
+        env:
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          IMAGES=$(jq -c 'keys_unsorted' implementations.json)
+          if [[ "$EVENT_NAME"=="pull_request" ]]; then
+            IMAGES="['quic-go','quant']"
+          else
+            IMAGES=$(jq -c 'keys_unsorted' implementations.json)
+          fi
           echo $IMAGES
           echo "::set-output name=images::$IMAGES"
   docker-pull-tools:
