@@ -89,6 +89,7 @@ services:
     tty: true
     environment:
       - ROLE=server
+      - IPERF_CONGESTION=$IPERF_CONGESTION
     depends_on:
       - sim
     cap_add: 
@@ -110,6 +111,7 @@ services:
     tty: true
     environment:
       - ROLE=client
+      - IPERF_CONGESTION=$IPERF_CONGESTION
     depends_on:
       - sim
     cap_add: 
