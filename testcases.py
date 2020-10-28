@@ -591,6 +591,9 @@ class TestCaseResumption(TestCase):
         return self._files
 
     def check(self) -> TestResult:
+        if not self._keylog_file():
+            logging.info("Can't check test result. SSLKEYLOG required.")
+            return TestResult.UNSUPPORTED
         num_handshakes = self._count_handshakes()
         if num_handshakes != 2:
             logging.info("Expected exactly 2 handshake. Got: %d", num_handshakes)
@@ -598,32 +601,27 @@ class TestCaseResumption(TestCase):
 
         handshake_packets = self._client_trace().get_handshake(Direction.FROM_SERVER)
         cids = [p.scid for p in handshake_packets]
-        handshake_packets_first = []
-        handshake_packets_second = []
+        first_handshake_has_cert = False
         for p in handshake_packets:
             if p.scid == cids[0]:
-                handshake_packets_first.append(p)
-            elif p.scid == cids[len(cids) - 1]:
-                handshake_packets_second.append(p)
+                if hasattr(p, "tls_handshake_certificates_length"):
+                    first_handshake_has_cert = True
+            elif p.scid == cids[len(cids) - 1]:  # second handshake
+                if hasattr(p, "tls_handshake_certificates_length"):
+                    logging.info(
+                        "Server sent a Certificate message in the second handshake."
+                    )
+                    return TestResult.FAILED
             else:
-                logging.info("This should never happen.")
+                logging.info(
+                    "Found handshake packet that neither belongs to the first nor the second handshake."
+                )
                 return TestResult.FAILED
-        handshake_size_first = self._payload_size(handshake_packets_first)
-        handshake_size_second = self._payload_size(handshake_packets_second)
-        logging.debug(
-            "Size of the server's Handshake flight (1st connection): %d",
-            handshake_size_first,
-        )
-        logging.debug(
-            "Size of the server's Handshake flight (2nd connection): %d",
-            handshake_size_second,
-        )
-        # The second handshake doesn't contain a certificate, if session resumption is used.
-        if handshake_size_first < handshake_size_second + 400:
+        if not first_handshake_has_cert:
             logging.info(
-                "Expected the size of the server's Handshake flight to be significantly smaller during the second connection."
+                "Didn't find a Certificate message in the first handshake. That's weird."
             )
-            return TestResult.FAILED
+            return TestResult.Failed
         if not self._check_version_and_files():
             return TestResult.FAILED
         return TestResult.SUCCEEDED
