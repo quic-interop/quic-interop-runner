@@ -1185,14 +1185,21 @@ class TestCasePortRebinding(TestCaseTransfer):
             return TestResult.FAILED
 
         last = None
+        num_migrations = 0
         for p in tr_server:
-            cur = (getattr(p["ip"], "dst"), int(getattr(p["udp"], "dstport")))
+            cur = (
+                getattr(p["ipv6"], "dst")
+                if "IPV6" in str(p.layers)
+                else getattr(p["ip"], "dst"),
+                int(getattr(p["udp"], "dstport")),
+            )
             if last is None:
                 last = cur
                 continue
 
             if last != cur:
                 last = cur
+                num_migrations += 1
                 # packet to different IP/port, should have a PATH_CHALLENGE frame
                 if hasattr(p["quic"], "path_challenge.data") is False:
                     logging.info(
@@ -1213,7 +1220,13 @@ class TestCasePortRebinding(TestCaseTransfer):
                 if hasattr(p["quic"], "path_challenge.data")
             )
         )
-        logging.info(challenges)
+        if len(challenges) < num_migrations:
+            logging.info(
+                "Saw %d migrations, but only %d unique PATH_CHALLENGE frames",
+                len(challenges),
+                num_migrations,
+            )
+            return TestResult.FAILED
 
         responses = list(
             set(
@@ -1222,7 +1235,6 @@ class TestCasePortRebinding(TestCaseTransfer):
                 if hasattr(p["quic"], "path_response.data")
             )
         )
-        logging.info(responses)
 
         unresponded = [c for c in challenges if c not in responses]
         if unresponded != []:
@@ -1262,7 +1274,12 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
             self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
         )
 
-        ips = list(set(getattr(p["ip"], "dst") for p in tr_server))
+        ips = set()
+        for p in tr_server:
+            ip_vers = "ip"
+            if "IPV6" in str(p.layers):
+                ip_vers = "ipv6"
+            ips.add(getattr(p[ip_vers], "dst"))
 
         logging.info("Server saw these client addresses: %s", ips)
         if len(ips) <= 1:
@@ -1319,6 +1336,79 @@ class TestCaseIPv6(TestCaseTransfer):
         if tr_server:
             logging.info("Packet trace contains %s IPv4 packets.", len(tr_server))
             return TestResult.FAILED
+        return TestResult.SUCCEEDED
+
+
+class TestCaseConnectionMigration(TestCaseAddressRebinding):
+    @staticmethod
+    def name():
+        return "connectionmigration"
+
+    @staticmethod
+    def abbreviation():
+        return "CM"
+
+    @staticmethod
+    def testname(p: Perspective):
+        if p is Perspective.CLIENT:
+            return "connectionmigration"
+        return "transfer"
+
+    @staticmethod
+    def desc():
+        return "A transfer succeeded during which the client performed an active migration."
+
+    @staticmethod
+    def scenario() -> str:
+        return super(TestCaseTransfer, TestCaseTransfer).scenario()
+
+    def get_paths(self):
+        self._files = [
+            self._generate_random_file(2 * MB),
+        ]
+        return self._files
+
+    def check(self) -> TestResult:
+        # The parent check() method ensures that the client changed addresses
+        # and that PATH_CHALLENGE/RESPONSE frames were sent and received
+        result = super(TestCaseConnectionMigration, self).check()
+        if result != TestResult.SUCCEEDED:
+            return result
+
+        tr_client = self._client_trace()._get_packets(
+            self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
+        )
+
+        last = None
+        dcid = None
+        for p in tr_client:
+            cur = (
+                getattr(p["ipv6"], "src")
+                if "IPV6" in str(p.layers)
+                else getattr(p["ip"], "src"),
+                int(getattr(p["udp"], "srcport")),
+            )
+            if last is None:
+                last = cur
+                dcid = getattr(p["quic"], "dcid")
+                continue
+
+            if last != cur:
+                last = cur
+                # packet to different IP/port, should have a new DCID
+                if dcid == getattr(p["quic"], "dcid"):
+                    logging.info(
+                        "First client packet during active migration to %s used previous DCID %s",
+                        cur,
+                        dcid,
+                    )
+                    logging.info(p["quic"])
+                    return TestResult.FAILED
+                dcid = getattr(p["quic"], "dcid")
+                logging.info(
+                    "DCID changed to %s during active migration to %s", dcid, cur
+                )
+
         return TestResult.SUCCEEDED
 
 
@@ -1432,11 +1522,12 @@ TESTCASES = [
     TestCaseTransferLoss,
     TestCaseHandshakeCorruption,
     TestCaseTransferCorruption,
-    # The next two tests are disabled due to Wireshark not being able
+    TestCaseIPv6,
+    # The next three tests are disabled due to Wireshark not being able
     # to decrypt packets sent on the new path.
     # TestCasePortRebinding,
     # TestCaseAddressRebinding,
-    TestCaseIPv6,
+    # TestCaseConnectionMigration,
 ]
 
 MEASUREMENTS = [
