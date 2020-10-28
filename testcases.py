@@ -1522,12 +1522,12 @@ TESTCASES = [
     TestCaseTransferLoss,
     TestCaseHandshakeCorruption,
     TestCaseTransferCorruption,
-    # The next two tests are disabled due to Wireshark not being able
+    TestCaseIPv6,
+    # The next three tests are disabled due to Wireshark not being able
     # to decrypt packets sent on the new path.
     # TestCasePortRebinding,
     # TestCaseAddressRebinding,
-    TestCaseIPv6,
-    TestCaseConnectionMigration,
+    # TestCaseConnectionMigration,
 ]
 
 MEASUREMENTS = [
