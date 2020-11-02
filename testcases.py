@@ -19,8 +19,8 @@ from result import TestResult
 KB = 1 << 10
 MB = 1 << 20
 
-QUIC_DRAFT = 29  # draft-29
-QUIC_VERSION = hex(0xFF000000 + QUIC_DRAFT)
+QUIC_DRAFTS = [29, 32]  # draft-29 and draft-32
+QUIC_VERSIONS = [hex(0xFF000000 + v) for v in QUIC_DRAFTS]
 
 
 class Perspective(Enum):
@@ -171,8 +171,8 @@ class TestCase(abc.ABC):
         if len(versions) != 1:
             logging.info("Expected exactly one version. Got %s", versions)
             return False
-        if QUIC_VERSION not in versions:
-            logging.info("Wrong version. Expected %s, got %s", QUIC_VERSION, versions)
+        if list(versions)[0] not in QUIC_VERSIONS:
+            logging.info("Wrong version. Expected %s, got %s", QUIC_VERSIONS, versions)
             return False
 
         if len(self._files) == 0:
