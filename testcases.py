@@ -764,7 +764,7 @@ class TestCaseAmplificationLimit(TestCase):
             "Server sent %d bytes in Handshake CRYPTO frames.", max_handshake_offset
         )
 
-        # Check that the server didn't send more than 3.x* what the client sent.
+        # Check that the server didn't send more than 3-4x what the client sent.
         allowed = 0
         allowed_with_tolerance = 0
         client_sent, server_sent = 0, 0  # only for debug messages
@@ -805,7 +805,7 @@ class TestCaseAmplificationLimit(TestCase):
                     break
                 if packet_size > allowed:
                     log_output.append(
-                        "Server violated the amplification limit, but stayed below 3.x amplification. Letting it slide."
+                        "Server violated the amplification limit, but stayed within 3-4x amplification. Letting it slide."
                     )
                 allowed_with_tolerance -= packet_size
                 allowed -= packet_size
