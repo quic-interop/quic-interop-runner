@@ -764,8 +764,9 @@ class TestCaseAmplificationLimit(TestCase):
             "Server sent %d bytes in Handshake CRYPTO frames.", max_handshake_offset
         )
 
-        # Check that the server didn't send more than 3x what the client sent.
+        # Check that the server didn't send more than 3.x* what the client sent.
         allowed = 0
+        allowed_with_tolerance = 0
         client_sent, server_sent = 0, 0  # only for debug messages
         res = TestResult.FAILED
         log_output = []
@@ -786,6 +787,7 @@ class TestCaseAmplificationLimit(TestCase):
                 if packet_type is PacketType.INITIAL:
                     client_sent += packet_size
                     allowed += 3 * packet_size
+                    allowed_with_tolerance += 4 * packet_size
                     log_output.append(
                         "Received a {} byte Initial packet from the client. Amplification limit: {}".format(
                             packet_size, 3 * client_sent
@@ -798,9 +800,14 @@ class TestCaseAmplificationLimit(TestCase):
                         packet_size, server_sent
                     )
                 )
-                if packet_size > allowed:
+                if packet_size >= allowed_with_tolerance:
                     log_output.append("Server violated the amplification limit.")
                     break
+                if packet_size > allowed:
+                    log_output.append(
+                        "Server violated the amplification limit, but stayed below 3.x amplification. Letting it slide."
+                    )
+                allowed_with_tolerance -= packet_size
                 allowed -= packet_size
             else:
                 logging.debug("Couldn't determine sender of packet.")
