@@ -621,7 +621,7 @@ class TestCaseResumption(TestCase):
             logging.info(
                 "Didn't find a Certificate message in the first handshake. That's weird."
             )
-            return TestResult.Failed
+            return TestResult.FAILED
         if not self._check_version_and_files():
             return TestResult.FAILED
         return TestResult.SUCCEEDED
