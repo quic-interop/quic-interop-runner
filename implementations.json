@@ -68,5 +68,10 @@
     "image": "martenseemann/chrome-quic-interop-runner",
     "url": "https://github.com/marten-seemann/chrome-quic-interop-runner",
     "role": "client"
+  },
+  "xquic": {
+  "image": "kulsk/xquic:latest",
+  "url": "https://github.com/Kulsk/xquic",
+  "role": "both"
   }
 }
