@@ -16,5 +16,12 @@ root * /var/www/web
 handle @json {
   header Access-Control-Allow-Origin "*"
 }
+# Allow external sites to download our qlog files.
+@qlog {
+  path *.qlog
+}
+handle @qlog {
+  header Access-Control-Allow-Origin "*"
+}
 
 file_server browse
