@@ -3,6 +3,7 @@ import filecmp
 import logging
 import os
 import random
+import re
 import string
 import subprocess
 import sys
@@ -130,11 +131,20 @@ class TestCase(abc.ABC):
             generate_cert_chain(self._cert_dir.name)
         return self._cert_dir.name + "/"
 
+    def _is_valid_keylog(self, filename) -> bool:
+        if not os.path.isfile(filename):
+            return False
+        with open(filename, "r") as file:
+            if not re.search(r"^SERVER_HANDSHAKE_TRAFFIC_SECRET", file.read()):
+                logging.info("Key log file %s is using incorrect format.", filename)
+                return False
+        return True
+
     def _keylog_file(self) -> str:
-        if os.path.isfile(self._client_keylog_file):
+        if self._is_valid_keylog(self._client_keylog_file):
             logging.debug("Using the client's key log file.")
             return self._client_keylog_file
-        elif os.path.isfile(self._server_keylog_file):
+        elif self._is_valid_keylog(self._server_keylog_file):
             logging.debug("Using the server's key log file.")
             return self._server_keylog_file
         logging.debug("No key log file found.")
