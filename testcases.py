@@ -135,7 +135,10 @@ class TestCase(abc.ABC):
         if not os.path.isfile(filename):
             return False
         with open(filename, "r") as file:
-            return re.search(r"^SERVER_HANDSHAKE_TRAFFIC_SECRET", file.read())
+            if not re.search(r"^SERVER_HANDSHAKE_TRAFFIC_SECRET", file.read()):
+                logging.info("Key log file %s is using incorrect format.", filename)
+                return False
+        return True
 
     def _keylog_file(self) -> str:
         if self._is_valid_keylog(self._client_keylog_file):
