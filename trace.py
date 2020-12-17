@@ -104,10 +104,8 @@ class TraceAnalyzer:
         if self._keylog_file is not None:
             for p in packets:
                 if hasattr(p["quic"], "decryption_failed"):
-                    logging.info(
-                        "At least one QUIC packet could not be decrypted; wireshark bug?"
-                    )
-                    logging.info(p)
+                    logging.info("At least one QUIC packet could not be decrypted")
+                    logging.debug(p)
                     break
         return packets
 
