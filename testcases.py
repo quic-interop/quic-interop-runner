@@ -135,7 +135,9 @@ class TestCase(abc.ABC):
         if not os.path.isfile(filename):
             return False
         with open(filename, "r") as file:
-            if not re.search(r"^SERVER_HANDSHAKE_TRAFFIC_SECRET", file.read()):
+            if not re.search(
+                r"^SERVER_HANDSHAKE_TRAFFIC_SECRET", file.read(), re.MULTILINE
+            ):
                 logging.info("Key log file %s is using incorrect format.", filename)
                 return False
         return True
