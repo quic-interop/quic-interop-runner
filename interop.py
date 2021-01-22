@@ -401,7 +401,11 @@ class InteropRunner:
             if self._is_unsupported(lines):
                 status = TestResult.UNSUPPORTED
             elif any("client exited with code 0" in str(line) for line in lines):
-                status = testcase.check()
+                try:
+                    status = testcase.check()
+                except FileNotFoundError as e:
+                    logging.error(f"testcase.check() threw FileNotFoundError: {e}")
+                    status = TestResult.FAILED
 
         # save logs
         logging.getLogger().removeHandler(log_handler)
