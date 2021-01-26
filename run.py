@@ -110,7 +110,7 @@ def main():
                 print(
                     (
                         "Test case {} not found.\n"
-                        "Avaiable testcases: {}\n"
+                        "Available testcases: {}\n"
                         "Available measurements: {}"
                     ).format(
                         t,
