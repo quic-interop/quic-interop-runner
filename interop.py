@@ -352,6 +352,7 @@ class InteropRunner:
             "CLIENT=" + self._implementations[client]["image"] + " "
             "SERVER=" + self._implementations[server]["image"] + " "
             'REQUESTS="' + reqs + '" '
+            'VERSION="' + testcases.QUIC_VERSION + '" '
         ).format(testcase.scenario())
         params += " ".join(testcase.additional_envs())
         containers = "sim client server " + " ".join(testcase.additional_containers())
