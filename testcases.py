@@ -179,7 +179,7 @@ class TestCase(abc.ABC):
         return len(self._client_trace().get_retry()) > 0
 
     def _check_version_and_files(self) -> bool:
-        versions = [hex(int(v)) for v in self._get_versions()]
+        versions = [hex(int(v, 0)) for v in self._get_versions()]
         if len(versions) != 1:
             logging.info("Expected exactly one version. Got %s", versions)
             return False
