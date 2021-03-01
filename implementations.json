@@ -59,11 +59,6 @@
     "url": "https://github.com/microsoft/msquic",
     "role": "both"
   },
-  "pquic": {
-    "image": "pquic/pquic-interop:latest",
-    "url": "https://pquic.org/",
-    "role": "both"
-  },
   "chrome": {
     "image": "martenseemann/chrome-quic-interop-runner",
     "url": "https://github.com/marten-seemann/chrome-quic-interop-runner",
