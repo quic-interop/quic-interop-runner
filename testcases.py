@@ -20,8 +20,8 @@ from result import TestResult
 KB = 1 << 10
 MB = 1 << 20
 
-QUIC_DRAFT = 29  # draft-29
-QUIC_VERSION = hex(0xFF000000 + QUIC_DRAFT)
+QUIC_DRAFT = 34  # draft-34
+QUIC_VERSION = hex(0x1)
 
 
 class Perspective(Enum):
@@ -179,7 +179,7 @@ class TestCase(abc.ABC):
         return len(self._client_trace().get_retry()) > 0
 
     def _check_version_and_files(self) -> bool:
-        versions = self._get_versions()
+        versions = [hex(int(v)) for v in self._get_versions()]
         if len(versions) != 1:
             logging.info("Expected exactly one version. Got %s", versions)
             return False
