@@ -132,7 +132,7 @@ class TestCase(abc.ABC):
         return self._cert_dir.name + "/"
 
     def _is_valid_keylog(self, filename) -> bool:
-        if not os.path.isfile(filename):
+        if not os.path.isfile(filename) or os.path.getsize(filename) == 0:
             return False
         with open(filename, "r") as file:
             if not re.search(
