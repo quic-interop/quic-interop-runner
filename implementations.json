@@ -32,7 +32,7 @@
   "kwik": {
     "image": "peterdoornbosch/kwik_n_flupke-interop",
     "url": "https://github.com/ptrd/kwik",
-    "role": "client"
+    "role": "both"
   },
   "picoquic": {
     "image": "privateoctopus/picoquic:latest",
