@@ -44,13 +44,15 @@ def random_string(length: int):
 
 
 def generate_cert_chain(directory: str, length: int = 1):
-    cmd = "./certs.sh " + directory + " " + str(length)
-    r = subprocess.run(
-        cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-    )
-    logging.debug("%s", r.stdout.decode("utf-8"))
-
-    if r.returncode != 0:
+    try:
+        stdout = subprocess.check_output(
+            f"./certs.sh {directory} {length}",
+            shell=True,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        logging.debug("%s", stdout)
+    except subprocess.CalledProcessError:
         logging.info("Unable to create certificates")
         sys.exit(1)
 
@@ -114,8 +116,9 @@ class TestCase(abc.ABC):
         return "https://server4:443/"
 
     @staticmethod
-    def additional_envs() -> List[str]:
-        return [""]
+    def additional_envs() -> Dict[str, Union[str, int, float]]:
+        """Additional environment variables."""
+        return {}
 
     @staticmethod
     def additional_containers() -> List[str]:
@@ -1744,8 +1747,8 @@ class MeasurementCrossTraffic(MeasurementGoodput):
         return 180
 
     @staticmethod
-    def additional_envs() -> List[str]:
-        return ["IPERF_CONGESTION=cubic"]
+    def additional_envs() -> Dict[str, Union[str, int, float]]:
+        return {"IPERF_CONGESTION": "cubic"}
 
     @staticmethod
     def additional_containers() -> List[str]:
