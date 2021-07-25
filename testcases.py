@@ -11,7 +11,7 @@ import tempfile
 from datetime import timedelta
 from enum import Enum, IntEnum
 from trace import Direction, PacketType, TraceAnalyzer, get_direction, get_packet_type
-from typing import List
+from typing import Dict, List, Type, Union
 
 from Crypto.Cipher import AES
 
@@ -37,8 +37,9 @@ class ECN(IntEnum):
 
 
 def random_string(length: int):
-    """Generate a random string of fixed length """
+    """Generate a random string of fixed length"""
     letters = string.ascii_lowercase
+
     return "".join(random.choice(letters) for i in range(length))
 
 
@@ -48,13 +49,14 @@ def generate_cert_chain(directory: str, length: int = 1):
         cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
     logging.debug("%s", r.stdout.decode("utf-8"))
+
     if r.returncode != 0:
         logging.info("Unable to create certificates")
         sys.exit(1)
 
 
 class TestCase(abc.ABC):
-    _files = []
+    _files: List[str] = []
     _www_dir = None
     _client_keylog_file = None
     _server_keylog_file = None
@@ -75,34 +77,40 @@ class TestCase(abc.ABC):
         self._files = []
         self._sim_log_dir = sim_log_dir
 
+    @staticmethod
     @abc.abstractmethod
-    def name(self):
+    def name() -> str:
         pass
 
+    @staticmethod
     @abc.abstractmethod
-    def desc(self):
+    def desc() -> str:
         pass
 
     def __str__(self):
         return self.name()
 
     def testname(self, p: Perspective):
-        """ The name of testcase presented to the endpoint Docker images"""
+        """The name of testcase presented to the endpoint Docker images"""
+
         return self.name()
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
+
         return "simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25"
 
     @staticmethod
     def timeout() -> int:
-        """ timeout in s """
+        """timeout in s"""
+
         return 60
 
     @staticmethod
     def urlprefix() -> str:
-        """ URL prefix """
+        """URL prefix"""
+
         return "https://server4:443/"
 
     @staticmethod
@@ -116,6 +124,7 @@ class TestCase(abc.ABC):
     def www_dir(self):
         if not self._www_dir:
             self._www_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="www_")
+
         return self._www_dir.name + "/"
 
     def download_dir(self):
@@ -123,12 +132,14 @@ class TestCase(abc.ABC):
             self._download_dir = tempfile.TemporaryDirectory(
                 dir="/tmp", prefix="download_"
             )
+
         return self._download_dir.name + "/"
 
     def certs_dir(self):
         if not self._cert_dir:
             self._cert_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="certs_")
             generate_cert_chain(self._cert_dir.name)
+
         return self._cert_dir.name + "/"
 
     def _is_valid_keylog(self, filename) -> bool:
@@ -139,15 +150,19 @@ class TestCase(abc.ABC):
                 r"^SERVER_HANDSHAKE_TRAFFIC_SECRET", file.read(), re.MULTILINE
             ):
                 logging.info("Key log file %s is using incorrect format.", filename)
+
                 return False
+
         return True
 
     def _keylog_file(self) -> str:
         if self._is_valid_keylog(self._client_keylog_file):
             logging.debug("Using the client's key log file.")
+
             return self._client_keylog_file
         elif self._is_valid_keylog(self._server_keylog_file):
             logging.debug("Using the server's key log file.")
+
             return self._server_keylog_file
         logging.debug("No key log file found.")
 
@@ -156,6 +171,7 @@ class TestCase(abc.ABC):
             self._cached_client_trace = TraceAnalyzer(
                 self._sim_log_dir.name + "/trace_node_left.pcap", self._keylog_file()
             )
+
         return self._cached_client_trace
 
     def _server_trace(self):
@@ -163,6 +179,7 @@ class TestCase(abc.ABC):
             self._cached_server_trace = TraceAnalyzer(
                 self._sim_log_dir.name + "/trace_node_right.pcap", self._keylog_file()
             )
+
         return self._cached_server_trace
 
     # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
@@ -173,6 +190,7 @@ class TestCase(abc.ABC):
         f.write(enc.encrypt(b" " * size))
         f.close()
         logging.debug("Generated random file: %s of size: %d", filename, size)
+
         return filename
 
     def _retry_sent(self) -> bool:
@@ -180,11 +198,15 @@ class TestCase(abc.ABC):
 
     def _check_version_and_files(self) -> bool:
         versions = [hex(int(v, 0)) for v in self._get_versions()]
+
         if len(versions) != 1:
             logging.info("Expected exactly one version. Got %s", versions)
+
             return False
+
         if QUIC_VERSION not in versions:
             logging.info("Wrong version. Expected %s, got %s", QUIC_VERSION, versions)
+
             return False
 
         if len(self._files) == 0:
@@ -195,21 +217,28 @@ class TestCase(abc.ABC):
             if os.path.isfile(os.path.join(self.download_dir(), n))
         ]
         too_many = [f for f in files if f not in self._files]
+
         if len(too_many) != 0:
             logging.info("Found unexpected downloaded files: %s", too_many)
         too_few = [f for f in self._files if f not in files]
+
         if len(too_few) != 0:
             logging.info("Missing files: %s", too_few)
+
         if len(too_many) != 0 or len(too_few) != 0:
             return False
+
         for f in self._files:
             fp = self.download_dir() + f
+
             if not os.path.isfile(fp):
                 logging.info("File %s does not exist.", fp)
+
                 return False
             try:
                 size = os.path.getsize(self.www_dir() + f)
                 downloaded_size = os.path.getsize(fp)
+
                 if size != downloaded_size:
                     logging.info(
                         "File size of %s doesn't match. Original: %d bytes, downloaded: %d bytes.",
@@ -217,9 +246,12 @@ class TestCase(abc.ABC):
                         size,
                         downloaded_size,
                     )
+
                     return False
+
                 if not filecmp.cmp(self.www_dir() + f, fp, shallow=False):
                     logging.info("File contents of %s do not match.", fp)
+
                     return False
             except Exception as exception:
                 logging.info(
@@ -228,25 +260,30 @@ class TestCase(abc.ABC):
                     fp,
                     exception,
                 )
+
                 return False
         logging.debug("Check of downloaded files succeeded.")
+
         return True
 
     def _count_handshakes(self) -> int:
-        """ Count the number of QUIC handshakes """
+        """Count the number of QUIC handshakes"""
         tr = self._server_trace()
         # Determine the number of handshakes by looking at Initial packets.
         # This is easier, since the SCID of Initial packets doesn't changes.
+
         return len(set([p.scid for p in tr.get_initial(Direction.FROM_SERVER)]))
 
     def _get_versions(self) -> set:
-        """ Get the QUIC versions """
+        """Get the QUIC versions"""
         tr = self._server_trace()
+
         return set([p.version for p in tr.get_initial(Direction.FROM_SERVER)])
 
     def _payload_size(self, packets: List) -> int:
-        """ Get the sum of the payload sizes of all packets """
+        """Get the sum of the payload sizes of all packets"""
         size = 0
+
         for p in packets:
             if hasattr(p, "long_packet_type"):
                 if hasattr(p, "payload"):  # when keys are available
@@ -256,12 +293,14 @@ class TestCase(abc.ABC):
             else:
                 if hasattr(p, "protected_payload"):
                     size += len(p.protected_payload.split(":"))
+
         return size
 
     def cleanup(self):
         if self._www_dir:
             self._www_dir.cleanup()
             self._www_dir = None
+
         if self._download_dir:
             self._download_dir.cleanup()
             self._download_dir = None
@@ -311,17 +350,23 @@ class TestCaseVersionNegotiation(TestCase):
         tr = self._client_trace()
         initials = tr.get_initial(Direction.FROM_CLIENT)
         dcid = ""
+
         for p in initials:
             dcid = p.dcid
+
             break
+
         if dcid == "":
             logging.info("Didn't find an Initial / a DCID.")
+
             return TestResult.FAILED
         vnps = tr.get_vnp()
+
         for p in vnps:
             if p.scid == dcid:
                 return TestResult.SUCCEEDED
         logging.info("Didn't find a Version Negotiation Packet with matching SCID.")
+
         return TestResult.FAILED
 
 
@@ -340,18 +385,24 @@ class TestCaseHandshake(TestCase):
 
     def get_paths(self):
         self._files = [self._generate_random_file(1 * KB)]
+
         return self._files
 
     def check(self) -> TestResult:
         if not self._check_version_and_files():
             return TestResult.FAILED
+
         if self._retry_sent():
             logging.info("Didn't expect a Retry to be sent.")
+
             return TestResult.FAILED
         num_handshakes = self._count_handshakes()
+
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+
             return TestResult.FAILED
+
         return TestResult.SUCCEEDED
 
 
@@ -374,24 +425,32 @@ class TestCaseLongRTT(TestCaseHandshake):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
+
         return "simple-p2p --delay=750ms --bandwidth=10Mbps --queue=25"
 
     def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
+
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+
             return TestResult.FAILED
+
         if not self._check_version_and_files():
             return TestResult.FAILED
         num_ch = 0
+
         for p in self._client_trace().get_initial(Direction.FROM_CLIENT):
             if hasattr(p, "tls_handshake_type"):
                 if p.tls_handshake_type == "1":
                     num_ch += 1
+
         if num_ch < 2:
             logging.info("Expected at least 2 ClientHellos. Got: %d", num_ch)
+
             return TestResult.FAILED
+
         return TestResult.SUCCEEDED
 
 
@@ -414,15 +473,20 @@ class TestCaseTransfer(TestCase):
             self._generate_random_file(3 * MB),
             self._generate_random_file(5 * MB),
         ]
+
         return self._files
 
     def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
+
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+
             return TestResult.FAILED
+
         if not self._check_version_and_files():
             return TestResult.FAILED
+
         return TestResult.SUCCEEDED
 
 
@@ -445,25 +509,33 @@ class TestCaseChaCha20(TestCase):
 
     def get_paths(self):
         self._files = [self._generate_random_file(3 * MB)]
+
         return self._files
 
     def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
+
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+
             return TestResult.FAILED
         ciphersuites = []
+
         for p in self._client_trace().get_initial(Direction.FROM_CLIENT):
             if hasattr(p, "tls_handshake_ciphersuite"):
                 ciphersuites.append(p.tls_handshake_ciphersuite)
+
         if len(set(ciphersuites)) != 1 or ciphersuites[0] != "4867":
             logging.info(
                 "Expected only ChaCha20 cipher suite to be offered. Got: %s",
                 set(ciphersuites),
             )
+
             return TestResult.FAILED
+
         if not self._check_version_and_files():
             return TestResult.FAILED
+
         return TestResult.SUCCEEDED
 
 
@@ -487,20 +559,26 @@ class TestCaseMultiplexing(TestCase):
     def get_paths(self):
         for _ in range(1, 2000):
             self._files.append(self._generate_random_file(32))
+
         return self._files
 
     def check(self) -> TestResult:
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
+
             return TestResult.UNSUPPORTED
         num_handshakes = self._count_handshakes()
+
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+
             return TestResult.FAILED
+
         if not self._check_version_and_files():
             return TestResult.FAILED
         # Check that the server set a bidirectional stream limit <= 1000
         checked_stream_limit = False
+
         for p in self._client_trace().get_handshake(Direction.FROM_SERVER):
             if hasattr(p, "tls.quic.parameter.initial_max_streams_bidi"):
                 checked_stream_limit = True
@@ -508,12 +586,17 @@ class TestCaseMultiplexing(TestCase):
                     getattr(p, "tls.quic.parameter.initial_max_streams_bidi")
                 )
                 logging.debug("Server set bidirectional stream limit: %d", stream_limit)
+
                 if stream_limit > 1000:
                     logging.info("Server set a stream limit > 1000.")
+
                     return TestResult.FAILED
+
         if not checked_stream_limit:
             logging.info("Couldn't check stream limit.")
+
             return TestResult.FAILED
+
         return TestResult.SUCCEEDED
 
 
@@ -534,6 +617,7 @@ class TestCaseRetry(TestCase):
         self._files = [
             self._generate_random_file(10 * KB),
         ]
+
         return self._files
 
     def _check_trace(self) -> bool:
@@ -541,44 +625,61 @@ class TestCaseRetry(TestCase):
         tr = self._client_trace()
         tokens = []
         retries = tr.get_retry(Direction.FROM_SERVER)
+
         for p in retries:
             if not hasattr(p, "retry_token"):
                 logging.info("Retry packet doesn't have a retry_token")
                 logging.info(p)
+
                 return False
             tokens += [p.retry_token.replace(":", "")]
+
         if len(tokens) == 0:
             logging.info("Didn't find any Retry packets.")
+
             return False
 
         # check that an Initial packet uses a token sent in the Retry packet(s)
         highest_pn_before_retry = -1
+
         for p in tr.get_initial(Direction.FROM_CLIENT):
             pn = int(p.packet_number)
+
             if p.token_length == "0":
                 highest_pn_before_retry = max(highest_pn_before_retry, pn)
+
                 continue
+
             if pn <= highest_pn_before_retry:
                 logging.debug(
                     "Client reset the packet number. Check failed for PN %d", pn
                 )
+
                 return False
             token = p.token.replace(":", "")
+
             if token in tokens:
                 logging.debug("Check of Retry succeeded. Token used: %s", token)
+
                 return True
         logging.info("Didn't find any Initial packet using a Retry token.")
+
         return False
 
     def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
+
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+
             return TestResult.FAILED
+
         if not self._check_version_and_files():
             return TestResult.FAILED
+
         if not self._check_trace():
             return TestResult.FAILED
+
         return TestResult.SUCCEEDED
 
 
@@ -600,20 +701,25 @@ class TestCaseResumption(TestCase):
             self._generate_random_file(5 * KB),
             self._generate_random_file(10 * KB),
         ]
+
         return self._files
 
     def check(self) -> TestResult:
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
+
             return TestResult.UNSUPPORTED
         num_handshakes = self._count_handshakes()
+
         if num_handshakes != 2:
             logging.info("Expected exactly 2 handshake. Got: %d", num_handshakes)
+
             return TestResult.FAILED
 
         handshake_packets = self._client_trace().get_handshake(Direction.FROM_SERVER)
         cids = [p.scid for p in handshake_packets]
         first_handshake_has_cert = False
+
         for p in handshake_packets:
             if p.scid == cids[0]:
                 if hasattr(p, "tls_handshake_certificates_length"):
@@ -623,19 +729,25 @@ class TestCaseResumption(TestCase):
                     logging.info(
                         "Server sent a Certificate message in the second handshake."
                     )
+
                     return TestResult.FAILED
             else:
                 logging.info(
                     "Found handshake packet that neither belongs to the first nor the second handshake."
                 )
+
                 return TestResult.FAILED
+
         if not first_handshake_has_cert:
             logging.info(
                 "Didn't find a Certificate message in the first handshake. That's weird."
             )
+
             return TestResult.FAILED
+
         if not self._check_version_and_files():
             return TestResult.FAILED
+
         return TestResult.SUCCEEDED
 
 
@@ -661,13 +773,17 @@ class TestCaseZeroRTT(TestCase):
             self._files.append(
                 self._generate_random_file(self.FILESIZE, self.FILENAMELEN)
             )
+
         return self._files
 
     def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
+
         if num_handshakes != 2:
             logging.info("Expected exactly 2 handshakes. Got: %d", num_handshakes)
+
             return TestResult.FAILED
+
         if not self._check_version_and_files():
             return TestResult.FAILED
         tr = self._client_trace()
@@ -675,12 +791,17 @@ class TestCaseZeroRTT(TestCase):
         oneRTTSize = self._payload_size(tr.get_1rtt(Direction.FROM_CLIENT))
         logging.debug("0-RTT size: %d", zeroRTTSize)
         logging.debug("1-RTT size: %d", oneRTTSize)
+
         if zeroRTTSize == 0:
             logging.info("Client didn't send any 0-RTT data.")
+
             return TestResult.FAILED
+
         if oneRTTSize > 0.5 * self.FILENAMELEN * self.NUM_FILES:
             logging.info("Client sent too much data in 1-RTT packets.")
+
             return TestResult.FAILED
+
         return TestResult.SUCCEEDED
 
 
@@ -703,15 +824,20 @@ class TestCaseHTTP3(TestCase):
             self._generate_random_file(10 * KB),
             self._generate_random_file(500 * KB),
         ]
+
         return self._files
 
     def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
+
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+
             return TestResult.FAILED
+
         if not self._check_version_and_files():
             return TestResult.FAILED
+
         return TestResult.SUCCEEDED
 
 
@@ -736,41 +862,51 @@ class TestCaseAmplificationLimit(TestCase):
         if not self._cert_dir:
             self._cert_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="certs_")
             generate_cert_chain(self._cert_dir.name, 9)
+
         return self._cert_dir.name + "/"
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
         # Let the ClientHello pass, but drop a bunch of retransmissions afterwards.
+
         return "droplist --delay=15ms --bandwidth=10Mbps --queue=25 --drops_to_server=2,3,4,5,6,7"
 
     def get_paths(self):
         self._files = [self._generate_random_file(5 * KB)]
+
         return self._files
 
     def check(self) -> TestResult:
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
+
             return TestResult.UNSUPPORTED
         num_handshakes = self._count_handshakes()
+
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+
             return TestResult.FAILED
+
         if not self._check_version_and_files():
             return TestResult.FAILED
         # Check the highest offset of CRYPTO frames sent by the server.
         # This way we can make sure that it actually used the provided cert chain.
         max_handshake_offset = 0
+
         for p in self._server_trace().get_handshake(Direction.FROM_SERVER):
             if hasattr(p, "crypto_offset"):
                 max_handshake_offset = max(
                     max_handshake_offset, int(p.crypto_offset) + int(p.crypto_length)
                 )
+
         if max_handshake_offset < 7500:
             logging.info(
                 "Server sent too little Handshake CRYPTO data (%d bytes). Not using the provided cert chain?",
                 max_handshake_offset,
             )
+
             return TestResult.FAILED
         logging.debug(
             "Server sent %d bytes in Handshake CRYPTO frames.", max_handshake_offset
@@ -782,20 +918,28 @@ class TestCaseAmplificationLimit(TestCase):
         client_sent, server_sent = 0, 0  # only for debug messages
         res = TestResult.FAILED
         log_output = []
+
         for p in self._server_trace().get_raw_packets():
             direction = get_direction(p)
             packet_type = get_packet_type(p)
+
             if packet_type == PacketType.VERSIONNEGOTIATION:
                 logging.info("Didn't expect a Version Negotiation packet.")
+
                 return TestResult.FAILED
             packet_size = int(p.udp.length) - 8  # subtract the UDP header length
+
             if packet_type == PacketType.INVALID:
                 logging.debug("Couldn't determine packet type.")
+
                 return TestResult.FAILED
+
             if direction == Direction.FROM_CLIENT:
                 if packet_type is PacketType.HANDSHAKE:
                     res = TestResult.SUCCEEDED
+
                     break
+
                 if packet_type is PacketType.INITIAL:
                     client_sent += packet_size
                     allowed += 3 * packet_size
@@ -812,9 +956,12 @@ class TestCaseAmplificationLimit(TestCase):
                         packet_size, server_sent
                     )
                 )
+
                 if packet_size >= allowed_with_tolerance:
                     log_output.append("Server violated the amplification limit.")
+
                     break
+
                 if packet_size > allowed:
                     log_output.append(
                         "Server violated the amplification limit, but stayed within 3-4x amplification. Letting it slide."
@@ -823,13 +970,17 @@ class TestCaseAmplificationLimit(TestCase):
                 allowed -= packet_size
             else:
                 logging.debug("Couldn't determine sender of packet.")
+
                 return TestResult.FAILED
 
         log_level = logging.DEBUG
+
         if res == TestResult.FAILED:
             log_level = logging.INFO
+
         for msg in log_output:
             logging.log(log_level, msg)
+
         return res
 
 
@@ -852,20 +1003,26 @@ class TestCaseBlackhole(TestCase):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
+
         return "blackhole --delay=15ms --bandwidth=10Mbps --queue=25 --on=5s --off=2s"
 
     def get_paths(self):
         self._files = [self._generate_random_file(10 * MB)]
+
         return self._files
 
     def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
+
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+
             return TestResult.FAILED
+
         if not self._check_version_and_files():
             return TestResult.FAILED
+
         return TestResult.SUCCEEDED
 
 
@@ -878,6 +1035,7 @@ class TestCaseKeyUpdate(TestCaseHandshake):
     def testname(p: Perspective):
         if p is Perspective.CLIENT:
             return "keyupdate"
+
         return "transfer"
 
     @staticmethod
@@ -890,17 +1048,22 @@ class TestCaseKeyUpdate(TestCaseHandshake):
 
     def get_paths(self):
         self._files = [self._generate_random_file(3 * MB)]
+
         return self._files
 
     def check(self) -> TestResult:
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
+
             return TestResult.UNSUPPORTED
 
         num_handshakes = self._count_handshakes()
+
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+
             return TestResult.FAILED
+
         if not self._check_version_and_files():
             return TestResult.FAILED
 
@@ -909,17 +1072,20 @@ class TestCaseKeyUpdate(TestCaseHandshake):
         try:
             for p in self._client_trace().get_1rtt(Direction.FROM_CLIENT):
                 client[int(p.key_phase)] += 1
+
             for p in self._server_trace().get_1rtt(Direction.FROM_SERVER):
                 server[int(p.key_phase)] += 1
         except Exception:
             logging.info(
                 "Failed to read key phase bits. Potentially incorrect SSLKEYLOG?"
             )
+
             return TestResult.FAILED
 
         succeeded = client[1] * server[1] > 0
 
         log_level = logging.INFO
+
         if succeeded:
             log_level = logging.DEBUG
 
@@ -935,11 +1101,14 @@ class TestCaseKeyUpdate(TestCaseHandshake):
             server[0],
             server[1],
         )
+
         if not succeeded:
             logging.info(
                 "Expected to see packets sent with key phase 1 from both client and server."
             )
+
             return TestResult.FAILED
+
         return TestResult.SUCCEEDED
 
 
@@ -968,23 +1137,29 @@ class TestCaseHandshakeLoss(TestCase):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
+
         return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=30 --rate_to_client=30"
 
     def get_paths(self):
         for _ in range(self._num_runs):
             self._files.append(self._generate_random_file(1 * KB))
+
         return self._files
 
     def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
+
         if num_handshakes != self._num_runs:
             logging.info(
                 "Expected %d handshakes. Got: %d", self._num_runs, num_handshakes
             )
+
             return TestResult.FAILED
+
         if not self._check_version_and_files():
             return TestResult.FAILED
+
         return TestResult.SUCCEEDED
 
 
@@ -1007,21 +1182,27 @@ class TestCaseTransferLoss(TestCase):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
+
         return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=2 --rate_to_client=2"
 
     def get_paths(self):
         # At a packet loss rate of 2% and a MTU of 1500 bytes, we can expect 27 dropped packets.
         self._files = [self._generate_random_file(2 * MB)]
+
         return self._files
 
     def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
+
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+
             return TestResult.FAILED
+
         if not self._check_version_and_files():
             return TestResult.FAILED
+
         return TestResult.SUCCEEDED
 
 
@@ -1040,7 +1221,8 @@ class TestCaseHandshakeCorruption(TestCaseHandshakeLoss):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
+
         return "corrupt-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=30 --rate_to_client=30"
 
 
@@ -1059,7 +1241,8 @@ class TestCaseTransferCorruption(TestCaseTransferLoss):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
+
         return "corrupt-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=2 --rate_to_client=2"
 
 
@@ -1074,11 +1257,14 @@ class TestCaseECN(TestCaseHandshake):
 
     def _count_ecn(self, tr):
         ecn = [0] * (max(ECN) + 1)
+
         for p in tr:
             e = int(getattr(p["ip"], "dsfield.ecn"))
             ecn[e] += 1
+
         for e in ECN:
             logging.debug("%s %d", e, ecn[e])
+
         return ecn
 
     def _check_ecn_any(self, e) -> bool:
@@ -1093,17 +1279,21 @@ class TestCaseECN(TestCaseHandshake):
 
     def _check_ack_ecn(self, tr) -> bool:
         # NOTE: We only check whether the trace contains any ACK-ECN information, not whether it is valid
+
         for p in tr:
             if hasattr(p["quic"], "ack.ect0_count"):
                 return True
+
         return False
 
     def check(self) -> TestResult:
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
+
             return TestResult.UNSUPPORTED
 
         result = super(TestCaseECN, self).check()
+
         if result != TestResult.SUCCEEDED:
             return result
 
@@ -1150,6 +1340,7 @@ class TestCaseECN(TestCaseHandshake):
             and ack_ecn_server_ok
         ):
             return TestResult.SUCCEEDED
+
         return TestResult.FAILED
 
 
@@ -1174,19 +1365,23 @@ class TestCasePortRebinding(TestCaseTransfer):
         self._files = [
             self._generate_random_file(10 * MB),
         ]
+
         return self._files
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
+
         return "rebind --delay=15ms --bandwidth=10Mbps --queue=25 --first-rebind=1s --rebind-freq=5s"
 
     def check(self) -> TestResult:
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
+
             return TestResult.UNSUPPORTED
 
         result = super(TestCasePortRebinding, self).check()
+
         if result != TestResult.SUCCEEDED:
             return result
 
@@ -1197,12 +1392,15 @@ class TestCasePortRebinding(TestCaseTransfer):
         ports = list(set(getattr(p["udp"], "dstport") for p in tr_server))
 
         logging.info("Server saw these client ports: %s", ports)
+
         if len(ports) <= 1:
             logging.info("Server saw only a single client port in use; test broken?")
+
             return TestResult.FAILED
 
         last = None
         num_migrations = 0
+
         for p in tr_server:
             cur = (
                 getattr(p["ipv6"], "dst")
@@ -1210,20 +1408,24 @@ class TestCasePortRebinding(TestCaseTransfer):
                 else getattr(p["ip"], "dst"),
                 int(getattr(p["udp"], "dstport")),
             )
+
             if last is None:
                 last = cur
+
                 continue
 
             if last != cur:
                 last = cur
                 num_migrations += 1
                 # packet to different IP/port, should have a PATH_CHALLENGE frame
+
                 if hasattr(p["quic"], "path_challenge.data") is False:
                     logging.info(
                         "First server packet to new client destination %s did not contain a PATH_CHALLENGE frame",
                         cur,
                     )
                     logging.info(p["quic"])
+
                     return TestResult.FAILED
 
         tr_client = self._client_trace()._get_packets(
@@ -1237,12 +1439,14 @@ class TestCasePortRebinding(TestCaseTransfer):
                 if hasattr(p["quic"], "path_challenge.data")
             )
         )
+
         if len(challenges) < num_migrations:
             logging.info(
                 "Saw %d migrations, but only %d unique PATH_CHALLENGE frames",
                 len(challenges),
                 num_migrations,
             )
+
             return TestResult.FAILED
 
         responses = list(
@@ -1254,8 +1458,10 @@ class TestCasePortRebinding(TestCaseTransfer):
         )
 
         unresponded = [c for c in challenges if c not in responses]
+
         if unresponded != []:
             logging.info("PATH_CHALLENGE without a PATH_RESPONSE: %s", unresponded)
+
             return TestResult.FAILED
 
         return TestResult.SUCCEEDED
@@ -1276,7 +1482,8 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
+
         return (
             super(TestCaseAddressRebinding, TestCaseAddressRebinding).scenario()
             + " --rebind-addr"
@@ -1285,6 +1492,7 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
     def check(self) -> TestResult:
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
+
             return TestResult.UNSUPPORTED
 
         tr_server = self._server_trace()._get_packets(
@@ -1292,20 +1500,25 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
         )
 
         ips = set()
+
         for p in tr_server:
             ip_vers = "ip"
+
             if "IPV6" in str(p.layers):
                 ip_vers = "ipv6"
             ips.add(getattr(p[ip_vers], "dst"))
 
         logging.info("Server saw these client addresses: %s", ips)
+
         if len(ips) <= 1:
             logging.info(
                 "Server saw only a single client IP address in use; test broken?"
             )
+
             return TestResult.FAILED
 
         result = super(TestCaseAddressRebinding, self).check()
+
         if result != TestResult.SUCCEEDED:
             return result
 
@@ -1338,10 +1551,12 @@ class TestCaseIPv6(TestCaseTransfer):
             self._generate_random_file(5 * KB),
             self._generate_random_file(10 * KB),
         ]
+
         return self._files
 
     def check(self) -> TestResult:
         result = super(TestCaseIPv6, self).check()
+
         if result != TestResult.SUCCEEDED:
             return result
 
@@ -1352,7 +1567,9 @@ class TestCaseIPv6(TestCaseTransfer):
 
         if tr_server:
             logging.info("Packet trace contains %s IPv4 packets.", len(tr_server))
+
             return TestResult.FAILED
+
         return TestResult.SUCCEEDED
 
 
@@ -1369,6 +1586,7 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
     def testname(p: Perspective):
         if p is Perspective.CLIENT:
             return "connectionmigration"
+
         return "transfer"
 
     @staticmethod
@@ -1383,12 +1601,14 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
         self._files = [
             self._generate_random_file(2 * MB),
         ]
+
         return self._files
 
     def check(self) -> TestResult:
         # The parent check() method ensures that the client changed addresses
         # and that PATH_CHALLENGE/RESPONSE frames were sent and received
         result = super(TestCaseConnectionMigration, self).check()
+
         if result != TestResult.SUCCEEDED:
             return result
 
@@ -1398,6 +1618,7 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
 
         last = None
         dcid = None
+
         for p in tr_client:
             cur = (
                 getattr(p["ipv6"], "src")
@@ -1405,14 +1626,17 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
                 else getattr(p["ip"], "src"),
                 int(getattr(p["udp"], "srcport")),
             )
+
             if last is None:
                 last = cur
                 dcid = getattr(p["quic"], "dcid")
+
                 continue
 
             if last != cur:
                 last = cur
                 # packet to different IP/port, should have a new DCID
+
                 if dcid == getattr(p["quic"], "dcid"):
                     logging.info(
                         "First client packet during active migration to %s used previous DCID %s",
@@ -1420,6 +1644,7 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
                         dcid,
                     )
                     logging.info(p["quic"])
+
                     return TestResult.FAILED
                 dcid = getattr(p["quic"], "dcid")
                 logging.info(
@@ -1459,18 +1684,23 @@ class MeasurementGoodput(Measurement):
 
     def get_paths(self):
         self._files = [self._generate_random_file(self.FILESIZE)]
+
         return self._files
 
     def check(self) -> TestResult:
         num_handshakes = self._count_handshakes()
+
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+
             return TestResult.FAILED
+
         if not self._check_version_and_files():
             return TestResult.FAILED
 
         packets = self._client_trace().get_1rtt(Direction.FROM_SERVER)
         first, last = 0, 0
+
         for p in packets:
             if first == 0:
                 first = p.sniff_time
@@ -1487,6 +1717,7 @@ class MeasurementGoodput(Measurement):
             goodput,
         )
         self._result = goodput
+
         return TestResult.SUCCEEDED
 
     def result(self) -> float:
@@ -1521,7 +1752,7 @@ class MeasurementCrossTraffic(MeasurementGoodput):
         return ["iperf_server", "iperf_client"]
 
 
-TESTCASES = [
+TESTCASES: List[Type[TestCase]] = [
     TestCaseHandshake,
     TestCaseTransfer,
     TestCaseLongRTT,
@@ -1547,7 +1778,7 @@ TESTCASES = [
     # TestCaseConnectionMigration,
 ]
 
-MEASUREMENTS = [
+MEASUREMENTS: List[Type[Measurement]] = [
     MeasurementGoodput,
     MeasurementCrossTraffic,
 ]

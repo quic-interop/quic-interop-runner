@@ -65,9 +65,9 @@
     "role": "client"
   },
   "xquic": {
-  "image": "kulsk/xquic:latest",
-  "url": "https://github.com/Kulsk/xquic",
-  "role": "both"
+    "image": "kulsk/xquic:latest",
+    "url": "https://github.com/Kulsk/xquic",
+    "role": "both"
   },
   "lsquic": {
     "image": "litespeedtech/lsquic-qir:latest",

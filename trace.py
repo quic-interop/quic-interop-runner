@@ -52,11 +52,14 @@ def get_direction(p) -> Direction:
 def get_packet_type(p) -> PacketType:
     if p.quic.header_form == "0":
         return PacketType.ONERTT
+
     if p.quic.version == "0x00000000":
         return PacketType.VERSIONNEGOTIATION
+
     for t, num in WIRESHARK_PACKET_TYPES.items():
         if p.quic.long_packet_type == num:
             return t
+
     return PacketType.INVALID
 
 
@@ -69,19 +72,17 @@ class TraceAnalyzer:
 
     def _get_direction_filter(self, d: Direction) -> str:
         f = "(quic && !icmp) && "
+
         if d == Direction.FROM_CLIENT:
-            return (
-                f + "(ip.src==" + IP4_CLIENT + " || ipv6.src==" + IP6_CLIENT + ") && "
-            )
+            return f + f"(ip.src=={IP4_CLIENT} || ipv6.src=={IP6_CLIENT}) && "
         elif d == Direction.FROM_SERVER:
-            return (
-                f + "(ip.src==" + IP4_SERVER + " || ipv6.src==" + IP6_SERVER + ") && "
-            )
+            return f + f"(ip.src=={IP4_SERVER} || ipv6.src=={IP6_SERVER }) && "
         else:
             return f
 
     def _get_packets(self, f: str) -> List:
         override_prefs = {}
+
         if self._keylog_file is not None:
             override_prefs["ssl.keylog_file"] = self._keylog_file
         cap = pyshark.FileCapture(
@@ -106,18 +107,23 @@ class TraceAnalyzer:
                 if hasattr(p["quic"], "decryption_failed"):
                     logging.info("At least one QUIC packet could not be decrypted")
                     logging.debug(p)
+
                     break
+
         return packets
 
     def get_raw_packets(self, direction: Direction = Direction.ALL) -> List:
         packets = []
+
         for packet in self._get_packets(self._get_direction_filter(direction) + "quic"):
             packets.append(packet)
+
         return packets
 
     def get_1rtt(self, direction: Direction = Direction.ALL) -> List:
-        """ Get all QUIC packets, one or both directions. """
+        """Get all QUIC packets, one or both directions."""
         packets = []
+
         for packet in self._get_packets(
             self._get_direction_filter(direction) + "quic.header_form==0"
         ):
@@ -127,6 +133,7 @@ class TraceAnalyzer:
                 ):
                     layer.sniff_time = packet.sniff_time
                     packets.append(layer)
+
         return packets
 
     def get_vnp(self, direction: Direction = Direction.ALL) -> List:
@@ -138,6 +145,7 @@ class TraceAnalyzer:
         self, packet_type: PacketType, direction: Direction
     ) -> List:
         packets = []
+
         for packet in self._get_packets(
             self._get_direction_filter(direction) + "quic.long.packet_type"
         ):
@@ -148,20 +156,25 @@ class TraceAnalyzer:
                     and layer.long_packet_type == WIRESHARK_PACKET_TYPES[packet_type]
                 ):
                     packets.append(layer)
+
         return packets
 
     def get_initial(self, direction: Direction = Direction.ALL) -> List:
-        """ Get all Initial packets. """
+        """Get all Initial packets."""
+
         return self._get_long_header_packets(PacketType.INITIAL, direction)
 
     def get_retry(self, direction: Direction = Direction.ALL) -> List:
-        """ Get all Retry packets. """
+        """Get all Retry packets."""
+
         return self._get_long_header_packets(PacketType.RETRY, direction)
 
     def get_handshake(self, direction: Direction = Direction.ALL) -> List:
-        """ Get all Handshake packets. """
+        """Get all Handshake packets."""
+
         return self._get_long_header_packets(PacketType.HANDSHAKE, direction)
 
     def get_0rtt(self) -> List:
-        """ Get all 0-RTT packets. """
+        """Get all 0-RTT packets."""
+
         return self._get_long_header_packets(PacketType.ZERORTT, Direction.FROM_CLIENT)

@@ -2,7 +2,7 @@
 
 import argparse
 import sys
-from typing import List, Tuple
+from typing import List, Literal, Tuple, Type, Union
 
 import testcases
 from implementations import IMPLEMENTATIONS, Role
@@ -16,124 +16,141 @@ implementations = {
 client_implementations = [
     name
     for name, value in IMPLEMENTATIONS.items()
-    if value["role"] == Role.BOTH or value["role"] == Role.CLIENT
+    if value["role"] in (Role.BOTH, Role.CLIENT)
 ]
 server_implementations = [
     name
     for name, value in IMPLEMENTATIONS.items()
-    if value["role"] == Role.BOTH or value["role"] == Role.SERVER
+    if value["role"] in (Role.BOTH, Role.SERVER)
 ]
 
 
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-d",
+        "--debug",
+        action="store_true",
+        help="turn on debug logs",
+    )
+    parser.add_argument(
+        "-s",
+        "--server",
+        nargs="+",
+        choices=server_implementations,
+        help="server implementation",
+    )
+    parser.add_argument(
+        "-c",
+        "--client",
+        nargs="+",
+        choices=client_implementations,
+        help="client implementation",
+    )
+    parser.add_argument(
+        "-t",
+        "--test",
+        nargs="+",
+        choices=(
+            [x.name() for x in TESTCASES + MEASUREMENTS]
+            + ["onlyTests", "onlyMeasurements"]
+        ),
+        help="test cases.",
+    )
+    parser.add_argument(
+        "-r",
+        "--replace",
+        nargs="*",
+        default=[],
+        help="replace path of implementation. Example: -r myquicimpl=dockertagname",
+    )
+    parser.add_argument(
+        "-l",
+        "--log-dir",
+        help="log directory",
+        default="",
+    )
+    parser.add_argument(
+        "-f",
+        "--save-files",
+        action="store_true",
+        help="save downloaded files if a test fails",
+    )
+    parser.add_argument("-j", "--json", help="output the matrix to file in json format")
+
+    return parser.parse_args()
+
+
 def main():
-    def get_args():
-        parser = argparse.ArgumentParser()
-        parser.add_argument(
-            "-d",
-            "--debug",
-            action="store_const",
-            const=True,
-            default=False,
-            help="turn on debug logs",
-        )
-        parser.add_argument(
-            "-s", "--server", help="server implementations (comma-separated)"
-        )
-        parser.add_argument(
-            "-c", "--client", help="client implementations (comma-separated)"
-        )
-        parser.add_argument(
-            "-t",
-            "--test",
-            help="test cases (comma-separatated). Valid test cases are: "
-            + ", ".join([x.name() for x in TESTCASES + MEASUREMENTS]),
-        )
-        parser.add_argument(
-            "-r",
-            "--replace",
-            help="replace path of implementation. Example: -r myquicimpl=dockertagname",
-        )
-        parser.add_argument(
-            "-l",
-            "--log-dir",
-            help="log directory",
-            default="",
-        )
-        parser.add_argument(
-            "-f", "--save-files", help="save downloaded files if a test fails"
-        )
-        parser.add_argument(
-            "-j", "--json", help="output the matrix to file in json format"
-        )
-        return parser.parse_args()
+    args = get_args()
 
-    replace_arg = get_args().replace
-    if replace_arg:
-        for s in replace_arg.split(","):
-            pair = s.split("=")
-            if len(pair) != 2:
-                sys.exit("Invalid format for replace")
-            name, image = pair[0], pair[1]
-            if name not in IMPLEMENTATIONS:
-                sys.exit("Implementation " + name + " not found.")
-            implementations[name]["image"] = image
+    for replace in args.replace:
+        try:
+            name, image = replace.split("=")
+        except ValueError:
+            sys.exit("Invalid format for replace")
 
-    def get_impls(arg, availableImpls, role) -> List[str]:
-        if not arg:
-            return availableImpls
-        impls = []
-        for s in arg.split(","):
-            if s not in availableImpls:
-                sys.exit(role + " implementation " + s + " not found.")
-            impls.append(s)
-        return impls
+        if name not in IMPLEMENTATIONS:
+            sys.exit(f"Implementation {name} not found.")
+
+        implementations[name]["image"] = image
 
     def get_tests_and_measurements(
         arg,
-    ) -> Tuple[List[testcases.TestCase], List[testcases.TestCase]]:
+    ) -> Tuple[List[Type[testcases.TestCase]], List[Type[testcases.Measurement]]]:
         if arg is None:
             return TESTCASES, MEASUREMENTS
-        elif arg == "onlyTests":
-            return TESTCASES, []
-        elif arg == "onlyMeasurements":
-            return [], MEASUREMENTS
         elif not arg:
-            return []
-        tests = []
-        measurements = []
-        for t in arg.split(","):
-            if t in [tc.name() for tc in TESTCASES]:
-                tests += [tc for tc in TESTCASES if tc.name() == t]
-            elif t in [tc.name() for tc in MEASUREMENTS]:
-                measurements += [tc for tc in MEASUREMENTS if tc.name() == t]
+            return [], []
+        elif len(arg) == 1:
+            if arg[0] == "onlyTests":
+                return TESTCASES, []
+            elif arg[0] == "onlyMeasurements":
+                return [], MEASUREMENTS
+
+        tests: List[Type[testcases.TestCase]] = []
+        measurements: List[Type[testcases.Measurement]] = []
+
+        for test_case_name in arg:
+            test_case_lookup = {tc.name(): tc for tc in TESTCASES}
+            measurement_lookup = {m.name(): m for m in MEASUREMENTS}
+
+            if test_case_name in test_case_lookup.keys():
+                tests.append(test_case_lookup[test_case_name])
+            elif test_case_name in measurement_lookup.keys():
+                measurements.append(measurement_lookup[test_case_name])
             else:
+                print(f"Test case {test_case_name} not found.", file=sys.stderr)
                 print(
-                    (
-                        "Test case {} not found.\n"
-                        "Available testcases: {}\n"
-                        "Available measurements: {}"
-                    ).format(
-                        t,
-                        ", ".join([t.name() for t in TESTCASES]),
-                        ", ".join([t.name() for t in MEASUREMENTS]),
-                    )
+                    f"Available testcases: {', '.join(sorted(test_case_lookup.keys()))}",
+                    file=sys.stderr,
+                )
+                print(
+                    f"Available measurements: {', '.join(sorted(measurement_lookup.keys()))}",
+                    file=sys.stderr,
                 )
                 sys.exit()
+
         return tests, measurements
 
-    t = get_tests_and_measurements(get_args().test)
+    tests, measurements = get_tests_and_measurements(args.test)
+
     return InteropRunner(
         implementations=implementations,
-        servers=get_impls(get_args().server, server_implementations, "Server"),
-        clients=get_impls(get_args().client, client_implementations, "Client"),
-        tests=t[0],
-        measurements=t[1],
-        output=get_args().json,
-        debug=get_args().debug,
-        log_dir=get_args().log_dir,
-        save_files=get_args().save_files,
+        servers=args.server or server_implementations,
+        clients=args.client or client_implementations,
+        tests=tests,
+        measurements=measurements,
+        output=args.json,
+        debug=args.debug,
+        log_dir=args.log_dir,
+        save_files=args.save_files,
     ).run()
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        print()
+        sys.exit(0)
