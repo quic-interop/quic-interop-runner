@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tempfile
 from datetime import datetime
-from typing import Callable, Dict, List, Optional, Tuple, Type, Any
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 import prettytable
 from termcolor import colored
@@ -28,8 +28,8 @@ def random_string(length: int):
 
 
 class MeasurementResult:
-    result = TestResult
-    details = str
+    result: TestResult
+    details: str
 
 
 class LogFileFormatter(logging.Formatter):
@@ -107,8 +107,8 @@ class InteropRunner:
                     self.measurement_results[server][client][measurement] = {}
 
     def _is_unsupported(self, lines: List[str]) -> bool:
-        return any("exited with code 127" in str(line) for line in lines) or any(
-            "exit status 127" in str(line) for line in lines
+        return any("exited with code 127" in line for line in lines) or any(
+            "exit status 127" in line for line in lines
         )
 
     def _check_impl_is_compliant(self, name: str) -> bool:
@@ -332,7 +332,7 @@ class InteropRunner:
             logging.info("Copying logs from %s failed: %s", container, err.stdout)
 
     def _run_testcase(
-        self, server: str, client: str, test: Callable[[], testcases.TestCase]
+        self, server: str, client: str, test: Type[testcases.TestCase]
     ) -> TestResult:
         return self._run_test(server, client, None, test)[0]
 
@@ -341,7 +341,7 @@ class InteropRunner:
         server: str,
         client: str,
         log_dir_prefix: Optional[str],
-        test: Callable[[], testcases.TestCase],
+        test: Type[testcases.TestCase],
     ) -> Tuple[TestResult, float]:
         start_time = datetime.now()
         sim_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_sim_")
@@ -476,7 +476,7 @@ class InteropRunner:
         return status, value
 
     def _run_measurement(
-        self, server: str, client: str, test: Callable[[], testcases.Measurement]
+        self, server: str, client: str, test: Type[testcases.Measurement]
     ) -> MeasurementResult:
         values = []
 

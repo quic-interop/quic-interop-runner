@@ -70,24 +70,24 @@ class TraceAnalyzer:
         self._filename = filename
         self._keylog_file = keylog_file
 
-    def _get_direction_filter(self, d: Direction) -> str:
-        f = "(quic && !icmp) && "
+    def _get_direction_filter(self, direction: Direction) -> str:
+        display_filter = "(quic && !icmp) && "
 
-        if d == Direction.FROM_CLIENT:
-            return f + f"(ip.src=={IP4_CLIENT} || ipv6.src=={IP6_CLIENT}) && "
-        elif d == Direction.FROM_SERVER:
-            return f + f"(ip.src=={IP4_SERVER} || ipv6.src=={IP6_SERVER }) && "
+        if direction == Direction.FROM_CLIENT:
+            return f"{display_filter} (ip.src=={IP4_CLIENT} || ipv6.src=={IP6_CLIENT}) && "
+        elif direction == Direction.FROM_SERVER:
+            return f"{display_filter} (ip.src=={IP4_SERVER} || ipv6.src=={IP6_SERVER }) && "
         else:
-            return f
+            return display_filter
 
-    def _get_packets(self, f: str) -> List:
+    def _get_packets(self, display_filter: str) -> List:
         override_prefs = {}
 
         if self._keylog_file is not None:
             override_prefs["ssl.keylog_file"] = self._keylog_file
         cap = pyshark.FileCapture(
             self._filename,
-            display_filter=f,
+            display_filter=display_filter,
             override_prefs=override_prefs,
             disable_protocol="http3",  # see https://github.com/marten-seemann/quic-interop-runner/pull/179/
             decode_as={"udp.port==443": "quic"},
@@ -96,17 +96,17 @@ class TraceAnalyzer:
         # If the pcap has been cut short in the middle of the packet, pyshark will crash.
         # See https://github.com/KimiNewt/pyshark/issues/390.
         try:
-            for p in cap:
-                packets.append(p)
+            for packet in cap:
+                packets.append(packet)
             cap.close()
-        except Exception as e:
-            logging.debug(e)
+        except Exception as exc:
+            logging.debug(exc)
 
         if self._keylog_file is not None:
-            for p in packets:
-                if hasattr(p["quic"], "decryption_failed"):
+            for packet in packets:
+                if hasattr(packet["quic"], "decryption_failed"):
                     logging.info("At least one QUIC packet could not be decrypted")
-                    logging.debug(p)
+                    logging.debug(packet)
 
                     break
 

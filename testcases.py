@@ -10,8 +10,9 @@ import sys
 import tempfile
 from datetime import timedelta
 from enum import Enum, IntEnum
+from functools import cached_property
 from trace import Direction, PacketType, TraceAnalyzer, get_direction, get_packet_type
-from typing import Dict, List, Type, Union
+from typing import Dict, List, Optional, Type, Union
 
 from Crypto.Cipher import AES
 
@@ -56,17 +57,17 @@ def generate_cert_chain(directory: str, length: int = 1):
         logging.info("Unable to create certificates")
         sys.exit(1)
 
+    logging.debug("%s", stdout)
+
 
 class TestCase(abc.ABC):
     _files: List[str] = []
-    _www_dir = None
-    _client_keylog_file = None
-    _server_keylog_file = None
-    _download_dir = None
-    _sim_log_dir = None
-    _cert_dir = None
-    _cached_server_trace = None
-    _cached_client_trace = None
+    _www_dir: Optional[tempfile.TemporaryDirectory] = None
+    _client_keylog_file: str
+    _server_keylog_file: str
+    _download_dir: Optional[tempfile.TemporaryDirectory] = None
+    _sim_log_dir: tempfile.TemporaryDirectory
+    _cert_dir: Optional[tempfile.TemporaryDirectory] = None
 
     def __init__(
         self,
@@ -118,19 +119,20 @@ class TestCase(abc.ABC):
     @staticmethod
     def additional_envs() -> Dict[str, Union[str, int, float]]:
         """Additional environment variables."""
+
         return {}
 
     @staticmethod
     def additional_containers() -> List[str]:
         return [""]
 
-    def www_dir(self):
+    def www_dir(self) -> str:
         if not self._www_dir:
             self._www_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="www_")
 
         return self._www_dir.name + "/"
 
-    def download_dir(self):
+    def download_dir(self) -> str:
         if not self._download_dir:
             self._download_dir = tempfile.TemporaryDirectory(
                 dir="/tmp", prefix="download_"
@@ -138,7 +140,7 @@ class TestCase(abc.ABC):
 
         return self._download_dir.name + "/"
 
-    def certs_dir(self):
+    def certs_dir(self) -> str:
         if not self._cert_dir:
             self._cert_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="certs_")
             generate_cert_chain(self._cert_dir.name)
@@ -158,7 +160,7 @@ class TestCase(abc.ABC):
 
         return True
 
-    def _keylog_file(self) -> str:
+    def _keylog_file(self) -> Optional[str]:
         if self._is_valid_keylog(self._client_keylog_file):
             logging.debug("Using the client's key log file.")
 
@@ -169,35 +171,30 @@ class TestCase(abc.ABC):
             return self._server_keylog_file
         logging.debug("No key log file found.")
 
+    @cached_property
     def _client_trace(self):
-        if self._cached_client_trace is None:
-            self._cached_client_trace = TraceAnalyzer(
-                self._sim_log_dir.name + "/trace_node_left.pcap", self._keylog_file()
-            )
+        return TraceAnalyzer(
+            self._sim_log_dir.name + "/trace_node_left.pcap", self._keylog_file()
+        )
 
-        return self._cached_client_trace
-
+    @cached_property
     def _server_trace(self):
-        if self._cached_server_trace is None:
-            self._cached_server_trace = TraceAnalyzer(
-                self._sim_log_dir.name + "/trace_node_right.pcap", self._keylog_file()
-            )
+        return TraceAnalyzer(
+            self._sim_log_dir.name + "/trace_node_right.pcap", self._keylog_file()
+        )
 
-        return self._cached_server_trace
-
-    # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
     def _generate_random_file(self, size: int, filename_len=10) -> str:
+        """See https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks"""
         filename = random_string(filename_len)
         enc = AES.new(os.urandom(32), AES.MODE_OFB, b"a" * 16)
-        f = open(self.www_dir() + filename, "wb")
-        f.write(enc.encrypt(b" " * size))
-        f.close()
+        with open(self.www_dir() + filename, "wb") as file:
+            file.write(enc.encrypt(b" " * size))
         logging.debug("Generated random file: %s of size: %d", filename, size)
 
         return filename
 
     def _retry_sent(self) -> bool:
-        return len(self._client_trace().get_retry()) > 0
+        return len(self._client_trace.get_retry()) > 0
 
     def _check_version_and_files(self) -> bool:
         versions = [hex(int(v, 0)) for v in self._get_versions()]
@@ -271,7 +268,7 @@ class TestCase(abc.ABC):
 
     def _count_handshakes(self) -> int:
         """Count the number of QUIC handshakes"""
-        tr = self._server_trace()
+        tr = self._server_trace
         # Determine the number of handshakes by looking at Initial packets.
         # This is easier, since the SCID of Initial packets doesn't changes.
 
@@ -279,23 +276,25 @@ class TestCase(abc.ABC):
 
     def _get_versions(self) -> set:
         """Get the QUIC versions"""
-        tr = self._server_trace()
 
-        return set([p.version for p in tr.get_initial(Direction.FROM_SERVER)])
+        return {
+            packet.version
+            for packet in self._server_trace.get_initial(Direction.FROM_SERVER)
+        }
 
     def _payload_size(self, packets: List) -> int:
         """Get the sum of the payload sizes of all packets"""
         size = 0
 
-        for p in packets:
-            if hasattr(p, "long_packet_type"):
-                if hasattr(p, "payload"):  # when keys are available
-                    size += len(p.payload.split(":"))
+        for packet in packets:
+            if hasattr(packet, "long_packet_type"):
+                if hasattr(packet, "payload"):  # when keys are available
+                    size += len(packet.payload.split(":"))
                 else:
-                    size += len(p.remaining_payload.split(":"))
+                    size += len(packet.remaining_payload.split(":"))
             else:
-                if hasattr(p, "protected_payload"):
-                    size += len(p.protected_payload.split(":"))
+                if hasattr(packet, "protected_payload"):
+                    size += len(packet.protected_payload.split(":"))
 
         return size
 
@@ -309,7 +308,7 @@ class TestCase(abc.ABC):
             self._download_dir = None
 
     @abc.abstractmethod
-    def get_paths(self):
+    def get_paths(self) -> List[str]:
         pass
 
     @abc.abstractmethod
@@ -350,12 +349,11 @@ class TestCaseVersionNegotiation(TestCase):
         return [""]
 
     def check(self) -> TestResult:
-        tr = self._client_trace()
-        initials = tr.get_initial(Direction.FROM_CLIENT)
+        initials = self._client_trace.get_initial(Direction.FROM_CLIENT)
         dcid = ""
 
-        for p in initials:
-            dcid = p.dcid
+        for packet in initials:
+            dcid = packet.dcid
 
             break
 
@@ -363,10 +361,10 @@ class TestCaseVersionNegotiation(TestCase):
             logging.info("Didn't find an Initial / a DCID.")
 
             return TestResult.FAILED
-        vnps = tr.get_vnp()
+        vnps = self._client_trace.trace.get_vnp()
 
-        for p in vnps:
-            if p.scid == dcid:
+        for packet in vnps:
+            if packet.scid == dcid:
                 return TestResult.SUCCEEDED
         logging.info("Didn't find a Version Negotiation Packet with matching SCID.")
 
@@ -444,9 +442,9 @@ class TestCaseLongRTT(TestCaseHandshake):
             return TestResult.FAILED
         num_ch = 0
 
-        for p in self._client_trace().get_initial(Direction.FROM_CLIENT):
-            if hasattr(p, "tls_handshake_type"):
-                if p.tls_handshake_type == "1":
+        for packet in self._client_trace.get_initial(Direction.FROM_CLIENT):
+            if hasattr(packet, "tls_handshake_type"):
+                if packet.tls_handshake_type == "1":
                     num_ch += 1
 
         if num_ch < 2:
@@ -522,16 +520,16 @@ class TestCaseChaCha20(TestCase):
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
 
             return TestResult.FAILED
-        ciphersuites = []
+        ciphersuites = set()
 
-        for p in self._client_trace().get_initial(Direction.FROM_CLIENT):
-            if hasattr(p, "tls_handshake_ciphersuite"):
-                ciphersuites.append(p.tls_handshake_ciphersuite)
+        for packet in self._client_trace.get_initial(Direction.FROM_CLIENT):
+            if hasattr(packet, "tls_handshake_ciphersuite"):
+                ciphersuites.add(packet.tls_handshake_ciphersuite)
 
-        if len(set(ciphersuites)) != 1 or ciphersuites[0] != "4867":
+        if len(ciphersuites) != 1 or "4867" not in ciphersuites:
             logging.info(
                 "Expected only ChaCha20 cipher suite to be offered. Got: %s",
-                set(ciphersuites),
+                ciphersuites,
             )
 
             return TestResult.FAILED
@@ -582,11 +580,11 @@ class TestCaseMultiplexing(TestCase):
         # Check that the server set a bidirectional stream limit <= 1000
         checked_stream_limit = False
 
-        for p in self._client_trace().get_handshake(Direction.FROM_SERVER):
-            if hasattr(p, "tls.quic.parameter.initial_max_streams_bidi"):
+        for packet in self._client_trace.get_handshake(Direction.FROM_SERVER):
+            if hasattr(packet, "tls.quic.parameter.initial_max_streams_bidi"):
                 checked_stream_limit = True
                 stream_limit = int(
-                    getattr(p, "tls.quic.parameter.initial_max_streams_bidi")
+                    getattr(packet, "tls.quic.parameter.initial_max_streams_bidi")
                 )
                 logging.debug("Server set bidirectional stream limit: %d", stream_limit)
 
@@ -625,17 +623,16 @@ class TestCaseRetry(TestCase):
 
     def _check_trace(self) -> bool:
         # check that (at least) one Retry packet was actually sent
-        tr = self._client_trace()
         tokens = []
-        retries = tr.get_retry(Direction.FROM_SERVER)
+        retries = self._client_trace.get_retry(Direction.FROM_SERVER)
 
-        for p in retries:
-            if not hasattr(p, "retry_token"):
+        for packet in retries:
+            if not hasattr(packet, "retry_token"):
                 logging.info("Retry packet doesn't have a retry_token")
-                logging.info(p)
+                logging.info(packet)
 
                 return False
-            tokens += [p.retry_token.replace(":", "")]
+            tokens += [packet.retry_token.replace(":", "")]
 
         if len(tokens) == 0:
             logging.info("Didn't find any Retry packets.")
@@ -645,10 +642,10 @@ class TestCaseRetry(TestCase):
         # check that an Initial packet uses a token sent in the Retry packet(s)
         highest_pn_before_retry = -1
 
-        for p in tr.get_initial(Direction.FROM_CLIENT):
-            pn = int(p.packet_number)
+        for packet in self._client_trace.get_initial(Direction.FROM_CLIENT):
+            pn = int(packet.packet_number)
 
-            if p.token_length == "0":
+            if packet.token_length == "0":
                 highest_pn_before_retry = max(highest_pn_before_retry, pn)
 
                 continue
@@ -659,7 +656,7 @@ class TestCaseRetry(TestCase):
                 )
 
                 return False
-            token = p.token.replace(":", "")
+            token = packet.token.replace(":", "")
 
             if token in tokens:
                 logging.debug("Check of Retry succeeded. Token used: %s", token)
@@ -719,16 +716,16 @@ class TestCaseResumption(TestCase):
 
             return TestResult.FAILED
 
-        handshake_packets = self._client_trace().get_handshake(Direction.FROM_SERVER)
+        handshake_packets = self._client_trace.get_handshake(Direction.FROM_SERVER)
         cids = [p.scid for p in handshake_packets]
         first_handshake_has_cert = False
 
-        for p in handshake_packets:
-            if p.scid == cids[0]:
-                if hasattr(p, "tls_handshake_certificates_length"):
+        for packet in handshake_packets:
+            if packet.scid == cids[0]:
+                if hasattr(packet, "tls_handshake_certificates_length"):
                     first_handshake_has_cert = True
-            elif p.scid == cids[len(cids) - 1]:  # second handshake
-                if hasattr(p, "tls_handshake_certificates_length"):
+            elif packet.scid == cids[len(cids) - 1]:  # second handshake
+                if hasattr(packet, "tls_handshake_certificates_length"):
                     logging.info(
                         "Server sent a Certificate message in the second handshake."
                     )
@@ -789,7 +786,7 @@ class TestCaseZeroRTT(TestCase):
 
         if not self._check_version_and_files():
             return TestResult.FAILED
-        tr = self._client_trace()
+        tr = self._client_trace
         zeroRTTSize = self._payload_size(tr.get_0rtt())
         oneRTTSize = self._payload_size(tr.get_1rtt(Direction.FROM_CLIENT))
         logging.debug("0-RTT size: %d", zeroRTTSize)
@@ -898,7 +895,7 @@ class TestCaseAmplificationLimit(TestCase):
         # This way we can make sure that it actually used the provided cert chain.
         max_handshake_offset = 0
 
-        for p in self._server_trace().get_handshake(Direction.FROM_SERVER):
+        for p in self._server_trace.get_handshake(Direction.FROM_SERVER):
             if hasattr(p, "crypto_offset"):
                 max_handshake_offset = max(
                     max_handshake_offset, int(p.crypto_offset) + int(p.crypto_length)
@@ -922,7 +919,7 @@ class TestCaseAmplificationLimit(TestCase):
         res = TestResult.FAILED
         log_output = []
 
-        for p in self._server_trace().get_raw_packets():
+        for p in self._server_trace.get_raw_packets():
             direction = get_direction(p)
             packet_type = get_packet_type(p)
 
@@ -1073,10 +1070,10 @@ class TestCaseKeyUpdate(TestCaseHandshake):
         client = {0: 0, 1: 0}
         server = {0: 0, 1: 0}
         try:
-            for p in self._client_trace().get_1rtt(Direction.FROM_CLIENT):
+            for p in self._client_trace.get_1rtt(Direction.FROM_CLIENT):
                 client[int(p.key_phase)] += 1
 
-            for p in self._server_trace().get_1rtt(Direction.FROM_SERVER):
+            for p in self._server_trace.get_1rtt(Direction.FROM_SERVER):
                 server[int(p.key_phase)] += 1
         except Exception:
             logging.info(
@@ -1300,16 +1297,16 @@ class TestCaseECN(TestCaseHandshake):
         if result != TestResult.SUCCEEDED:
             return result
 
-        tr_client = self._client_trace()._get_packets(
-            self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
+        tr_client = self._client_trace._get_packets(
+            self._client_trace._get_direction_filter(Direction.FROM_CLIENT) + " quic"
         )
         ecn = self._count_ecn(tr_client)
         ecn_client_any_marked = self._check_ecn_any(ecn)
         ecn_client_all_ok = self._check_ecn_marks(ecn)
         ack_ecn_client_ok = self._check_ack_ecn(tr_client)
 
-        tr_server = self._server_trace()._get_packets(
-            self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
+        tr_server = self._server_trace._get_packets(
+            self._server_trace._get_direction_filter(Direction.FROM_SERVER) + " quic"
         )
         ecn = self._count_ecn(tr_server)
         ecn_server_any_marked = self._check_ecn_any(ecn)
@@ -1388,8 +1385,8 @@ class TestCasePortRebinding(TestCaseTransfer):
         if result != TestResult.SUCCEEDED:
             return result
 
-        tr_server = self._server_trace()._get_packets(
-            self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
+        tr_server = self._server_trace._get_packets(
+            self._server_trace._get_direction_filter(Direction.FROM_SERVER) + " quic"
         )
 
         ports = list(set(getattr(p["udp"], "dstport") for p in tr_server))
@@ -1431,8 +1428,8 @@ class TestCasePortRebinding(TestCaseTransfer):
 
                     return TestResult.FAILED
 
-        tr_client = self._client_trace()._get_packets(
-            self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
+        tr_client = self._client_trace._get_packets(
+            self._client_trace._get_direction_filter(Direction.FROM_CLIENT) + " quic"
         )
 
         challenges = list(
@@ -1498,8 +1495,8 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
 
             return TestResult.UNSUPPORTED
 
-        tr_server = self._server_trace()._get_packets(
-            self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
+        tr_server = self._server_trace._get_packets(
+            self._server_trace._get_direction_filter(Direction.FROM_SERVER) + " quic"
         )
 
         ips = set()
@@ -1563,8 +1560,8 @@ class TestCaseIPv6(TestCaseTransfer):
         if result != TestResult.SUCCEEDED:
             return result
 
-        tr_server = self._server_trace()._get_packets(
-            self._server_trace()._get_direction_filter(Direction.FROM_SERVER)
+        tr_server = self._server_trace._get_packets(
+            self._server_trace._get_direction_filter(Direction.FROM_SERVER)
             + " quic && ip"
         )
 
@@ -1615,8 +1612,8 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
         if result != TestResult.SUCCEEDED:
             return result
 
-        tr_client = self._client_trace()._get_packets(
-            self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
+        tr_client = self._client_trace._get_packets(
+            self._client_trace._get_direction_filter(Direction.FROM_CLIENT) + " quic"
         )
 
         last = None
@@ -1701,25 +1698,24 @@ class MeasurementGoodput(Measurement):
         if not self._check_version_and_files():
             return TestResult.FAILED
 
-        packets = self._client_trace().get_1rtt(Direction.FROM_SERVER)
-        first, last = 0, 0
+        packets = self._client_trace.get_1rtt(Direction.FROM_SERVER)
+        packet_times: List[timedelta] = [packet.sniff_time for packet in packets]
+        first = min(packet_times)
+        last = max(packet_times)
+        time = last - first
 
-        for p in packets:
-            if first == 0:
-                first = p.sniff_time
-            last = p.sniff_time
-
-        if last - first == 0:
+        if not time:
             return TestResult.FAILED
-        time = (last - first) / timedelta(milliseconds=1)
-        goodput = (8 * self.FILESIZE) / time
+
+        time_ms = time.total_seconds() * 1000
+        goodput_kbps = (8 * self.FILESIZE) / time_ms
         logging.debug(
-            "Transfering %d MB took %d ms. Goodput: %d kbps",
+            "Transferring %d MB took %d ms. Goodput: %d kbps",
             self.FILESIZE / MB,
-            time,
-            goodput,
+            time_ms,
+            goodput_kbps,
         )
-        self._result = goodput
+        self._result = goodput_kbps
 
         return TestResult.SUCCEEDED
 
