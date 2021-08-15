@@ -73,5 +73,10 @@
     "image": "litespeedtech/lsquic-qir:latest",
     "url": "https://github.com/litespeedtech/lsquic",
     "role": "both"
+  },
+  "quiwi": {
+    "image": "nqviet/quic-interop:latest",
+    "url": "https://github.com/goburrow/quic",
+    "role": "both"
   }
 }
