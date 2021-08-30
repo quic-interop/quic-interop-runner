@@ -49,7 +49,7 @@
   }
 
   function makeColumnHeaders(t, result) {
-    for(var i = 0; i < result.servers.length; i++)
+    for(var i = 0; i <= result.servers.length; i++)
       t.appendChild(document.createElement("colgroup"));
     var thead = t.createTHead();
     var row = thead.insertRow(0);
