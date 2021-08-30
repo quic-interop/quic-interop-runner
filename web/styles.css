@@ -24,6 +24,9 @@ body.loading .navbar-nav .end-time {
   color: #e74c3c;
 }
 
+.table th {
+  vertical-align: middle;
+}
 tr.hover-xy > th, th.hover-xy {
   background-color: #cfd9db;
   color: #e74c3c;
