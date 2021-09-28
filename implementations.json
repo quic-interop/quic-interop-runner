@@ -55,7 +55,7 @@
     "role": "server"
   },
   "msquic": {
-    "image": "mcr.microsoft.com/msquic/qns:latest",
+    "image": "ghcr.io/microsoft/msquic/qns:main",
     "url": "https://github.com/microsoft/msquic",
     "role": "both"
   },
