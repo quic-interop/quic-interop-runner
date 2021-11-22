@@ -73,5 +73,10 @@
     "image": "litespeedtech/lsquic-qir:latest",
     "url": "https://github.com/litespeedtech/lsquic",
     "role": "both"
+  },
+  "haproxy": {
+    "image": "haproxytech/haproxy-qns:latest",
+    "url": "https://github.com/haproxy/haproxy",
+    "role": "server"
   }
 }
