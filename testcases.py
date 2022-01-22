@@ -456,7 +456,7 @@ class TestCaseChaCha20(TestCase):
         for p in self._client_trace().get_initial(Direction.FROM_CLIENT):
             if hasattr(p, "tls_handshake_ciphersuite"):
                 ciphersuites.append(p.tls_handshake_ciphersuite)
-        if len(set(ciphersuites)) != 1 or ciphersuites[0] != "4867" or ciphersuites[0] != "0x1303":
+        if len(set(ciphersuites)) != 1 or (ciphersuites[0] != "4867" and ciphersuites[0] != "0x1303"):
             logging.info(
                 "Expected only ChaCha20 cipher suite to be offered. Got: %s",
                 set(ciphersuites),
