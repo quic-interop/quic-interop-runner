@@ -911,9 +911,9 @@ class TestCaseKeyUpdate(TestCaseHandshake):
                 client[int(p.key_phase)] += 1
             for p in self._server_trace().get_1rtt(Direction.FROM_SERVER):
                 server[int(p.key_phase)] += 1
-        except Exception:
+        except Exception as err:
             logging.info(
-                "Failed to read key phase bits. Potentially incorrect SSLKEYLOG?"
+                "Failed to read key phase bits (Potentially incorrect SSLKEYLOG?): %s" % err
             )
             return TestResult.FAILED
 
