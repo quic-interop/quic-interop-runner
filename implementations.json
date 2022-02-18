@@ -85,7 +85,7 @@
     "role": "both"
   },
   "s2n-quic": {
-    "image": "public.ecr.aws/y1p7y6w8/s2n-quic-qns:latest",
+    "image": "public.ecr.aws/s2n/s2n-quic-qns:latest",
     "url": "https://github.com/aws/s2n-quic",
     "role": "both"
   }
