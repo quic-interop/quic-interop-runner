@@ -4,11 +4,6 @@
     "url": "https://github.com/lucas-clemente/quic-go",
     "role": "both"
   },
-  "quicly": {
-    "image": "h2oserver/quicly-interop-runner:latest",
-    "url": "https://github.com/h2o/quicly",
-    "role": "both"
-  },
   "ngtcp2": {
     "image": "ghcr.io/ngtcp2/ngtcp2-interop:latest",
     "url": "https://github.com/ngtcp2/ngtcp2",
