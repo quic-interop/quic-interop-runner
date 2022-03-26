@@ -10,7 +10,7 @@ import sys
 import tempfile
 from datetime import timedelta
 from enum import Enum, IntEnum
-from trace import Direction, PacketType, TraceAnalyzer, get_direction, get_packet_type
+from trace import Direction, PacketType, TraceAnalyzer, get_direction, get_packet_type, QUIC_V2_DRAFT
 from typing import List
 
 from Crypto.Cipher import AES
@@ -186,7 +186,9 @@ class TestCase(abc.ABC):
         if QUIC_VERSION not in versions:
             logging.info("Wrong version. Expected %s, got %s", QUIC_VERSION, versions)
             return False
+        return self._check_files()
 
+    def _check_files(self) -> bool:
         if len(self._files) == 0:
             raise Exception("No test files generated.")
         files = [
@@ -248,7 +250,7 @@ class TestCase(abc.ABC):
         """ Get the sum of the payload sizes of all packets """
         size = 0
         for p in packets:
-            if hasattr(p, "long_packet_type"):
+            if hasattr(p, "long_packet_type") or hasattr(p, "long_packet_type_v2"):
                 if hasattr(p, "payload"):  # when keys are available
                     size += len(p.payload.split(":"))
                 else:
@@ -1429,6 +1431,91 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
         return TestResult.SUCCEEDED
 
 
+class TestCaseV2(TestCase):
+    @staticmethod
+    def name():
+        return "v2"
+
+    @staticmethod
+    def abbreviation():
+        return "V2"
+
+    @staticmethod
+    def desc():
+        return "Server should select QUIC v2 in compatible version negotiation."
+
+    def get_paths(self):
+        self._files = [self._generate_random_file(1 * KB)]
+        return self._files
+
+    def check(self) -> TestResult:
+        # Client should initially send QUIC v1 packet.  It may send
+        # QUIC v2 packet.
+        versions = self._get_packet_versions(
+            self._client_trace().get_initial(Direction.FROM_CLIENT)
+        )
+        if QUIC_VERSION not in versions:
+            logging.info(
+                "Wrong version in client Initial. Expected %s, got %s",
+                QUIC_VERSION, versions
+            )
+            return TestResult.FAILED
+
+        # Server Initial packets should have QUIC v2.  It may send
+        # QUIC v1 packet before sending CRYPTO frame.
+        versions = self._get_packet_versions(
+            self._server_trace().get_initial(Direction.FROM_SERVER)
+        )
+        if QUIC_V2_DRAFT not in versions:
+            logging.info(
+                "Wrong version in server Initial. Expected %s, got %s",
+                QUIC_V2_DRAFT, versions
+            )
+            return TestResult.FAILED
+
+        # Client should use QUIC v2 for all Handshake packets.
+        versions = self._get_packet_versions(
+            self._client_trace().get_handshake(Direction.FROM_CLIENT)
+        )
+        if len(versions) != 1:
+            logging.info(
+                "Expected exactly one version in client Handshake. Got %s",
+                versions
+            )
+            return TestResult.FAILED
+        if QUIC_V2_DRAFT not in versions:
+            logging.info(
+                "Wrong version in client Handshake. Expected %s, got %s",
+                QUIC_V2_DRAFT, versions
+            )
+            return TestResult.FAILED
+
+        # Server should use QUIC v2 for all Handshake packets.
+        versions = self._get_packet_versions(
+            self._server_trace().get_handshake(Direction.FROM_SERVER)
+        )
+        if len(versions) != 1:
+            logging.info(
+                "Expected exactly one version in server Handshake. Got %s",
+                versions
+            )
+            return TestResult.FAILED
+        if QUIC_V2_DRAFT not in versions:
+            logging.info(
+                "Wrong version in server Handshake. Expected %s, got %s",
+                QUIC_V2_DRAFT, versions
+            )
+            return TestResult.FAILED
+
+        if not self._check_files():
+            return TestResult.FAILED
+
+        return TestResult.SUCCEEDED
+
+    def _get_packet_versions(self, packets: List) -> set:
+        """ Get a set of QUIC versions from packets. """
+        return set([hex(int(p.version, 0)) for p in packets])
+
 class MeasurementGoodput(Measurement):
     FILESIZE = 10 * MB
     _result = 0.0
@@ -1540,6 +1627,7 @@ TESTCASES = [
     TestCaseHandshakeCorruption,
     TestCaseTransferCorruption,
     TestCaseIPv6,
+    TestCaseV2,
     # The next three tests are disabled due to Wireshark not being able
     # to decrypt packets sent on the new path.
     # TestCasePortRebinding,
