@@ -99,7 +99,7 @@ class TraceAnalyzer:
     def _get_packets(self, f: str) -> List:
         override_prefs = {}
         if self._keylog_file is not None:
-            override_prefs["ssl.keylog_file"] = self._keylog_file
+            override_prefs["tls.keylog_file"] = self._keylog_file
         cap = pyshark.FileCapture(
             self._filename,
             display_filter=f,
