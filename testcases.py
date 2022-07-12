@@ -1556,12 +1556,7 @@ class MeasurementGoodput(Measurement):
         if not self._check_version_and_files():
             return TestResult.FAILED
 
-        packets = self._client_trace().get_1rtt(Direction.FROM_SERVER)
-        first, last = 0, 0
-        for p in packets:
-            if first == 0:
-                first = p.sniff_time
-            last = p.sniff_time
+        packets, first, last = self._client_trace().get_1rtt_sniff_times(Direction.FROM_SERVER)
 
         if last - first == 0:
             return TestResult.FAILED

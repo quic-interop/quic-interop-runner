@@ -1,6 +1,7 @@
 import logging
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Tuple
+import datetime
 
 import pyshark
 
@@ -133,7 +134,13 @@ class TraceAnalyzer:
 
     def get_1rtt(self, direction: Direction = Direction.ALL) -> List:
         """ Get all QUIC packets, one or both directions. """
+        packets, _, _ = self.get_1rtt_sniff_times(direction)
+        return packets
+
+    def get_1rtt_sniff_times(self, direction: Direction = Direction.ALL) -> Tuple[List, datetime.datetime, datetime.datetime]:
+        """ Get all QUIC packets, one or both directions, and first and last sniff times. """
         packets = []
+        first, last = 0, 0
         for packet in self._get_packets(
             self._get_direction_filter(direction) + "quic.header_form==0"
         ):
@@ -143,9 +150,11 @@ class TraceAnalyzer:
                 ) and not hasattr(
                     layer, "long_packet_type_v2"
                 ):
-                    layer.sniff_time = packet.sniff_time
+                    if first == 0:
+                        first = packet.sniff_time
+                    last = packet.sniff_time
                     packets.append(layer)
-        return packets
+        return packets, first, last
 
     def get_vnp(self, direction: Direction = Direction.ALL) -> List:
         return self._get_packets(
