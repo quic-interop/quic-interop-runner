@@ -45,7 +45,7 @@
     "role": "both"
   },
   "nginx": {
-    "image": "nginx/nginx-quic-qns:latest",
+    "image": "public.ecr.aws/nginx/nginx-quic-qns:latest",
     "url": "https://quic.nginx.org/",
     "role": "server"
   },
