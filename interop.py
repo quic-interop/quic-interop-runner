@@ -130,12 +130,12 @@ class InteropRunner:
             "DOWNLOADS=" + downloads_dir.name + " "
             'SCENARIO="simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25" '
             "CLIENT=" + self._implementations[name]["image"] + " "
-            "docker-compose up --timeout 0 --abort-on-container-exit -V sim client"
+            "docker-compose up --timeout 0 --exit-code-from client -V sim client"
         )
         output = subprocess.run(
             cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
         )
-        if not self._is_unsupported(output.stdout.splitlines()):
+        if output.returncode != 127:
             logging.error("%s client not compliant.", name)
             logging.debug("%s", output.stdout.decode("utf-8"))
             self.compliant[name] = False
@@ -153,12 +153,12 @@ class InteropRunner:
             "WWW=" + www_dir.name + " "
             "DOWNLOADS=" + downloads_dir.name + " "
             "SERVER=" + self._implementations[name]["image"] + " "
-            "docker-compose up -V server"
+            "docker-compose up --exit-code-from server -V server"
         )
         output = subprocess.run(
             cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
         )
-        if not self._is_unsupported(output.stdout.splitlines()):
+        if output.returncode != 127:
             logging.error("%s server not compliant.", name)
             logging.debug("%s", output.stdout.decode("utf-8"))
             self.compliant[name] = False
