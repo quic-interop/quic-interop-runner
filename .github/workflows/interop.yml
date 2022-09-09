@@ -278,4 +278,5 @@ jobs:
           script: |
             cd /mnt/logs
             jq '. += [ "${{ needs.config.outputs.logname }}" ]' logs.json | sponge logs.json
-            rm latest && ln -s $LOGNAME latest
+            rm latest || true
+            ln -s $LOGNAME latest
