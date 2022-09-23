@@ -2,15 +2,22 @@
 
 The Interop Test Runner aims to automatically generate an interop matrix by running multiple **test cases** using different QUIC implementations.
 
-## Running the Interop Runner
+## Requirements
 
-The Interop Runner is written in Python 3. You'll need to install a few Python modules to run it:
+The Interop Runner is written in Python 3. You'll need to install the
+following softwares to run the interop test:
+
+- Python3 modules. Run the following command:
 
 ```bash
 pip3 install -r requirements.txt
 ```
 
-Furthermore, you need to install development version of Wireshark (version 3.4.2 or newer).
+- [Docker](https://docs.docker.com/engine/install/) and [docker-compose](https://docs.docker.com/compose/install/other/#install-compose-standalone). Note that the Interop Runner doesn't support [docker compose v2](https://docs.docker.com/compose/install/) yet.
+
+- [Development version of Wireshark](https://www.wireshark.org/download.html) (version 3.4.2 or newer).
+
+## Running the Interop Runner
 
 Run the interop tests:
 ```bash
