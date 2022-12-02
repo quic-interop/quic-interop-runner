@@ -151,18 +151,64 @@ class TestCase(abc.ABC):
             return self._server_keylog_file
         logging.debug("No key log file found.")
 
+    def _inject_keylog_if_possible(
+        self, trace_raw: str, trace_with_secrets: str
+    ) -> str:
+        """
+        Inject the keylog file into a pcap file if it is available and valid.
+
+        :Return: ``trace_with_secrets`` if it was available or ``trace_raw`` if not.
+        """
+        keylog = self._keylog_file()
+
+        if (
+            os.path.isfile(trace_with_secrets)
+            and os.path.getsize(trace_with_secrets) > 0
+        ):
+            # already injected
+
+            return trace_with_secrets
+        elif keylog:
+            # inject
+            try:
+                subprocess.check_call(
+                    f"editcap --inject-secrets tls,{keylog} {trace_raw} {trace_with_secrets}",
+                    shell=True,
+                )
+            except subprocess.CalledProcessError:
+                logging.debug("Failed to inject secrets %s into %s.", keylog, trace_raw)
+
+                if os.path.isfile(trace_with_secrets):
+                    os.remove(trace_with_secrets)
+
+                return trace_raw
+
+            return trace_with_secrets
+        else:
+            return trace_raw
+
     def _client_trace(self):
         if self._cached_client_trace is None:
-            self._cached_client_trace = TraceAnalyzer(
-                self._sim_log_dir.name + "/trace_node_left.pcap", self._keylog_file()
+            trace_raw = self._sim_log_dir.name + "/trace_node_left.pcap"
+            trace_with_secrets = (
+                self._sim_log_dir.name + "/trace_node_left_with_secrets.pcapng"
             )
+            trace = self._inject_keylog_if_possible(trace_raw, trace_with_secrets)
+
+            self._cached_client_trace = TraceAnalyzer(trace)
+
         return self._cached_client_trace
 
     def _server_trace(self):
         if self._cached_server_trace is None:
-            self._cached_server_trace = TraceAnalyzer(
-                self._sim_log_dir.name + "/trace_node_right.pcap", self._keylog_file()
+            trace_raw = self._sim_log_dir.name + "/trace_node_right.pcap"
+            trace_with_secrets = (
+                self._sim_log_dir.name + "/trace_node_right_with_secrets.pcapng"
             )
+            trace = self._inject_keylog_if_possible(trace_raw, trace_with_secrets)
+
+            self._cached_server_trace = TraceAnalyzer(trace)
+
         return self._cached_server_trace
 
     # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
