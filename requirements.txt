@@ -1,4 +1,4 @@
-pycrypto
+pycryptodome
 termcolor
 prettytable
 pyshark
