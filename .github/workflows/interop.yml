@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Restore from cache
         id: restore-cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         env:
           VERSION: ${{ env.WIRESHARK_CACHEKEY }}
         with:
@@ -26,7 +26,7 @@ jobs:
         run: |
           tar xfz tshark.tar.gz
           ./tshark -v
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         if: steps.restore-cache.outputs.cache-hit != 'true'
         with:
           repository: wireshark/wireshark
@@ -44,7 +44,7 @@ jobs:
         if: steps.restore-cache.outputs.cache-hit != 'true'
         run: tar -czvf tshark.tar.gz -C run/ tshark
       - name: Upload
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: wireshark
           path: tshark.tar.gz
@@ -69,8 +69,8 @@ jobs:
           STARTTIME=$(date +%s)
           echo $STARTTIME
           echo "::set-output name=starttime::$STARTTIME"
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v1
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: 3.8
       - name: Determine servers
@@ -97,7 +97,7 @@ jobs:
       matrix:
         image: [ 'quic-network-simulator', 'quic-interop-iperf-endpoint' ]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Pull
       run: |
         URL="martenseemann/${{ matrix.image }}"
@@ -110,7 +110,7 @@ jobs:
         docker save $URL | gzip --best > ${{ matrix.image }}.tar.gz
         du -sh ${{ matrix.image }}.tar.gz
     - name: Upload result
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: images-tools
         path: ${{ matrix.image }}.tar.gz
@@ -123,7 +123,7 @@ jobs:
         image: ${{ fromJson(needs.config.outputs.images) }}
     name: Pull ${{ matrix.image }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Run docker pull
         run: |
           URL=$(jq -r '.["${{ matrix.image }}"].image' implementations.json)
@@ -137,7 +137,7 @@ jobs:
           docker save $URL | gzip --best > ${{ matrix.image }}.tar.gz
           du -sh ${{ matrix.image }}.tar.gz
       - name: Upload result
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: image-${{ matrix.image }}
           path: ${{ matrix.image }}.tar.gz
@@ -153,24 +153,24 @@ jobs:
         client: ${{ fromJson(needs.config.outputs.clients) }}
     name: (${{ matrix.server }} - ${{ matrix.client }})
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v1
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: 3.8
       - name: Enable IPv6 support
         run: sudo modprobe ip6table_filter
       - run: docker image ls
       - name: Download tools Docker images
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: images-tools
       - name: Download ${{ matrix.server }} Docker image
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: image-${{ matrix.server }}
       - name: Download ${{ matrix.client }} Docker image
         if: ${{ matrix.server != matrix.client }}
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: image-${{ matrix.client }}
       - name: Load docker images
@@ -181,7 +181,7 @@ jobs:
           docker load --input ${{ matrix.client }}.tar.gz
       - run: docker image ls
       - name: Download Wireshark
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: wireshark
           path: wireshark
@@ -223,7 +223,7 @@ jobs:
           target: /mnt/logs/${{ needs.config.outputs.logname }}
           strip_components: 1
       - name: Upload result
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: results
           path: |
@@ -235,12 +235,12 @@ jobs:
     env:
       LOGNAME: ${{ needs.config.outputs.logname }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v1
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: 3.8
       - name: Download results
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: results
       - name: Aggregate results
@@ -254,7 +254,7 @@ jobs:
       - name: Print result
         run: jq '.' result.json
       - name: Upload result to artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: results
           path: result.json
