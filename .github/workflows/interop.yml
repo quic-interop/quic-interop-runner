@@ -227,6 +227,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: results
+          if-no-files-found: error
           path: |
             ${{ matrix.server }}_${{ matrix.client }}_results.json
             ${{ matrix.server }}_${{ matrix.client }}_measurements.json
