@@ -223,6 +223,8 @@ jobs:
           source: logs/${{ matrix.server }}_${{ matrix.client }}
           target: /mnt/logs/${{ needs.config.outputs.logname }}
           strip_components: 1
+      - run: pwd
+      - run: ls -al
       - name: Upload result
         uses: actions/upload-artifact@v3
         with:
