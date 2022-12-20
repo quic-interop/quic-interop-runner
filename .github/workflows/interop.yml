@@ -62,13 +62,13 @@ jobs:
         run: |
           LOGNAME=$(date -u +"%Y-%m-%dT%H:%M")
           echo $LOGNAME
-          echo "::set-output name=logname::$LOGNAME"
+          echo "logname=$LOGNAME" >> $GITHUB_OUTPUT
       - name: Save start time
         id: set-starttime
         run: |
           STARTTIME=$(date +%s)
           echo $STARTTIME
-          echo "::set-output name=starttime::$STARTTIME"
+          echo "starttime=$STARTTIME" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
@@ -78,19 +78,19 @@ jobs:
         run: |
           SERVERS=$(jq -c 'with_entries(select(.value.role == "server" or .value.role == "both")) | keys_unsorted' implementations.json)
           echo $SERVERS
-          echo "::set-output name=servers::$SERVERS"
+          echo "servers=$SERVERS" >> $GITHUB_OUTPUT
       - name: Determine clients
         id: set-clients
         run: |
           CLIENTS=$(jq -c 'with_entries(select(.value.role == "client" or .value.role == "both")) | keys_unsorted' implementations.json)
           echo $CLIENTS
-          echo "::set-output name=clients::$CLIENTS"
+          echo "clients=$CLIENTS" >> $GITHUB_OUTPUT
       - name: Determine Docker images
         id: set-images
         run: |
           IMAGES=$(jq -c 'keys_unsorted' implementations.json)
           echo $IMAGES
-          echo "::set-output name=images::$IMAGES"
+          echo "images=$IMAGES" >> $GITHUB_OUTPUT
   docker-pull-tools:
     runs-on: ubuntu-latest
     strategy:
