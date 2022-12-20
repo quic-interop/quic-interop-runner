@@ -54,6 +54,7 @@ for i in $(seq $CHAINLEN -1 1); do
   cat $CERTDIR/cert_$i.pem >> $CERTDIR/cert.pem
   rm $CERTDIR/cert_$i.pem $CERTDIR/ca_$i.key
 done
+ls -al $CERTDIR/
 rm $CERTDIR/*.srl $CERTDIR/ca_0.key $CERTDIR/cert.csr
 
 
