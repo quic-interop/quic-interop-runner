@@ -49,7 +49,8 @@ def generate_cert_chain(directory: str, length: int = 1):
     )
     logging.debug("%s", r.stdout.decode("utf-8"))
     if r.returncode != 0:
-        logging.info("Unable to create certificates")
+        logging.error("Unable to create certificates")
+        logging.info(r.stdout)
         sys.exit(1)
 
 
