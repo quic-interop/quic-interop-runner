@@ -29,14 +29,24 @@ jobs:
       - uses: actions/checkout@v3
         if: steps.restore-cache.outputs.cache-hit != 'true'
         with:
+          repository: the-tcpdump-group/libpcap
+      - name: Build libpcap
+        if: steps.restore-cache.outputs.cache-hit != 'true'
+        run: |
+          ./autogen.sh
+          ./configure --disable-dbus --disable-rdma
+          sudo make install
+      - uses: actions/checkout@v3
+        if: steps.restore-cache.outputs.cache-hit != 'true'
+        with:
           repository: wireshark/wireshark
       - name: Install dependencies
         if: steps.restore-cache.outputs.cache-hit != 'true'
-        run: sudo apt-get install -y cmake libglib2.0-dev libc-ares-dev libgcrypt20-dev flex bison byacc libpcap-dev ninja-build
+        run: sudo apt-get install -y cmake libglib2.0-dev libc-ares-dev libgcrypt20-dev flex bison byacc ninja-build
       - name: Build Wireshark
         if: steps.restore-cache.outputs.cache-hit != 'true'
         run: |
-          cmake -GNinja -DBUILD_wireshark=0 -DBUILD_qtshark=0 -DBUILD_editcap=0 -DBUILD_capinfos=0 -DBUILD_text2pcap=0 -DBUILD_rawshark=0 -DBUILD_sdjournal=0 -DBUILD_sshdump=0 -DBUILD_ciscodump=0 -DENABLE_STATIC=1 -DENABLE_PLUGINS=0 -DENABLE_LIBXML2=0 -DUSE_STATIC=1 -DENABLE_GNUTLS=1 .
+          cmake -GNinja -DBUILD_wireshark=0 -DBUILD_qtshark=0 -DBUILD_editcap=0 -DBUILD_capinfos=0 -DBUILD_text2pcap=0 -DBUILD_rawshark=0 -DBUILD_sdjournal=0 -DBUILD_sshdump=0 -DBUILD_ciscodump=0 -DBUILD_sharkd=0 -DENABLE_STATIC=1 -DENABLE_PLUGINS=0 -DENABLE_LIBXML2=0 -DENABLE_BROTLI=0 -DUSE_STATIC=1 -DENABLE_GNUTLS=1 .
           ninja
       - run: run/tshark -v
         if: steps.restore-cache.outputs.cache-hit != 'true'
