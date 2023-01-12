@@ -10,7 +10,7 @@ import sys
 import tempfile
 from datetime import timedelta
 from enum import Enum, IntEnum
-from trace import Direction, PacketType, TraceAnalyzer, get_direction, get_packet_type, QUIC_V2_DRAFT
+from trace import Direction, PacketType, TraceAnalyzer, get_direction, get_packet_type, QUIC_V2
 from typing import List
 
 from Crypto.Cipher import AES
@@ -1466,10 +1466,10 @@ class TestCaseV2(TestCase):
         versions = self._get_packet_versions(
             self._server_trace().get_initial(Direction.FROM_SERVER)
         )
-        if QUIC_V2_DRAFT not in versions:
+        if QUIC_V2 not in versions:
             logging.info(
                 "Wrong version in server Initial. Expected %s, got %s",
-                QUIC_V2_DRAFT, versions
+                QUIC_V2, versions
             )
             return TestResult.FAILED
 
@@ -1483,10 +1483,10 @@ class TestCaseV2(TestCase):
                 versions
             )
             return TestResult.FAILED
-        if QUIC_V2_DRAFT not in versions:
+        if QUIC_V2 not in versions:
             logging.info(
                 "Wrong version in client Handshake. Expected %s, got %s",
-                QUIC_V2_DRAFT, versions
+                QUIC_V2, versions
             )
             return TestResult.FAILED
 
@@ -1500,10 +1500,10 @@ class TestCaseV2(TestCase):
                 versions
             )
             return TestResult.FAILED
-        if QUIC_V2_DRAFT not in versions:
+        if QUIC_V2 not in versions:
             logging.info(
                 "Wrong version in server Handshake. Expected %s, got %s",
-                QUIC_V2_DRAFT, versions
+                QUIC_V2, versions
             )
             return TestResult.FAILED
 
