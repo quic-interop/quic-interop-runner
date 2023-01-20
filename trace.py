@@ -11,7 +11,7 @@ IP6_CLIENT = "fd00:cafe:cafe:0::100"
 IP6_SERVER = "fd00:cafe:cafe:100::100"
 
 
-QUIC_V2_DRAFT = hex(0x709a50c4)
+QUIC_V2 = hex(0x6b3343cf)
 
 
 class Direction(Enum):
@@ -39,7 +39,7 @@ WIRESHARK_PACKET_TYPES = {
 }
 
 
-WIRESHARK_PACKET_TYPES_V2_DRAFT = {
+WIRESHARK_PACKET_TYPES_V2 = {
     PacketType.INITIAL: "1",
     PacketType.ZERORTT: "2",
     PacketType.HANDSHAKE: "3",
@@ -66,8 +66,8 @@ def get_packet_type(p) -> PacketType:
         return PacketType.ONERTT
     if p.quic.version == "0x00000000":
         return PacketType.VERSIONNEGOTIATION
-    if p.quic.version == QUIC_V2_DRAFT:
-        for t, num in WIRESHARK_PACKET_TYPES_V2_DRAFT.items():
+    if p.quic.version == QUIC_V2:
+        for t, num in WIRESHARK_PACKET_TYPES_V2.items():
             if p.quic.long_packet_type_v2 == num:
                 return t
         return PacketType.INVALID
@@ -179,7 +179,7 @@ class TraceAnalyzer:
                         )
                         or (
                             hasattr(layer, "long_packet_type_v2")
-                            and layer.long_packet_type_v2 == WIRESHARK_PACKET_TYPES_V2_DRAFT[packet_type]
+                            and layer.long_packet_type_v2 == WIRESHARK_PACKET_TYPES_V2[packet_type]
                         )
                     )
                 ):
