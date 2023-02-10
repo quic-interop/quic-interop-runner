@@ -391,6 +391,12 @@ class TestCaseLongRTT(TestCaseHandshake):
             if hasattr(p, "tls_handshake_type"):
                 if p.tls_handshake_type == "1":
                     num_ch += 1
+            # Retransmitted ClientHello does not have
+            # tls_handshake_type attribute.  See
+            # https://gitlab.com/wireshark/wireshark/-/issues/18696
+            # for details.
+            elif hasattr(p, "retransmission") or hasattr(p, "overlap"):
+                num_ch += 1
         if num_ch < 2:
             logging.info("Expected at least 2 ClientHellos. Got: %d", num_ch)
             return TestResult.FAILED
