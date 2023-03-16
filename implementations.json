@@ -60,7 +60,7 @@
     "role": "client"
   },
   "xquic": {
-    "image": "kulsk/xquic:latest",
+    "image": "ghcr.io/alibaba/xquic/xquic-interop:latest",
     "url": "https://github.com/alibaba/xquic",
     "role": "both"
   },
