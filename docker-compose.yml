@@ -12,6 +12,7 @@ services:
       - SCENARIO=$SCENARIO
     cap_add: 
       - NET_ADMIN
+      - NET_RAW
     expose:
       - "57832"
     networks:
