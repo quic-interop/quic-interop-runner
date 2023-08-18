@@ -53,6 +53,8 @@ If you're not familiar with Docker, it might be helpful to have a look at the Do
 * neqo: [Dockerfile](https://github.com/mozilla/neqo/blob/main/neqo-qns/Dockerfile) and [run_endpoint.sh](https://github.com/mozilla/neqo/blob/main/neqo-qns/run_endpoint.sh)
 * msquic: [Dockerfile](https://github.com/microsoft/msquic/blob/master/Dockerfile), [run_endpoint.sh](https://github.com/microsoft/msquic/blob/master/scripts/run_endpoint.sh) and [CI config](https://github.com/microsoft/msquic/blob/master/.azure/azure-pipelines.docker.yml)
 
+Note that the [online interop](https://interop.seemann.io/) runner requires `linux/amd64` architecture, so use `docker build` with `--platform linux/amd64` to create a compatible image if you build on a different architecture (e.g. "Apple silicon").
+
 Implementers: Please feel free to add links to your implementation here!
 
 ## Logs
