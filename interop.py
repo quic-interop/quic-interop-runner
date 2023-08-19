@@ -130,7 +130,10 @@ class InteropRunner:
             "DOWNLOADS=" + downloads_dir.name + " "
             'SCENARIO="simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25" '
             "CLIENT=" + self._implementations[name]["image"] + " "
-            "docker-compose up --timeout 0 --abort-on-container-exit -V sim client"
+            "SERVER="
+            + self._implementations[name]["image"]
+            + " "  # will not be used, but Docker requires setting it
+            "docker compose up --timeout 0 --abort-on-container-exit -V sim client"
         )
         output = subprocess.run(
             cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
@@ -152,8 +155,11 @@ class InteropRunner:
             "CLIENT_LOGS=/dev/null "
             "WWW=" + www_dir.name + " "
             "DOWNLOADS=" + downloads_dir.name + " "
+            "CLIENT="
+            + self._implementations[name]["image"]
+            + " "  # will not be used, but Docker requires setting it
             "SERVER=" + self._implementations[name]["image"] + " "
-            "docker-compose up -V server"
+            "docker compose up -V server"
         )
         output = subprocess.run(
             cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
@@ -285,11 +291,22 @@ class InteropRunner:
         f.close()
 
     def _copy_logs(self, container: str, dir: tempfile.TemporaryDirectory):
-        r = subprocess.run(
-            'docker cp "$(docker-compose --log-level ERROR ps -q '
+        empty_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="unused_")
+        # all the environment variables are not used, but Docker makes us set them anyway
+        cmd = (
+            'docker cp "$( DOWNLOADS='
+            + empty_dir.name
+            + " CERTS="
+            + empty_dir.name
+            + " WWW="
+            + empty_dir.name
+            + " CLIENT=sim SERVER=sim docker compose ps --all -q "
             + container
             + ')":/logs/. '
-            + dir.name,
+            + dir.name
+        )
+        r = subprocess.run(
+            cmd,
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -358,7 +375,7 @@ class InteropRunner:
         containers = "sim client server " + " ".join(testcase.additional_containers())
         cmd = (
             params
-            + " docker-compose up --abort-on-container-exit --timeout 1 "
+            + " docker compose up --abort-on-container-exit --timeout 1 "
             + containers
         )
         logging.debug("Command: %s", cmd)
@@ -384,7 +401,7 @@ class InteropRunner:
         if expired:
             logging.debug("Test failed: took longer than %ds.", testcase.timeout())
             r = subprocess.run(
-                "docker-compose stop " + containers,
+                "docker compose stop " + containers,
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
