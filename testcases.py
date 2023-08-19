@@ -10,7 +10,14 @@ import sys
 import tempfile
 from datetime import timedelta
 from enum import Enum, IntEnum
-from trace import Direction, PacketType, TraceAnalyzer, get_direction, get_packet_type, QUIC_V2
+from trace import (
+    QUIC_V2,
+    Direction,
+    PacketType,
+    TraceAnalyzer,
+    get_direction,
+    get_packet_type,
+)
 from typing import List
 
 from Crypto.Cipher import AES
@@ -37,7 +44,7 @@ class ECN(IntEnum):
 
 
 def random_string(length: int):
-    """Generate a random string of fixed length """
+    """Generate a random string of fixed length"""
     letters = string.ascii_lowercase
     return "".join(random.choice(letters) for i in range(length))
 
@@ -87,22 +94,22 @@ class TestCase(abc.ABC):
         return self.name()
 
     def testname(self, p: Perspective):
-        """ The name of testcase presented to the endpoint Docker images"""
+        """The name of testcase presented to the endpoint Docker images"""
         return self.name()
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
         return "simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25"
 
     @staticmethod
     def timeout() -> int:
-        """ timeout in s """
+        """timeout in s"""
         return 60
 
     @staticmethod
     def urlprefix() -> str:
-        """ URL prefix """
+        """URL prefix"""
         return "https://server4:443/"
 
     @staticmethod
@@ -235,19 +242,19 @@ class TestCase(abc.ABC):
         return True
 
     def _count_handshakes(self) -> int:
-        """ Count the number of QUIC handshakes """
+        """Count the number of QUIC handshakes"""
         tr = self._server_trace()
         # Determine the number of handshakes by looking at Initial packets.
         # This is easier, since the SCID of Initial packets doesn't changes.
         return len(set([p.scid for p in tr.get_initial(Direction.FROM_SERVER)]))
 
     def _get_versions(self) -> set:
-        """ Get the QUIC versions """
+        """Get the QUIC versions"""
         tr = self._server_trace()
         return set([p.version for p in tr.get_initial(Direction.FROM_SERVER)])
 
     def _payload_size(self, packets: List) -> int:
-        """ Get the sum of the payload sizes of all packets """
+        """Get the sum of the payload sizes of all packets"""
         size = 0
         for p in packets:
             if hasattr(p, "long_packet_type") or hasattr(p, "long_packet_type_v2"):
@@ -376,7 +383,7 @@ class TestCaseLongRTT(TestCaseHandshake):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
         return "simple-p2p --delay=750ms --bandwidth=10Mbps --queue=25"
 
     def check(self) -> TestResult:
@@ -464,7 +471,9 @@ class TestCaseChaCha20(TestCase):
         for p in self._client_trace().get_initial(Direction.FROM_CLIENT):
             if hasattr(p, "tls_handshake_ciphersuite"):
                 ciphersuites.append(p.tls_handshake_ciphersuite)
-        if len(set(ciphersuites)) != 1 or (ciphersuites[0] != "4867" and ciphersuites[0] != "0x1303"):
+        if len(set(ciphersuites)) != 1 or (
+            ciphersuites[0] != "4867" and ciphersuites[0] != "0x1303"
+        ):
             logging.info(
                 "Expected only ChaCha20 cipher suite to be offered. Got: %s",
                 set(ciphersuites),
@@ -748,7 +757,7 @@ class TestCaseAmplificationLimit(TestCase):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
         # Let the ClientHello pass, but drop a bunch of retransmissions afterwards.
         return "droplist --delay=15ms --bandwidth=10Mbps --queue=25 --drops_to_server=2,3,4,5,6,7"
 
@@ -860,7 +869,7 @@ class TestCaseBlackhole(TestCase):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
         return "blackhole --delay=15ms --bandwidth=10Mbps --queue=25 --on=5s --off=2s"
 
     def get_paths(self):
@@ -976,7 +985,7 @@ class TestCaseHandshakeLoss(TestCase):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
         return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=30 --rate_to_client=30"
 
     def get_paths(self):
@@ -1015,7 +1024,7 @@ class TestCaseTransferLoss(TestCase):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
         return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=2 --rate_to_client=2"
 
     def get_paths(self):
@@ -1048,7 +1057,7 @@ class TestCaseHandshakeCorruption(TestCaseHandshakeLoss):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
         return "corrupt-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=30 --rate_to_client=30"
 
 
@@ -1067,7 +1076,7 @@ class TestCaseTransferCorruption(TestCaseTransferLoss):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
         return "corrupt-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=2 --rate_to_client=2"
 
 
@@ -1186,7 +1195,7 @@ class TestCasePortRebinding(TestCaseTransfer):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
         return "rebind --delay=15ms --bandwidth=10Mbps --queue=25 --first-rebind=1s --rebind-freq=5s"
 
     def check(self) -> TestResult:
@@ -1284,7 +1293,7 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
 
     @staticmethod
     def scenario() -> str:
-        """ Scenario for the ns3 simulator """
+        """Scenario for the ns3 simulator"""
         return (
             super(TestCaseAddressRebinding, TestCaseAddressRebinding).scenario()
             + " --rebind-addr"
@@ -1463,7 +1472,8 @@ class TestCaseV2(TestCase):
         if QUIC_VERSION not in versions:
             logging.info(
                 "Wrong version in client Initial. Expected %s, got %s",
-                QUIC_VERSION, versions
+                QUIC_VERSION,
+                versions,
             )
             return TestResult.FAILED
 
@@ -1475,7 +1485,8 @@ class TestCaseV2(TestCase):
         if QUIC_V2 not in versions:
             logging.info(
                 "Wrong version in server Initial. Expected %s, got %s",
-                QUIC_V2, versions
+                QUIC_V2,
+                versions,
             )
             return TestResult.FAILED
 
@@ -1485,14 +1496,14 @@ class TestCaseV2(TestCase):
         )
         if len(versions) != 1:
             logging.info(
-                "Expected exactly one version in client Handshake. Got %s",
-                versions
+                "Expected exactly one version in client Handshake. Got %s", versions
             )
             return TestResult.FAILED
         if QUIC_V2 not in versions:
             logging.info(
                 "Wrong version in client Handshake. Expected %s, got %s",
-                QUIC_V2, versions
+                QUIC_V2,
+                versions,
             )
             return TestResult.FAILED
 
@@ -1502,14 +1513,14 @@ class TestCaseV2(TestCase):
         )
         if len(versions) != 1:
             logging.info(
-                "Expected exactly one version in server Handshake. Got %s",
-                versions
+                "Expected exactly one version in server Handshake. Got %s", versions
             )
             return TestResult.FAILED
         if QUIC_V2 not in versions:
             logging.info(
                 "Wrong version in server Handshake. Expected %s, got %s",
-                QUIC_V2, versions
+                QUIC_V2,
+                versions,
             )
             return TestResult.FAILED
 
@@ -1519,8 +1530,9 @@ class TestCaseV2(TestCase):
         return TestResult.SUCCEEDED
 
     def _get_packet_versions(self, packets: List) -> set:
-        """ Get a set of QUIC versions from packets. """
+        """Get a set of QUIC versions from packets."""
         return set([hex(int(p.version, 0)) for p in packets])
+
 
 class MeasurementGoodput(Measurement):
     FILESIZE = 10 * MB
@@ -1562,7 +1574,9 @@ class MeasurementGoodput(Measurement):
         if not self._check_version_and_files():
             return TestResult.FAILED
 
-        packets, first, last = self._client_trace().get_1rtt_sniff_times(Direction.FROM_SERVER)
+        packets, first, last = self._client_trace().get_1rtt_sniff_times(
+            Direction.FROM_SERVER
+        )
 
         if last - first == 0:
             return TestResult.FAILED

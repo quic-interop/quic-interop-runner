@@ -21,7 +21,7 @@ from testcases import Perspective
 
 
 def random_string(length: int):
-    """ Generate a random string of fixed length """
+    """Generate a random string of fixed length"""
     letters = string.ascii_lowercase
     return "".join(random.choice(letters) for i in range(length))
 
@@ -103,7 +103,7 @@ class InteropRunner:
         )
 
     def _check_impl_is_compliant(self, name: str) -> bool:
-        """ check if an implementation return UNSUPPORTED for unknown test cases """
+        """check if an implementation return UNSUPPORTED for unknown test cases"""
         if name in self.compliant:
             logging.debug(
                 "%s already tested for compliance: %s", name, str(self.compliant)
