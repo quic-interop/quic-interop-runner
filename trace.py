@@ -1,7 +1,7 @@
+import datetime
 import logging
 from enum import Enum
 from typing import List, Optional, Tuple
-import datetime
 
 import pyshark
 
@@ -11,7 +11,7 @@ IP6_CLIENT = "fd00:cafe:cafe:0::100"
 IP6_SERVER = "fd00:cafe:cafe:100::100"
 
 
-QUIC_V2 = hex(0x6b3343cf)
+QUIC_V2 = hex(0x6B3343CF)
 
 
 class Direction(Enum):
@@ -133,22 +133,24 @@ class TraceAnalyzer:
         return packets
 
     def get_1rtt(self, direction: Direction = Direction.ALL) -> List:
-        """ Get all QUIC packets, one or both directions. """
+        """Get all QUIC packets, one or both directions."""
         packets, _, _ = self.get_1rtt_sniff_times(direction)
         return packets
 
-    def get_1rtt_sniff_times(self, direction: Direction = Direction.ALL) -> Tuple[List, datetime.datetime, datetime.datetime]:
-        """ Get all QUIC packets, one or both directions, and first and last sniff times. """
+    def get_1rtt_sniff_times(
+        self, direction: Direction = Direction.ALL
+    ) -> Tuple[List, datetime.datetime, datetime.datetime]:
+        """Get all QUIC packets, one or both directions, and first and last sniff times."""
         packets = []
         first, last = 0, 0
         for packet in self._get_packets(
             self._get_direction_filter(direction) + "quic.header_form==0"
         ):
             for layer in packet.layers:
-                if layer.layer_name == "quic" and not hasattr(
-                    layer, "long_packet_type"
-                ) and not hasattr(
-                    layer, "long_packet_type_v2"
+                if (
+                    layer.layer_name == "quic"
+                    and not hasattr(layer, "long_packet_type")
+                    and not hasattr(layer, "long_packet_type_v2")
                 ):
                     if first == 0:
                         first = packet.sniff_time
@@ -166,38 +168,37 @@ class TraceAnalyzer:
     ) -> List:
         packets = []
         for packet in self._get_packets(
-            self._get_direction_filter(direction) +
-                "(quic.long.packet_type || quic.long.packet_type_v2)"
+            self._get_direction_filter(direction)
+            + "(quic.long.packet_type || quic.long.packet_type_v2)"
         ):
             for layer in packet.layers:
-                if (
-                    layer.layer_name == "quic"
-                    and (
-                        (
-                            hasattr(layer, "long_packet_type")
-                            and layer.long_packet_type == WIRESHARK_PACKET_TYPES[packet_type]
-                        )
-                        or (
-                            hasattr(layer, "long_packet_type_v2")
-                            and layer.long_packet_type_v2 == WIRESHARK_PACKET_TYPES_V2[packet_type]
-                        )
+                if layer.layer_name == "quic" and (
+                    (
+                        hasattr(layer, "long_packet_type")
+                        and layer.long_packet_type
+                        == WIRESHARK_PACKET_TYPES[packet_type]
+                    )
+                    or (
+                        hasattr(layer, "long_packet_type_v2")
+                        and layer.long_packet_type_v2
+                        == WIRESHARK_PACKET_TYPES_V2[packet_type]
                     )
                 ):
                     packets.append(layer)
         return packets
 
     def get_initial(self, direction: Direction = Direction.ALL) -> List:
-        """ Get all Initial packets. """
+        """Get all Initial packets."""
         return self._get_long_header_packets(PacketType.INITIAL, direction)
 
     def get_retry(self, direction: Direction = Direction.ALL) -> List:
-        """ Get all Retry packets. """
+        """Get all Retry packets."""
         return self._get_long_header_packets(PacketType.RETRY, direction)
 
     def get_handshake(self, direction: Direction = Direction.ALL) -> List:
-        """ Get all Handshake packets. """
+        """Get all Handshake packets."""
         return self._get_long_header_packets(PacketType.HANDSHAKE, direction)
 
     def get_0rtt(self) -> List:
-        """ Get all 0-RTT packets. """
+        """Get all 0-RTT packets."""
         return self._get_long_header_packets(PacketType.ZERORTT, Direction.FROM_CLIENT)

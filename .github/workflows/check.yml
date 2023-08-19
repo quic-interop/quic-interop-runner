@@ -1,0 +1,18 @@
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+      - name: install tools
+        run: pip install flake8 black
+      - name: enforce coding styles using flake8
+        run: flake8 .
+      - name: run Black linter
+        if: success() || failure() # run this step even if the previous one failed
+        run: black --check --diff .
+      - name: check that implementations.json is valid
+        if: success() || failure() # run this step even if the previous one failed
+        run: python implementations.py
