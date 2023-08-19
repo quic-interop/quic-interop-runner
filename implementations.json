@@ -50,7 +50,7 @@
     "role": "server"
   },
   "msquic": {
-    "image": "ghcr.io/microsoft/msquic/qns:main",
+    "image": "marcop010/marco-msquic-interop",
     "url": "https://github.com/microsoft/msquic",
     "role": "both"
   },
