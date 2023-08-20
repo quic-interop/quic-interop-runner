@@ -55,6 +55,13 @@ If you're not familiar with Docker, it might be helpful to have a look at the Do
 
 Implementers: Please feel free to add links to your implementation here!
 
+Note that the [online interop](https://interop.seemann.io/) runner requires `linux/amd64` architecture, so if you build on a different architecture (e.g. "Apple silicon"), you would need to use `--platform linux/amd64` with `docker build` to create a compatible image. 
+Even better, and the recommended approach, is to use a multi-platform build to provide both `amd64` and `arm64` images, so everybody can run the interop locally with your implementation. To build the multi-platform image, you can use the `docker buildx` command:
+```
+docker buildx create --use
+docker buildx build --pull --push --platform linux/amd64,linux/arm64 -t <name:tag> .
+```
+
 ## Logs
 
 To facilitate debugging, the Interop Runner saves the log files to the logs directory. This directory is overwritten every time the Interop Runner is executed.
