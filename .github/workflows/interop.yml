@@ -240,6 +240,16 @@ jobs:
           path: |
             ${{ matrix.server }}_${{ matrix.client }}_results.json
             ${{ matrix.server }}_${{ matrix.client }}_measurements.json
+      - name: Install b2 cli
+        if: ${{ github.event_name == 'schedule' }}
+        uses: sylwit/install-b2-cli-action@v1.0.0
+        env:
+          B2_APPLICATION_KEY_ID: ${{ secrets.BACKBLAZE_KEY_ID }}
+          B2_APPLICATION_KEY: ${{ secrets.BACKBLAZE_APPLICATION_KEY }}
+      - name: Upload logs
+        if: ${{ github.event_name == 'schedule' }}
+        run: |
+          b2 sync logs/${{ matrix.server }}_${{ matrix.client }} b2://${{ vars.BACKBLAZE_BUCKET }}/${{ needs.config.outputs.logname }}/${{ matrix.server }}_${{ matrix.client }}
   aggregate:
     needs: [ config, tests ]
     runs-on: ubuntu-latest
@@ -291,3 +301,41 @@ jobs:
             jq '. += [ "${{ needs.config.outputs.logname }}" ]' logs.json | sponge logs.json
             rm latest || true
             ln -s $LOGNAME latest
+      - name: Install b2 cli
+        if: ${{ github.event_name == 'schedule' }}
+        uses: sylwit/install-b2-cli-action@v1.0.0
+        env:
+          B2_APPLICATION_KEY_ID: ${{ secrets.BACKBLAZE_KEY_ID }}
+          B2_APPLICATION_KEY: ${{ secrets.BACKBLAZE_APPLICATION_KEY }}
+      - name: Upload result
+        if: ${{ github.event_name == 'schedule' }}
+        run: |
+          b2 upload-file ${{ vars.BACKBLAZE_BUCKET }} result.json ${{ needs.config.outputs.logname }}/result.json
+      - name: Remove old logs
+        if: ${{ github.event_name == 'schedule' }}
+        run: |
+          # b2 ls neither lists the contents of the bucket, nor does it list all files
+          # Instead, it returns exactly *one* (the oldest) file per folder
+          threshold_time=$((($(date +%s) * 1000) - (${{ vars.LOG_RETENTION_DAYS }} * 24 * 60 * 60 * 1000)))
+          # Now delete them
+          b2 ls --json ${{ vars.BACKBLAZE_BUCKET}} | jq -r ".[] | select(.uploadTimestamp < $threshold_time) | .fileName" | while read -r filename; do 
+            dir_name="${filename%%/*}"
+            # skip files, we only care about directories
+            if [[ "$dir_name" != "." ]]; then
+              echo "Deleting $dir_name"
+              # see https://github.com/Backblaze/B2_Command_Line_Tool/issues/495#issuecomment-413932585
+              mkdir empty # create an empty directory
+              b2 sync --delete --allowEmptySource empty b2://${{ vars.BACKBLAZE_BUCKET }}/"$dir_name"
+              rmdir empty
+            fi
+          done
+      - name: Generate logs.json and upload it
+        if: ${{ github.event_name == 'schedule' }}
+        run: |
+          # First delete old version(s) of logs.json
+          # Otherwise, b2 would store multiple versions of this file.
+          b2 ls --withWildcard --recursive --versions --json quic-interop-runner "logs.json" | jq -r ".[] | .fileId" | while read -r fileid; do 
+            b2 delete-file-version logs.json $fileid
+          done
+          b2 ls --json quic-interop-runner | jq '[sort_by(.uploadTimestamp) | .[] | select(.fileName | contains("/")) | .fileName | split("/")[0] | select(. != null)]' > logs.json
+          b2 upload-file ${{ vars.BACKBLAZE_BUCKET }} logs.json logs.json
