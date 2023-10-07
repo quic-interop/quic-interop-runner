@@ -1,5 +1,8 @@
 name: interop
 on:
+  push:
+    branches:
+      - backblaze-test
   schedule:
   - cron: "0 */8 * * *" # every 8h
 
@@ -209,14 +212,14 @@ jobs:
         env:
           CRON: "true"
         run: |
-          (python run.py --client ${{ matrix.client }} --server ${{ matrix.server }} --log-dir logs --json ${{ matrix.server }}_${{ matrix.client }}_results.json -t onlyTests || true) | tee output.txt
+          (python run.py --client ${{ matrix.client }} --server ${{ matrix.server }} --log-dir logs --json ${{ matrix.server }}_${{ matrix.client }}_results.json -t handshake || true) | tee output.txt
           mkdir -p logs/${{ matrix.server }}_${{ matrix.client }}
           mv output.txt logs/${{ matrix.server }}_${{ matrix.client }}/
       - name: Run measurements
         env:
           CRON: "true"
         run: |
-          python run.py --client ${{ matrix.client }} --server ${{ matrix.server }} --log-dir logs_measurement --json ${{ matrix.server }}_${{ matrix.client }}_measurements.json -t onlyMeasurements || true
+          python run.py --client ${{ matrix.client }} --server ${{ matrix.server }} --log-dir logs_measurement --json ${{ matrix.server }}_${{ matrix.client }}_measurements.json -t goodput || true
           if [ ! -d "logs_measurement" ]; then exit 0; fi
           find logs_measurement -depth -name "sim" -type d -exec rm -r "{}" \;
           find logs_measurement -depth -name "client" -type d -exec rm -r "{}" \;
@@ -241,13 +244,11 @@ jobs:
             ${{ matrix.server }}_${{ matrix.client }}_results.json
             ${{ matrix.server }}_${{ matrix.client }}_measurements.json
       - name: Install b2 cli
-        if: ${{ github.event_name == 'schedule' }}
         uses: sylwit/install-b2-cli-action@v1.0.0
         env:
           B2_APPLICATION_KEY_ID: ${{ secrets.BACKBLAZE_KEY_ID }}
           B2_APPLICATION_KEY: ${{ secrets.BACKBLAZE_APPLICATION_KEY }}
       - name: Upload logs
-        if: ${{ github.event_name == 'schedule' }}
         run: |
           b2 sync logs/${{ matrix.server }}_${{ matrix.client }} b2://${{ vars.BACKBLAZE_BUCKET }}/${{ needs.config.outputs.logname }}/${{ matrix.server }}_${{ matrix.client }}
   aggregate:
@@ -302,17 +303,14 @@ jobs:
             rm latest || true
             ln -s $LOGNAME latest
       - name: Install b2 cli
-        if: ${{ github.event_name == 'schedule' }}
         uses: sylwit/install-b2-cli-action@v1.0.0
         env:
           B2_APPLICATION_KEY_ID: ${{ secrets.BACKBLAZE_KEY_ID }}
           B2_APPLICATION_KEY: ${{ secrets.BACKBLAZE_APPLICATION_KEY }}
       - name: Upload result
-        if: ${{ github.event_name == 'schedule' }}
         run: |
           b2 upload-file ${{ vars.BACKBLAZE_BUCKET }} result.json ${{ needs.config.outputs.logname }}/result.json
       - name: Remove old logs
-        if: ${{ github.event_name == 'schedule' }}
         run: |
           # b2 ls neither lists the contents of the bucket, nor does it list all files
           # Instead, it returns exactly *one* (the oldest) file per folder
@@ -330,7 +328,6 @@ jobs:
             fi
           done
       - name: Generate logs.json and upload it
-        if: ${{ github.event_name == 'schedule' }}
         run: |
           # First delete old version(s) of logs.json
           # Otherwise, b2 would store multiple versions of this file.

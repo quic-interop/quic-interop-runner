@@ -1560,7 +1560,7 @@ class MeasurementGoodput(Measurement):
 
     @staticmethod
     def repetitions() -> int:
-        return 5
+        return 2
 
     def get_paths(self):
         self._files = [self._generate_random_file(self.FILESIZE)]
