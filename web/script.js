@@ -25,7 +25,7 @@
     a.className = "btn btn-xs btn-" + color_type[res] + " " + res + " test-" + text.toLowerCase();
     var ttip_target = a;
     if (res !== "unsupported") {
-      a.href = "logs/" + log_dir + "/" + server + "_" + client + "/" + test;
+      a.href = `${host}/${log_dir}/${server}_${client}/${test}`;
       a.target = "_blank";
       ttip += "<br><br>(Click for logs.)";
     } else {
