@@ -286,8 +286,6 @@
     xhr.send();
   }
 
-  load("latest");
-
   // enable loading of old runs
   var xhr = new XMLHttpRequest();
   xhr.responseType = 'json';
@@ -299,6 +297,8 @@
       return;
     }
     var s = document.createElement("select");
+    // load the latest run
+    load(xhr.response[xhr.response.length-1]);
     xhr.response.reverse().forEach(function(el) {
       var opt = document.createElement("option");
       opt.innerHTML = el.replace("logs_", "");
