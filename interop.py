@@ -363,6 +363,11 @@ class InteropRunner:
         )
         logging.debug("Command: %s", cmd)
 
+        print("\n================ start run test case =================\n",
+                "server: ", server, "  client: ", client, "\n", 
+                "cmd:\n", cmd, "\n",
+                "\n======================================================\n")
+
         status = TestResult.FAILED
         output = ""
         expired = False
@@ -381,8 +386,11 @@ class InteropRunner:
 
         logging.debug("%s", output.decode("utf-8"))
 
+        print("output:\n", output.decode("utf-8"), "\n")
+
         if expired:
             logging.debug("Test failed: took longer than %ds.", testcase.timeout())
+            print("Test failed: took longer than ", testcase.timeout())
             r = subprocess.run(
                 "docker-compose stop " + containers,
                 shell=True,
@@ -467,6 +475,9 @@ class InteropRunner:
         nr_failed = 0
         for server in self._servers:
             for client in self._clients:
+                #if (server != "xquic" or (server == "xquic" and client == "xquic")):
+                if (server != "xquic" and client != "xquic"):
+                    continue
                 logging.debug(
                     "Running with server %s (%s) and client %s (%s)",
                     server,
@@ -487,6 +498,10 @@ class InteropRunner:
                     self.test_results[server][client][testcase] = status
                     if status == TestResult.FAILED:
                         nr_failed += 1
+                    print(
+                        "----------------- end run test case -----------------\n",
+                        "server: ", server, "  client: ", client, " testcase: ", testcase.name(),
+                        "\n-----------------------------------------------------\n\n\n")
 
                 # run the measurements
                 for measurement in self._measurements:

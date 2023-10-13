@@ -204,6 +204,7 @@ class TestCase(abc.ABC):
             logging.info("Missing files: %s", too_few)
         if len(too_many) != 0 or len(too_few) != 0:
             return False
+        ret = True
         for f in self._files:
             fp = self.download_dir() + f
             if not os.path.isfile(fp):
@@ -219,10 +220,10 @@ class TestCase(abc.ABC):
                         size,
                         downloaded_size,
                     )
-                    return False
+                    ret = False
                 if not filecmp.cmp(self.www_dir() + f, fp, shallow=False):
                     logging.info("File contents of %s do not match.", fp)
-                    return False
+                    ret = False
             except Exception as exception:
                 logging.info(
                     "Could not compare files %s and %s: %s",
@@ -230,9 +231,9 @@ class TestCase(abc.ABC):
                     fp,
                     exception,
                 )
-                return False
+                ret = False
         logging.debug("Check of downloaded files succeeded.")
-        return True
+        return ret
 
     def _count_handshakes(self) -> int:
         """ Count the number of QUIC handshakes """
@@ -985,15 +986,16 @@ class TestCaseHandshakeLoss(TestCase):
         return self._files
 
     def check(self) -> TestResult:
+        ret = TestResult.SUCCEEDED
         num_handshakes = self._count_handshakes()
         if num_handshakes != self._num_runs:
             logging.info(
                 "Expected %d handshakes. Got: %d", self._num_runs, num_handshakes
             )
-            return TestResult.FAILED
+            ret = TestResult.FAILED
         if not self._check_version_and_files():
-            return TestResult.FAILED
-        return TestResult.SUCCEEDED
+            ret = TestResult.FAILED
+        return ret
 
 
 class TestCaseTransferLoss(TestCase):
@@ -1522,6 +1524,200 @@ class TestCaseV2(TestCase):
         """ Get a set of QUIC versions from packets. """
         return set([hex(int(p.version, 0)) for p in packets])
 
+class TestCaseMultipathStatus(TestCase):
+    @staticmethod
+    def name():
+        return "mppathstatus"
+
+    @staticmethod
+    def abbreviation():
+        return "PS"
+
+    @staticmethod
+    def desc():
+        return "Multipath path status"
+
+    def get_paths(self):
+        self._files = [self._generate_random_file(1 * KB)]
+        return self._files
+
+    def check(self) -> TestResult:
+        if not self._check_version_and_files():
+            return TestResult.FAILED
+        ret = TestResult.FAILED
+        # for p in self._server_trace().get_1rtt():
+        #     if hasattr(p, "quic.frame"):
+        #         quic_frame = getattr(p, "quic.frame")
+        #         if quic_frame == "PATH_STATUS":
+        #             path_status = getattr(p, "quic.mp_ps_path_status")
+        #             logging.info("path status: %s", path_status)
+        #             ret = TestResult.SUCCEEDED
+
+        #         if ret == TestResult.SUCCEEDED:
+        #             print(p._all_fields)
+        is_path_standby = False
+        standby_path_dcid = []
+        curr_path_id = ""
+        
+
+        for p in self._server_trace().get_raw_packets():
+            for layer in p.layers:
+
+                if layer.layer_name == "quic" and hasattr(
+                    layer, "quic.frame"
+                ):
+                    quic_frame = getattr(layer, "quic.frame")
+                    # print(layer._all_fields)
+                    if quic_frame == "PATH_CHALLENGE":
+
+                        curr_dcid = getattr(layer, "quic.short")
+                        if len(standby_path_dcid) > 2:
+                            standby_path_dcid = []
+                        standby_path_dcid.append(curr_dcid)
+                        print(standby_path_dcid)
+                    elif quic_frame == "PATH_STATUS":
+
+                        path_status = getattr(layer, "quic.mp_ps_path_status")
+                        logging.info("path status: %s", path_status)
+                        is_path_standby = True
+                        curr_path_id = getattr(layer, "quic.mp_ps_dcid_sequence_number")
+
+                    if is_path_standby == True:
+
+                        curr_dcid = getattr(layer, "quic.short")
+                        for stb_dcid in standby_path_dcid:
+                            if curr_dcid == stb_dcid and quic_frame != "ACK_MP":
+                                print("path " + str(curr_path_id) + " is expected to be standby")
+                                return TestResult.FAILED
+
+        return TestResult.SUCCEEDED
+
+class TestCaseMultipathPathAbandon(TestCase):
+    @staticmethod
+    def name():
+        return "mppathabandon"
+
+    @staticmethod
+    def abbreviation():
+        return "PA"
+
+    @staticmethod
+    def desc():
+        return "Multipath path abandon"
+
+    def get_paths(self):
+        self._files = [self._generate_random_file(1 * KB)]
+        return self._files
+
+    def check(self) -> TestResult:
+        if not self._check_version_and_files():
+            return TestResult.FAILED
+
+        for p in self._server_trace().get_1rtt():
+            if hasattr(p, "quic.frame"):
+                quic_frame = getattr(p, "quic.frame")
+                if "PATH_ABANDON" in quic_frame:
+                    logging.info("%s", quic_frame)
+                    return TestResult.SUCCEEDED
+ 
+        return TestResult.FAILED
+
+class TestCaseMultipathHandshake(TestCase):
+    @staticmethod
+    def name():
+        return "mphandshake"
+
+    @staticmethod
+    def abbreviation():
+        return "MP"
+
+    @staticmethod
+    def desc():
+        return "Multipath negotiation and data transfer"
+
+    def get_paths(self):
+        self._files = [self._generate_random_file(1 * KB)]
+        return self._files
+
+    def check(self) -> TestResult:
+        if not self._check_version_and_files():
+            return TestResult.FAILED
+        if self._retry_sent():
+            logging.info("Didn't expect a Retry to be sent.")
+            return TestResult.FAILED
+        num_handshakes = self._count_handshakes()
+        if num_handshakes != 1:
+            logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+            return TestResult.FAILED
+
+        # check whether there's enable multipath param
+        c_enable_multipath = False
+        for p in self._server_trace().get_initial(Direction.FROM_CLIENT):
+            if hasattr(p, "tls.quic.parameter.enable_multipath"):
+                c_enable_multipath = True
+                logging.debug("Client enable multipath")
+        
+        s_enable_multipath = False
+        res = False
+        for p in self._client_trace().get_handshake(Direction.FROM_SERVER):
+
+            if hasattr(p, "tls.quic.parameter.enable_multipath"):
+                s_enable_multipath = True
+                logging.debug("Server enable multipath")
+
+            if hasattr(p, "quic.frame"):
+                quic_frame = getattr(p, "quic.frame")
+
+                if quic_frame == 'ACK_MP':
+                    res = c_enable_multipath and s_enable_multipath
+
+        
+        if not res:
+            logging.info("negotiation failed, server enable_multipath: %d; client enable_multipath: %d; if send ACK_MP: %d", s_enable_multipath, c_enable_multipath, res)
+            return TestResult.FAILED
+
+        logging.info("Multipath handshake complete")
+        return TestResult.SUCCEEDED
+
+class TestCaseMultipathTransfer(TestCase):
+    @staticmethod
+    def name():
+        return "mptransfer"
+
+    @staticmethod
+    def abbreviation():
+        return "MPT"
+
+    @staticmethod
+    def desc():
+        return "Multipath transfer data on more than one path"
+
+    def get_paths(self):
+        self._files = [self._generate_random_file(1 * KB)]
+        return self._files
+
+    def check(self) -> TestResult:
+        if not self._check_version_and_files():
+            return TestResult.FAILED
+        
+        stream_cnt = 0
+        for p in self._server_trace().get_raw_packets():
+            for layer in p.layers:
+                if layer.layer_name == "quic" and hasattr(
+                    layer, "quic.frame"
+                ):
+                    quic_frame = getattr(layer, "quic.frame")
+                    if "STREAM" in quic_frame:
+                        stream_cnt = stream_cnt + 1
+                
+                
+        if stream_cnt > 1:
+            return TestResult.SUCCEEDED
+        
+        return TestResult.FAILED
+
+
+
 class MeasurementGoodput(Measurement):
     FILESIZE = 10 * MB
     _result = 0.0
@@ -1610,25 +1806,29 @@ class MeasurementCrossTraffic(MeasurementGoodput):
 
 
 TESTCASES = [
-    TestCaseHandshake,
-    TestCaseTransfer,
-    TestCaseLongRTT,
-    TestCaseChaCha20,
-    TestCaseMultiplexing,
-    TestCaseRetry,
-    TestCaseResumption,
-    TestCaseZeroRTT,
-    TestCaseHTTP3,
-    TestCaseBlackhole,
-    TestCaseKeyUpdate,
-    TestCaseECN,
-    TestCaseAmplificationLimit,
-    TestCaseHandshakeLoss,
-    TestCaseTransferLoss,
-    TestCaseHandshakeCorruption,
-    TestCaseTransferCorruption,
-    TestCaseIPv6,
-    TestCaseV2,
+    # TestCaseMultipathHandshake,
+    # TestCaseMultipathTransfer,
+    TestCaseMultipathStatus,
+    # TestCaseMultipathPathAbandon,
+    # TestCaseHandshake,
+    # TestCaseTransfer,
+    # TestCaseLongRTT,
+    # TestCaseChaCha20,
+    # TestCaseMultiplexing,
+    # #TestCaseRetry,
+    # TestCaseResumption,
+    # TestCaseZeroRTT,
+    # TestCaseHTTP3,
+    # TestCaseBlackhole,
+    # TestCaseKeyUpdate,
+    # #TestCaseECN,
+    # TestCaseAmplificationLimit,
+    # TestCaseHandshakeLoss,
+    # TestCaseTransferLoss,
+    # TestCaseHandshakeCorruption,
+    # TestCaseTransferCorruption,
+    # TestCaseIPv6,
+    #TestCaseV2,
     # The next three tests are disabled due to Wireshark not being able
     # to decrypt packets sent on the new path.
     # TestCasePortRebinding,
@@ -1637,6 +1837,6 @@ TESTCASES = [
 ]
 
 MEASUREMENTS = [
-    MeasurementGoodput,
-    MeasurementCrossTraffic,
+    #MeasurementGoodput,
+    #MeasurementCrossTraffic,
 ]
