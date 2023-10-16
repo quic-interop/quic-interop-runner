@@ -1524,6 +1524,8 @@ class TestCaseV2(TestCase):
         """ Get a set of QUIC versions from packets. """
         return set([hex(int(p.version, 0)) for p in packets])
 
+
+
 class TestCaseMultipathStatus(TestCase):
     @staticmethod
     def name():
@@ -1544,52 +1546,52 @@ class TestCaseMultipathStatus(TestCase):
     def check(self) -> TestResult:
         if not self._check_version_and_files():
             return TestResult.FAILED
-        ret = TestResult.FAILED
-        # for p in self._server_trace().get_1rtt():
-        #     if hasattr(p, "quic.frame"):
-        #         quic_frame = getattr(p, "quic.frame")
-        #         if quic_frame == "PATH_STATUS":
-        #             path_status = getattr(p, "quic.mp_ps_path_status")
-        #             logging.info("path status: %s", path_status)
-        #             ret = TestResult.SUCCEEDED
 
-        #         if ret == TestResult.SUCCEEDED:
-        #             print(p._all_fields)
-        is_path_standby = False
-        standby_path_dcid = []
-        curr_path_id = ""
+        cid_dict = {}
+        initial_cid = []
+        for p in self._server_trace().get_initial(Direction.ALL):
+            if len(initial_cid) < 2 and hasattr(p, "quic.scid"):
+                initial_cid.append(getattr(p, "quic.scid"))
+
+        cid_dict["0"] = initial_cid
+
+        for p in self._server_trace().get_1rtt():
+            if hasattr(p, "quic.frame"):
+                quic_frame = getattr(p, "quic.frame")
+                if quic_frame == "NEW_CONNECTION_ID":
+                    path_id = getattr(p, "quic.nci.sequence")
+                    new_cid = getattr(p, "quic.nci.connection_id")
+                    if cid_dict.get(path_id) == None:
+                        cid_dict[str(path_id)] = [new_cid]
+                    elif len(cid_dict.get(path_id)) < 2:
+                        cid_list_of_path = cid_dict.get(path_id)
+                        cid_list_of_path.append(new_cid)
+                        cid_dict[str(path_id)] = cid_list_of_path
         
+        is_path_standby = False
+        standby_path_dcid_list = []
+        standby_pid = ""
 
-        for p in self._server_trace().get_raw_packets():
-            for layer in p.layers:
+        for p in self._server_trace().get_1rtt():
+            if hasattr(p, "quic.frame"):
+                
+                quic_frame = getattr(p, "quic.frame")
+                if "PATH_STATUS" in quic_frame:
 
-                if layer.layer_name == "quic" and hasattr(
-                    layer, "quic.frame"
-                ):
-                    quic_frame = getattr(layer, "quic.frame")
-                    # print(layer._all_fields)
-                    if quic_frame == "PATH_CHALLENGE":
-
-                        curr_dcid = getattr(layer, "quic.short")
-                        if len(standby_path_dcid) > 2:
-                            standby_path_dcid = []
-                        standby_path_dcid.append(curr_dcid)
-                        print(standby_path_dcid)
-                    elif quic_frame == "PATH_STATUS":
-
-                        path_status = getattr(layer, "quic.mp_ps_path_status")
-                        logging.info("path status: %s", path_status)
+                    path_status = getattr(p, "quic.mp_ps_path_status")
+                    logging.info("path status: %s", path_status)
+                    if int(path_status) == 1:
                         is_path_standby = True
-                        curr_path_id = getattr(layer, "quic.mp_ps_dcid_sequence_number")
+                        standby_pid = getattr(p, "quic.mp_ps_dcid_sequence_number")
+                        standby_path_dcid_list = cid_dict.get(standby_pid)
+                elif is_path_standby == True:
 
-                    if is_path_standby == True:
-
-                        curr_dcid = getattr(layer, "quic.short")
-                        for stb_dcid in standby_path_dcid:
-                            if curr_dcid == stb_dcid and quic_frame != "ACK_MP":
-                                print("path " + str(curr_path_id) + " is expected to be standby")
-                                return TestResult.FAILED
-
+                    curr_dcid = getattr(p, "quic.dcid")
+                    for stb_dcid in standby_path_dcid_list:
+                        if curr_dcid == stb_dcid and quic_frame != "ACK_MP":
+                            print("path " + str(standby_pid) + " is expected to be standby")
+                            return TestResult.FAILED
+        
         return TestResult.SUCCEEDED
 
 class TestCaseMultipathPathAbandon(TestCase):
@@ -1613,14 +1615,51 @@ class TestCaseMultipathPathAbandon(TestCase):
         if not self._check_version_and_files():
             return TestResult.FAILED
 
+        cid_dict = {}
+
+        initial_cid = []
+        for p in self._server_trace().get_initial(Direction.ALL):
+            if len(initial_cid) < 2 and hasattr(p, "quic.scid"):
+                initial_cid.append(getattr(p, "quic.scid"))
+
+        cid_dict["0"] = initial_cid
+        
         for p in self._server_trace().get_1rtt():
             if hasattr(p, "quic.frame"):
                 quic_frame = getattr(p, "quic.frame")
+                if quic_frame == "NEW_CONNECTION_ID":
+                    path_id = getattr(p, "quic.nci.sequence")
+                    new_cid = getattr(p, "quic.nci.connection_id")
+                    if cid_dict.get(path_id) == None:
+                        cid_dict[str(path_id)] = [new_cid]
+                    elif len(cid_dict.get(path_id)) < 2:
+                        cid_list_of_path = cid_dict.get(path_id)
+                        cid_list_of_path.append(new_cid)
+                        cid_dict[str(path_id)] = cid_list_of_path
+
+        is_path_abandoned = False
+        abandoned_path_dcid_list = []
+        abandoned_pid = ""
+
+        for p in self._server_trace().get_1rtt():
+            if hasattr(p, "quic.frame"):
+                
+                quic_frame = getattr(p, "quic.frame")
                 if "PATH_ABANDON" in quic_frame:
+
                     logging.info("%s", quic_frame)
-                    return TestResult.SUCCEEDED
- 
-        return TestResult.FAILED
+                    is_path_abandoned = True
+                    abandoned_pid = getattr(p, "quic.mp_pa_dcid_sequence_number")
+                    abandoned_path_dcid_list = cid_dict.get(str(abandoned_pid))
+                elif is_path_abandoned == True:
+
+                    curr_dcid = getattr(p, "quic.dcid")
+                    for stb_dcid in abandoned_path_dcid_list:
+                        if curr_dcid == stb_dcid:
+                            print("path " + str(abandoned_pid) + " is expected to be abandoned")
+                            return TestResult.FAILED
+
+        return TestResult.SUCCEEDED
 
 class TestCaseMultipathHandshake(TestCase):
     @staticmethod
