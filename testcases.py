@@ -1556,14 +1556,18 @@ class TestCaseMultipathStatus(TestCase):
         if not self._check_version_and_files():
             return TestResult.FAILED
 
+        # maintaining a dictionary of {'path id': [cid, cid], ...}
         cid_dict = {}
         initial_cid = []
+
+        # get cid from both server and client in initial packet
         for p in self._server_trace().get_initial(Direction.ALL):
             if len(initial_cid) < 2 and hasattr(p, "quic.scid"):
                 initial_cid.append(getattr(p, "quic.scid"))
 
         cid_dict["0"] = initial_cid
 
+        # get cid and corresponding path id from packet with "NEW_CONNECTION_ID" frame
         for p in self._server_trace().get_1rtt():
             if hasattr(p, "quic.frame"):
                 quic_frame = getattr(p, "quic.frame")
@@ -1576,28 +1580,43 @@ class TestCaseMultipathStatus(TestCase):
                         cid_list_of_path = cid_dict.get(path_id)
                         cid_list_of_path.append(new_cid)
                         cid_dict[str(path_id)] = cid_list_of_path
-        
+
+        # signal for whether some path is been set "standby"
         is_path_standby = False
+        # cid list of path standby
         standby_path_dcid_list = []
+        # pid of path standby
         standby_pid = ""
 
+        # traverse 1rtt packet
         for p in self._server_trace().get_1rtt():
             if hasattr(p, "quic.frame"):
                 
                 quic_frame = getattr(p, "quic.frame")
+                # if received "PATH_STATUS" frame, check whether it requires a path standby
                 if "PATH_STATUS" in quic_frame:
 
                     path_status = getattr(p, "quic.mp_ps_path_status")
                     logging.info("path status: %s", path_status)
+
+                    # if a path is marked as "standby", record this path's information
                     if int(path_status) == 1:
                         is_path_standby = True
                         standby_pid = getattr(p, "quic.mp_ps_dcid_sequence_number")
                         standby_path_dcid_list = cid_dict.get(standby_pid)
+                # if there's path marked as "standby", this path SHOULD stop sending non-probing packets
                 elif is_path_standby == True:
 
                     curr_dcid = getattr(p, "quic.dcid")
                     for stb_dcid in standby_path_dcid_list:
-                        if curr_dcid == stb_dcid and quic_frame != "ACK_MP":
+                        # check if current cid is the same with cid of standby path
+                        # if there's still non-probing packet sent in standby path, it is viewed as invalid
+                        if curr_dcid == stb_dcid 
+                            and (quic_frame != "ACK_MP"
+                                or quic_frame != "PATH_CHALLENGE"
+                                or quic_frame != "PATH_RESPONSE"
+                                or quic_frame != "NEW_CONNECTION_ID"
+                                or quic_frame != "PADDING"):
                             print("path " + str(standby_pid) + " is expected to be standby")
                             return TestResult.FAILED
         
@@ -1624,15 +1643,17 @@ class TestCaseMultipathPathAbandon(TestCase):
         if not self._check_version_and_files():
             return TestResult.FAILED
 
+        # maintaining a dictionary of {'path id': [cid, cid], ...}
         cid_dict = {}
-
         initial_cid = []
+
+        # get cid from both server and client in initial packet
         for p in self._server_trace().get_initial(Direction.ALL):
             if len(initial_cid) < 2 and hasattr(p, "quic.scid"):
                 initial_cid.append(getattr(p, "quic.scid"))
 
         cid_dict["0"] = initial_cid
-        
+        # get cid and corresponding path id from packet with "NEW_CONNECTION_ID" frame
         for p in self._server_trace().get_1rtt():
             if hasattr(p, "quic.frame"):
                 quic_frame = getattr(p, "quic.frame")
@@ -1646,24 +1667,32 @@ class TestCaseMultipathPathAbandon(TestCase):
                         cid_list_of_path.append(new_cid)
                         cid_dict[str(path_id)] = cid_list_of_path
 
+        # signal for whether some path is been abandoned
         is_path_abandoned = False
+        # cid list of abandoned path
         abandoned_path_dcid_list = []
+        # path id of abandoned path
         abandoned_pid = ""
 
+        # traverse 1-rtt packet
         for p in self._server_trace().get_1rtt():
             if hasattr(p, "quic.frame"):
                 
                 quic_frame = getattr(p, "quic.frame")
+                # if received "PATH_ABANDON" frame, check which path is abandoned and save the path's information
                 if "PATH_ABANDON" in quic_frame:
 
                     logging.info("%s", quic_frame)
                     is_path_abandoned = True
                     abandoned_pid = getattr(p, "quic.mp_pa_dcid_sequence_number")
                     abandoned_path_dcid_list = cid_dict.get(str(abandoned_pid))
+                # if there's path marked abandoned, this path MUST stop sending packets
                 elif is_path_abandoned == True:
 
                     curr_dcid = getattr(p, "quic.dcid")
                     for stb_dcid in abandoned_path_dcid_list:
+                        # check if current cid is the same with cid of abandoned path
+                        # if there's still packet sent in abandoned path, it is viewed as invalid
                         if curr_dcid == stb_dcid:
                             print("path " + str(abandoned_pid) + " is expected to be abandoned")
                             return TestResult.FAILED
@@ -1698,13 +1727,14 @@ class TestCaseMultipathHandshake(TestCase):
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
             return TestResult.FAILED
 
-        # check whether there's enable multipath param
+        # check whether there's enable multipath param from client
         c_enable_multipath = False
         for p in self._server_trace().get_initial(Direction.FROM_CLIENT):
             if hasattr(p, "tls.quic.parameter.enable_multipath"):
                 c_enable_multipath = True
                 logging.debug("Client enable multipath")
         
+        # check whether there's enable multipath param from server
         s_enable_multipath = False
         res = False
         for p in self._client_trace().get_handshake(Direction.FROM_SERVER):
@@ -1715,7 +1745,7 @@ class TestCaseMultipathHandshake(TestCase):
 
             if hasattr(p, "quic.frame"):
                 quic_frame = getattr(p, "quic.frame")
-
+                # if receive "ACK_MP" frame, it indicate the success of mp handshake
                 if quic_frame == 'ACK_MP':
                     res = c_enable_multipath and s_enable_multipath
 
@@ -1758,7 +1788,7 @@ class TestCaseMultipathTransfer(TestCase):
                     if "STREAM" in quic_frame:
                         stream_cnt = stream_cnt + 1
                 
-                
+        # if receive stream frame from more than one path, it indicate success of mp transfer
         if stream_cnt > 1:
             return TestResult.SUCCEEDED
         
