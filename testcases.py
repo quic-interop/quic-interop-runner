@@ -1611,12 +1611,10 @@ class TestCaseMultipathStatus(TestCase):
                     for stb_dcid in standby_path_dcid_list:
                         # check if current cid is the same with cid of standby path
                         # if there's still non-probing packet sent in standby path, it is viewed as invalid
-                        if curr_dcid == stb_dcid 
-                            and (quic_frame != "ACK_MP"
-                                or quic_frame != "PATH_CHALLENGE"
-                                or quic_frame != "PATH_RESPONSE"
-                                or quic_frame != "NEW_CONNECTION_ID"
-                                or quic_frame != "PADDING"):
+                        if curr_dcid == stb_dcid and not ( quic_frame == "ACK_MP" or
+                            quic_frame == "PATH_CHALLENGE" or quic_frame == "PATH_RESPONSE" or
+                            quic_frame == "NEW_CONNECTION_ID" or quic_frame == "PADDING"
+                        ):
                             print("path " + str(standby_pid) + " is expected to be standby")
                             return TestResult.FAILED
         
