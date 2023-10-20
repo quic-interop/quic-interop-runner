@@ -1736,11 +1736,11 @@ class TestCaseMultipathHandshake(TestCase):
         s_enable_multipath = False
         res = False
         for p in self._client_trace().get_handshake(Direction.FROM_SERVER):
-
             if hasattr(p, "tls.quic.parameter.enable_multipath"):
                 s_enable_multipath = True
                 logging.debug("Server enable multipath")
 
+        for p in self._server_trace().get_1rtt(Direction.ALL):
             if hasattr(p, "quic.frame"):
                 quic_frame = getattr(p, "quic.frame")
                 # if receive "ACK_MP" frame, it indicate the success of mp handshake
