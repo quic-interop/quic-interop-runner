@@ -430,7 +430,12 @@ class InteropRunner:
         server_log_dir.cleanup()
         client_log_dir.cleanup()
         sim_log_dir.cleanup()
-        logging.debug("Test took %ss", (datetime.now() - start_time).total_seconds())
+        logging.debug(
+            "Test: %s took %ss, status: %s",
+            str(testcase),
+            (datetime.now() - start_time).total_seconds(),
+            str(status),
+        )
 
         # measurements also have a value
         if hasattr(testcase, "result"):
