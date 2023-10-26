@@ -276,15 +276,15 @@ class TestCase(abc.ABC):
             self._download_dir = None
     
     def _get_pid_addr_set(self):
-        
+        # generate a dictionary of path_id - physical address
         initial_cid = []
         # get cid from both server and client in initial packet
         for p in self._server_trace().get_initial(Direction.ALL):
             if len(initial_cid) < 2 and hasattr(p, "quic.scid"):
                 initial_cid.append(getattr(p, "quic.scid"))
         
-        cid_dict = {}
-        cid_dict["0"] = initial_cid
+        pid_cid_dict = {}
+        pid_cid_dict["0"] = initial_cid
 
         cid_addr_dict = {}
 
@@ -312,23 +312,38 @@ class TestCase(abc.ABC):
                     if "NEW_CONNECTION_ID" in quic_frame_list:
                         path_id = getattr(layer, "quic.nci.sequence")
                         new_cid = getattr(layer, "quic.nci.connection_id")
-                        if cid_dict.get(path_id) == None:
-                            cid_dict[str(path_id)] = [new_cid]
-                        elif len(cid_dict.get(path_id)) < 2:
-                            cid_list_of_path = cid_dict.get(path_id)
+                        if pid_cid_dict.get(path_id) == None:
+                            pid_cid_dict[str(path_id)] = [new_cid]
+                        elif len(pid_cid_dict.get(path_id)) < 2:
+                            cid_list_of_path = pid_cid_dict.get(path_id)
                             cid_list_of_path.append(new_cid)
-                            cid_dict[str(path_id)] = cid_list_of_path
+                            pid_cid_dict[str(path_id)] = cid_list_of_path
 
-        ip_addr_dict = {}
-        
-        for key, cids in cid_dict.items():
+        pid_addr_dict = {}
+        # generate path_id - physical address dictionary with pid_cid_dict and cid_addr_dict 
+        for pid, cids in pid_cid_dict.items():
             for cid in cids:
-                if ip_addr_dict.get(key) == None:
-                    addr_set = cid_addr_dict.get(cid)
-                    if addr_set != None:
-                        ip_addr_dict[key] = addr_set
 
-        return ip_addr_dict
+                curr_addr_set = cid_addr_dict.get(cid)
+                if curr_addr_set == None:
+                    break
+                
+                if pid_addr_dict.get(pid) == None:
+                    # check if here's the same physical address in the dictionary
+                    has_same_addr = False
+                    for addr_set in pid_addr_dict.values():
+                        if curr_addr_set == addr_set:
+                            has_same_addr = True
+                            break
+
+                    if has_same_addr == True:
+                        print(pid_addr_dict)
+                        logging.info("There's different path use same physical address")
+                        return TestResult.FAILED
+
+                    pid_addr_dict[pid] = curr_addr_set
+
+        return pid_addr_dict
 
     @abc.abstractmethod
     def get_paths(self):
@@ -1613,6 +1628,8 @@ class TestCaseMultipathStatus(TestCase):
 
         # get pid_address set to create connection between pid and ip:port address 
         pid_addr_set = self._get_pid_addr_set()
+        if pid_addr_set == TestResult.FAILED:
+            return TestResult.FAILED
 
         for p in self._server_trace().get_1rtt():
             if hasattr(p, "quic.frame"):
@@ -1693,6 +1710,8 @@ class TestCaseMultipathPathAbandon(TestCase):
 
         # get pid_address set to create connection between pid and ip:port address 
         pid_addr_set = self._get_pid_addr_set()
+        if pid_addr_set == TestResult.FAILED:
+            return TestResult.FAILED
 
         for p in self._server_trace().get_1rtt():
             if hasattr(p, "quic.frame"):
@@ -1825,6 +1844,8 @@ class TestCaseMultipathTransfer(TestCase):
             return TestResult.FAILED
         # get pid_address set to create connection between pid and ip:port address
         pid_addr_set = self._get_pid_addr_set()
+        if pid_addr_set == TestResult.FAILED:
+            return TestResult.FAILED
 
         send_path = []
         src_addr = ""
