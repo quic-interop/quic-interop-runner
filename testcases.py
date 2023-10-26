@@ -274,6 +274,61 @@ class TestCase(abc.ABC):
         if self._download_dir:
             self._download_dir.cleanup()
             self._download_dir = None
+    
+    def _get_pid_addr_set(self):
+        
+        initial_cid = []
+        # get cid from both server and client in initial packet
+        for p in self._server_trace().get_initial(Direction.ALL):
+            if len(initial_cid) < 2 and hasattr(p, "quic.scid"):
+                initial_cid.append(getattr(p, "quic.scid"))
+        
+        cid_dict = {}
+        cid_dict["0"] = initial_cid
+
+        cid_addr_dict = {}
+
+        src_addr = ""
+        dst_addr = ""
+        for p in self._server_trace().get_raw_packets():
+            for layer in p.layers:
+                if layer.layer_name == "ip":
+                    src_addr = getattr(layer, "ip.src_host")
+                    dst_addr = getattr(layer, "ip.dst_host")
+                if layer.layer_name == "udp" and src_addr != "" and dst_addr != "":
+                    src_addr = src_addr + ":" + getattr(layer, "udp.srcport")
+                    dst_addr = dst_addr + ":" + getattr(layer, "udp.dstport")
+                if layer.layer_name == "quic":
+                    cid = getattr(layer, "quic.dcid")
+                    if cid_addr_dict.get(cid) == None:
+                        cid_addr_dict[str(cid)] = {src_addr, dst_addr}
+                        src_addr = ""
+                        dst_addr = ""
+
+                    quic_frame_list = []
+                    for i in layer.frame.all_fields:
+                        quic_frame_list.append(i.get_default_value())
+                        
+                    if "NEW_CONNECTION_ID" in quic_frame_list:
+                        path_id = getattr(layer, "quic.nci.sequence")
+                        new_cid = getattr(layer, "quic.nci.connection_id")
+                        if cid_dict.get(path_id) == None:
+                            cid_dict[str(path_id)] = [new_cid]
+                        elif len(cid_dict.get(path_id)) < 2:
+                            cid_list_of_path = cid_dict.get(path_id)
+                            cid_list_of_path.append(new_cid)
+                            cid_dict[str(path_id)] = cid_list_of_path
+
+        ip_addr_dict = {}
+        
+        for key, cids in cid_dict.items():
+            for cid in cids:
+                if ip_addr_dict.get(key) == None:
+                    addr_set = cid_addr_dict.get(cid)
+                    if addr_set != None:
+                        ip_addr_dict[key] = addr_set
+
+        return ip_addr_dict
 
     @abc.abstractmethod
     def get_paths(self):
@@ -1556,69 +1611,64 @@ class TestCaseMultipathStatus(TestCase):
         if not self._check_version_and_files():
             return TestResult.FAILED
 
-        # maintaining a dictionary of {'path id': [cid, cid], ...}
-        cid_dict = {}
-        initial_cid = []
+        # get pid_address set to create connection between pid and ip:port address 
+        pid_addr_set = self._get_pid_addr_set()
 
-        # get cid from both server and client in initial packet
-        for p in self._server_trace().get_initial(Direction.ALL):
-            if len(initial_cid) < 2 and hasattr(p, "quic.scid"):
-                initial_cid.append(getattr(p, "quic.scid"))
-
-        cid_dict["0"] = initial_cid
-
-        # get cid and corresponding path id from packet with "NEW_CONNECTION_ID" frame
         for p in self._server_trace().get_1rtt():
             if hasattr(p, "quic.frame"):
-                quic_frame = getattr(p, "quic.frame")
-                if quic_frame == "NEW_CONNECTION_ID":
-                    path_id = getattr(p, "quic.nci.sequence")
-                    new_cid = getattr(p, "quic.nci.connection_id")
-                    if cid_dict.get(path_id) == None:
-                        cid_dict[str(path_id)] = [new_cid]
-                    elif len(cid_dict.get(path_id)) < 2:
-                        cid_list_of_path = cid_dict.get(path_id)
-                        cid_list_of_path.append(new_cid)
-                        cid_dict[str(path_id)] = cid_list_of_path
+                for i in p.frame.all_fields:
+                    if "ACK_MP" in i.get_default_value():
+                        is_mp_transfer = True
 
+        if is_mp_transfer == False:
+            logging.info("MP handshake failed. Please check whether both endpoint are enable multipath.")
+            return TestResult.FAILED
+        
         # signal for whether some path is been set "standby"
         is_path_standby = False
-        # cid list of path standby
-        standby_path_dcid_list = []
         # pid of path standby
         standby_pid = ""
 
-        # traverse 1rtt packet
-        for p in self._server_trace().get_1rtt():
-            if hasattr(p, "quic.frame"):
-                
-                quic_frame = getattr(p, "quic.frame")
-                # if received "PATH_STATUS" frame, check whether it requires a path standby
-                if "PATH_STATUS" in quic_frame:
+        src_addr = ""
+        dst_addr = ""
+        for p in self._server_trace().get_raw_packets():
+            for layer in p.layers:
+                if layer.layer_name == "ip":
+                    src_addr = getattr(layer, "ip.src_host")
+                    dst_addr = getattr(layer, "ip.dst_host")
+                if layer.layer_name == "udp" and src_addr != "" and dst_addr != "":
+                    src_addr = src_addr + ":" + getattr(layer, "udp.srcport")
+                    dst_addr = dst_addr + ":" + getattr(layer, "udp.dstport")
+                if layer.layer_name == "quic" and hasattr(
+                    layer, "quic.frame"
+                ):
+                    quic_frame_list = []
+                    for i in layer.frame.all_fields:
+                        quic_frame_list.append(i.get_default_value()) 
+                    if is_path_standby == True:
+                        curr_pid = None
+                        for key, value in pid_addr_set.items():
+                            if value != None and src_addr in value and dst_addr in value:
+                                curr_pid = key
 
-                    path_status = getattr(p, "quic.mp_ps_path_status")
-                    logging.info("path status: %s", path_status)
-
-                    # if a path is marked as "standby", record this path's information
-                    if int(path_status) == 1:
-                        is_path_standby = True
-                        standby_pid = getattr(p, "quic.mp_ps_dcid_sequence_number")
-                        standby_path_dcid_list = cid_dict.get(standby_pid)
-                # if there's path marked as "standby", this path SHOULD stop sending non-probing packets
-                elif is_path_standby == True:
-
-                    curr_dcid = getattr(p, "quic.dcid")
-                    for stb_dcid in standby_path_dcid_list:
-                        # check if current cid is the same with cid of standby path
-                        # if there's still non-probing packet sent in standby path, it is viewed as invalid
-                        if curr_dcid == stb_dcid and not ( quic_frame == "ACK_MP" or
-                            quic_frame == "PATH_CHALLENGE" or quic_frame == "PATH_RESPONSE" or
-                            quic_frame == "NEW_CONNECTION_ID" or quic_frame == "PADDING"
-                        ):
-                            print("path " + str(standby_pid) + " is expected to be standby")
+                        if curr_pid == standby_pid and "STREAM" in quic_frame_list:
+                            print("path " + str(abandoned_pid) + " is expected to be abandoned")
                             return TestResult.FAILED
+                    if "PATH_STATUS" in quic_frame_list:
+                        
+                        path_status = getattr(layer, "quic.mp_ps_path_status")
+                        logging.info("path status: %s", path_status)
+
+                        # if a path is marked as "standby", record this path's information
+                        if int(path_status) == 1:
+                            is_path_standby = True
+                            standby_pid = getattr(layer, "quic.mp_ps_dcid_sequence_number")
+                            
+        if is_path_standby == True:
+            return TestResult.SUCCEEDED
         
-        return TestResult.SUCCEEDED
+        logging.info("There's no PATH_STATUS frame received")
+        return TestResult.FAILED
 
 class TestCaseMultipathPathAbandon(TestCase):
     @staticmethod
@@ -1641,61 +1691,58 @@ class TestCaseMultipathPathAbandon(TestCase):
         if not self._check_version_and_files():
             return TestResult.FAILED
 
-        # maintaining a dictionary of {'path id': [cid, cid], ...}
-        cid_dict = {}
-        initial_cid = []
+        # get pid_address set to create connection between pid and ip:port address 
+        pid_addr_set = self._get_pid_addr_set()
 
-        # get cid from both server and client in initial packet
-        for p in self._server_trace().get_initial(Direction.ALL):
-            if len(initial_cid) < 2 and hasattr(p, "quic.scid"):
-                initial_cid.append(getattr(p, "quic.scid"))
-
-        cid_dict["0"] = initial_cid
-        # get cid and corresponding path id from packet with "NEW_CONNECTION_ID" frame
         for p in self._server_trace().get_1rtt():
             if hasattr(p, "quic.frame"):
-                quic_frame = getattr(p, "quic.frame")
-                if quic_frame == "NEW_CONNECTION_ID":
-                    path_id = getattr(p, "quic.nci.sequence")
-                    new_cid = getattr(p, "quic.nci.connection_id")
-                    if cid_dict.get(path_id) == None:
-                        cid_dict[str(path_id)] = [new_cid]
-                    elif len(cid_dict.get(path_id)) < 2:
-                        cid_list_of_path = cid_dict.get(path_id)
-                        cid_list_of_path.append(new_cid)
-                        cid_dict[str(path_id)] = cid_list_of_path
+                for i in p.frame.all_fields:
+                    if "ACK_MP" in i.get_default_value():
+                        is_mp_transfer = True
+
+        if is_mp_transfer == False:
+            logging.info("MP handshake failed. Please check whether both endpoint are enable multipath.")
+            return TestResult.FAILED
 
         # signal for whether some path is been abandoned
         is_path_abandoned = False
-        # cid list of abandoned path
-        abandoned_path_dcid_list = []
         # path id of abandoned path
         abandoned_pid = ""
-
-        # traverse 1-rtt packet
-        for p in self._server_trace().get_1rtt():
-            if hasattr(p, "quic.frame"):
-                
-                quic_frame = getattr(p, "quic.frame")
-                # if received "PATH_ABANDON" frame, check which path is abandoned and save the path's information
-                if "PATH_ABANDON" in quic_frame:
-
-                    logging.info("%s", quic_frame)
-                    is_path_abandoned = True
-                    abandoned_pid = getattr(p, "quic.mp_pa_dcid_sequence_number")
-                    abandoned_path_dcid_list = cid_dict.get(str(abandoned_pid))
-                # if there's path marked abandoned, this path MUST stop sending packets
-                elif is_path_abandoned == True:
-
-                    curr_dcid = getattr(p, "quic.dcid")
-                    for stb_dcid in abandoned_path_dcid_list:
-                        # check if current cid is the same with cid of abandoned path
-                        # if there's still packet sent in abandoned path, it is viewed as invalid
-                        if curr_dcid == stb_dcid:
+        src_addr = ""
+        dst_addr = ""
+        for p in self._server_trace().get_raw_packets():
+            for layer in p.layers:
+                if layer.layer_name == "ip":
+                    src_addr = getattr(layer, "ip.src_host")
+                    dst_addr = getattr(layer, "ip.dst_host")
+                if layer.layer_name == "udp" and src_addr != "" and dst_addr != "":
+                    src_addr = src_addr + ":" + getattr(layer, "udp.srcport")
+                    dst_addr = dst_addr + ":" + getattr(layer, "udp.dstport")
+                if layer.layer_name == "quic" and hasattr(
+                    layer, "quic.frame"
+                ):
+                    if is_path_abandoned == True:
+                        curr_pid = None
+                        for key, value in pid_addr_set.items():
+                            if value != None and src_addr in value and dst_addr in value:
+                                curr_pid = key
+                        if curr_pid == abandoned_pid:
                             print("path " + str(abandoned_pid) + " is expected to be abandoned")
                             return TestResult.FAILED
 
-        return TestResult.SUCCEEDED
+                    for i in layer.frame.all_fields:
+                        if "PATH_ABANDON" in i.get_default_value():
+                            logging.info("%s", i.get_default_value())
+                            is_path_abandoned = True
+                            abandoned_pid = getattr(layer, "quic.mp_pa_dcid_sequence_number")
+
+        if is_path_abandoned:
+            return TestResult.SUCCEEDED
+
+        logging.info("There's no PATH_ABANDON frame received")
+        return TestResult.FAILED
+
+
 
 class TestCaseMultipathHandshake(TestCase):
     @staticmethod
@@ -1755,6 +1802,7 @@ class TestCaseMultipathHandshake(TestCase):
         logging.info("Multipath handshake complete")
         return TestResult.SUCCEEDED
 
+
 class TestCaseMultipathTransfer(TestCase):
     @staticmethod
     def name():
@@ -1775,22 +1823,36 @@ class TestCaseMultipathTransfer(TestCase):
     def check(self) -> TestResult:
         if not self._check_version_and_files():
             return TestResult.FAILED
-        
-        stream_cnt = 0
+        # get pid_address set to create connection between pid and ip:port address
+        pid_addr_set = self._get_pid_addr_set()
+
+        send_path = []
+        src_addr = ""
+        dst_addr = ""
         for p in self._server_trace().get_raw_packets():
             for layer in p.layers:
+                if layer.layer_name == "ip":
+                    src_addr = getattr(layer, "ip.src_host")
+                    dst_addr = getattr(layer, "ip.dst_host")
+                if layer.layer_name == "udp" and src_addr != "" and dst_addr != "":
+                    src_addr = src_addr + ":" + getattr(layer, "udp.srcport")
+                    dst_addr = dst_addr + ":" + getattr(layer, "udp.dstport")
                 if layer.layer_name == "quic" and hasattr(
                     layer, "quic.frame"
                 ):
-                    quic_frame = getattr(layer, "quic.frame")
-                    if "STREAM" in quic_frame:
-                        stream_cnt = stream_cnt + 1
-                
-        # if receive stream frame from more than one path, it indicate success of mp transfer
-        if stream_cnt > 1:
+                    for i in layer.frame.all_fields:
+                        if "STREAM" in i.get_default_value():
+                            for key, value in pid_addr_set.items():
+                                if value != None and src_addr in value and dst_addr in value and key not in send_path:
+                                    send_path.append(key)
+
+        # if receive stream frame from more than one path, it indicate success of mp transfer        
+        if len(send_path) > 1:
             return TestResult.SUCCEEDED
-        
+        logging.info("Only sent data use single path.")
+
         return TestResult.FAILED
+                    
 
 
 
