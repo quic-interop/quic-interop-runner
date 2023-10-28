@@ -51,7 +51,7 @@
   },
   "chrome": {
     "image": "martenseemann/chrome-quic-interop-runner",
-    "url": "https://github.com/marten-seemann/chrome-quic-interop-runner",
+    "url": "https://github.com/quic-interop/chrome-quic-interop-runner",
     "role": "client"
   },
   "xquic": {
