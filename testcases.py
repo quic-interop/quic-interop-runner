@@ -1862,7 +1862,7 @@ class TestCaseMultipathTransfer(TestCase):
                     layer, "quic.frame"
                 ):
                     for i in layer.frame.all_fields:
-                        if "STREAM" in i.get_default_value():
+                        if "STREAM" in i.get_default_value() or "ACK_MP" in i.get_default_value():
                             for key, value in pid_addr_set.items():
                                 if value != None and src_addr in value and dst_addr in value and key not in send_path:
                                     send_path.append(key)
