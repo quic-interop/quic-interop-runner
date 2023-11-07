@@ -78,5 +78,10 @@
     "image": "public.ecr.aws/s2n/s2n-quic-qns:latest",
     "url": "https://github.com/aws/s2n-quic",
     "role": "both"
+  },
+  "go-x-net": {
+    "image": "us-central1-docker.pkg.dev/golang-interop-testing/quic/go-x-net:latest",
+    "url": "https://pkg.go.dev/golang.org/x/net/internal/quic",
+    "role": "both"
   }
 }
