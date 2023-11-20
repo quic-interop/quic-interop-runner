@@ -925,9 +925,9 @@ class TestCaseKeyUpdate(TestCaseHandshake):
         server = {0: 0, 1: 0}
         try:
             for p in self._client_trace().get_1rtt(Direction.FROM_CLIENT):
-                client[int(p.key_phase)] += 1
+                client[1 if p.key_phase == "True" else 0] += 1
             for p in self._server_trace().get_1rtt(Direction.FROM_SERVER):
-                server[int(p.key_phase)] += 1
+                server[1 if p.key_phase == "True" else 0] += 1
         except Exception:
             logging.info(
                 "Failed to read key phase bits. Potentially incorrect SSLKEYLOG?"
