@@ -1108,11 +1108,19 @@ class TestCaseECN(TestCaseHandshake):
             and ((e[ECN.ECT0] == 0) != (e[ECN.ECT1] == 0))
         )
 
+    def get_paths(self):
+        self._files = [
+            self._generate_random_file(2 * MB),
+        ]
+        return self._files
+
     def _check_ack_ecn(self, tr) -> bool:
-        # NOTE: We only check whether the trace contains any ACK-ECN information, not whether it is valid
+        # We only check whether the trace contains any ACK-ECN information, not whether it is valid
         for p in tr:
             if hasattr(p["quic"], "ack.ect0_count"):
-                return True
+                # Make sure that ECN was used for more than just a few probing packets.
+                if int(getattr(p["quic"], "ack.ect0_count")) > 100:
+                    return True
         return False
 
     def check(self) -> TestResult:
@@ -1127,45 +1135,20 @@ class TestCaseECN(TestCaseHandshake):
         tr_client = self._client_trace()._get_packets(
             self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
         )
-        ecn = self._count_ecn(tr_client)
-        ecn_client_any_marked = self._check_ecn_any(ecn)
-        ecn_client_all_ok = self._check_ecn_marks(ecn)
-        ack_ecn_client_ok = self._check_ack_ecn(tr_client)
+        client_sent_ack_ecn = self._check_ack_ecn(tr_client)
 
         tr_server = self._server_trace()._get_packets(
             self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
         )
         ecn = self._count_ecn(tr_server)
-        ecn_server_any_marked = self._check_ecn_any(ecn)
-        ecn_server_all_ok = self._check_ecn_marks(ecn)
-        ack_ecn_server_ok = self._check_ack_ecn(tr_server)
+        server_sent_ecn_marked = self._check_ecn_any(ecn)
 
-        if ecn_client_any_marked is False:
-            logging.info("Client did not mark any packets ECT(0) or ECT(1)")
-        else:
-            if ack_ecn_server_ok is False:
-                logging.info("Server did not send any ACK-ECN frames")
-            elif ecn_client_all_ok is False:
-                logging.info(
-                    "Not all client packets were consistently marked with ECT(0) or ECT(1)"
-                )
-
-        if ecn_server_any_marked is False:
+        if server_sent_ecn_marked is False:
             logging.info("Server did not mark any packets ECT(0) or ECT(1)")
-        else:
-            if ack_ecn_client_ok is False:
-                logging.info("Client did not send any ACK-ECN frames")
-            elif ecn_server_all_ok is False:
-                logging.info(
-                    "Not all server packets were consistently marked with ECT(0) or ECT(1)"
-                )
+        elif client_sent_ack_ecn is False:
+            logging.info("Client did not send any ACK-ECN frames")
 
-        if (
-            ecn_client_all_ok
-            and ecn_server_all_ok
-            and ack_ecn_client_ok
-            and ack_ecn_server_ok
-        ):
+        if server_sent_ecn_marked and client_sent_ack_ecn:
             return TestResult.SUCCEEDED
         return TestResult.FAILED
 

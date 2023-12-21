@@ -97,4 +97,6 @@ Currently disabled due to #20.
 
 * **Handshake Loss** (`multiconnect`): Tests resilience of the handshake to high loss. The client is expected to establish multiple connections, sequential or in parallel, and use each connection to download a single file.
 
-* **V2** (`v2`): In this test, client starts connecting server in QUIC v1 with `version_information` transport parameter that includes QUIC v2 (`0x6b3343cf`) in `other_versions` field.  Server should select QUIC v2 in compatible version negotiation.  Client is expected to download one small file in QUIC v2.
+* **V2** (`v2`): In this test, the client starts connecting server in QUIC v1 with `version_information` transport parameter that includes QUIC v2 (`0x6b3343cf`) in `other_versions` field.  Server should select QUIC v2 in compatible version negotiation.  Client is expected to download one small file in QUIC v2.
+
+* **ECN** (`ecn`): The server is expected to verify ECN capability of the path using the ECT(0) codepoint. The client is only expected to report ECN counts in its ACK frames, it doesn't need to use ECN on its outgoing packets.
