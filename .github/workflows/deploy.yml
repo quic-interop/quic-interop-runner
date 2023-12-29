@@ -10,17 +10,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: appleboy/scp-action@master
+      - name: Upload website to interop.seemann.io
+        uses: burnett01/rsync-deployments@c04732dab25a8b2c000b7198a067bf26e93959e2 # v6.0.0
         with:
-          host: interop.seemann.io
-          username: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
-          key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
-          source: web/
-          target: ${{ secrets.INTEROP_SEEMANN_IO_WEBSITE_DIR }}
-          rm: true
-          strip_components: 1
+          switches: -avzr --delete
+          path: web/
+          remote_path: ${{ secrets.INTEROP_SEEMANN_IO_WEBSITE_DIR }}
+          remote_host: interop.seemann.io
+          remote_user: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
+          remote_key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
       - name: Restart server
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@8f949198563a347a01c65ffc60399aef2b59d4ab # v1.0.1
         with:
           host: interop.seemann.io
           username: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
