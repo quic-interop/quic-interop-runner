@@ -31,3 +31,17 @@ tr.hover-xy > th, th.hover-xy {
   background-color: #cfd9db;
   color: #e74c3c;
 }
+
+.sponsor {
+  width: max-content;
+
+  .btn {
+    color: black;
+    text-decoration: none;
+    margin-bottom: 5px;
+
+    i {
+      margin-right: 5px;
+    }
+  }
+}
