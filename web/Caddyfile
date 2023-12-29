@@ -1,7 +1,3 @@
-{
-  experimental_http3
-}
-
 interop.seemann.io:443
 
 # The website must be mounted at /var/www/web.
