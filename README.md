@@ -13,7 +13,7 @@ following softwares to run the interop test:
 pip3 install -r requirements.txt
 ```
 
-- [Docker](https://docs.docker.com/engine/install/) and [docker-compose](https://docs.docker.com/compose/install/other/#install-compose-standalone). Note that the Interop Runner doesn't support [docker compose v2](https://docs.docker.com/compose/install/) yet.
+- [Docker](https://docs.docker.com/engine/install/) and [docker compose](https://docs.docker.com/compose/). 
 
 - [Development version of Wireshark](https://www.wireshark.org/download.html) (version 3.4.2 or newer).
 
