@@ -228,7 +228,7 @@ jobs:
         with:
           switches: -avzr
           path: logs/${{ matrix.server }}_${{ matrix.client }}/
-          remote_path: /mnt/logs/${{ needs.config.outputs.logname }}/
+          remote_path: /mnt/logs/${{ needs.config.outputs.logname }}/${{ matrix.server }}_${{ matrix.client }}/
           remote_host: interop.seemann.io
           remote_user: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
           remote_key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
@@ -275,7 +275,7 @@ jobs:
         with:
           switches: -avzr
           path: result.json
-          remote_path: /mnt/logs/${{ needs.config.outputs.logname }}/ # rrsync configuration points this to the correct path
+          remote_path: /mnt/logs/${{ needs.config.outputs.logname }}/
           remote_host: interop.seemann.io
           remote_user: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
           remote_key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
