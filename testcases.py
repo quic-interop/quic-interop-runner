@@ -927,7 +927,7 @@ class TestCaseKeyUpdate(TestCaseHandshake):
 
             def _get_key_phase(pkt) -> int:
                 kp: str = pkt.key_phase.raw_value
-                # when key_phase bit is set in a Quic packet, certain versions
+                # when key_phase bit is set in a QUIC packet, certain versions
                 # of wireshark (4.0.11, for example) have been seen to return the string value
                 # "1" and certain other versions of wireshark return the string value "True".
                 # here we deal with such values and return the integer value 1 for either of those.
