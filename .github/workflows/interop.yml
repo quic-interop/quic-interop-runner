@@ -226,9 +226,9 @@ jobs:
         uses: burnett01/rsync-deployments@c04732dab25a8b2c000b7198a067bf26e93959e2 # v6.0.0
         if: ${{ github.event_name == 'schedule' }}
         with:
-          switches: -avzr
-          path: logs/${{ matrix.server }}_${{ matrix.client }}/
-          remote_path: /mnt/logs/${{ needs.config.outputs.logname }}/${{ matrix.server }}_${{ matrix.client }}/
+          switches: -avzr --relative
+          path: logs/./${{ matrix.server }}_${{ matrix.client }}/
+          remote_path: /mnt/logs/${{ needs.config.outputs.logname }}
           remote_host: interop.seemann.io
           remote_user: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
           remote_key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
