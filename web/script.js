@@ -270,6 +270,7 @@
 
   function load(dir) {
     document.getElementsByTagName("body")[0].classList.add("loading");
+    document.getElementById("run-selection-msg").innerHTML = "";
     var xhr = new XMLHttpRequest();
     xhr.responseType = 'json';
     xhr.open('GET', 'logs/' + dir + '/result.json');
@@ -277,6 +278,9 @@
       if(xhr.readyState !== XMLHttpRequest.DONE) return;
       if(xhr.status !== 200) {
         console.log("Received status: ", xhr.status);
+        var run = dir.replace("logs_", "");
+        var errMsg = '<strong>Error: could not locate result for "' + run + '" run</strong>';
+        document.getElementById("run-selection-msg").innerHTML = errMsg;
         return;
       }
       process(xhr.response);
@@ -285,7 +289,16 @@
     xhr.send();
   }
 
-  load("latest");
+  var selectedRun = null;
+  var queryParams = (new URL(document.location)).searchParams;
+  if (queryParams.has("run") === true) {
+    // if the request used a specific run (like ?run=123), then
+    // load that specifc one
+    selectedRun = queryParams.get("run")
+    load("logs_" + selectedRun);
+  } else {
+    load("latest");
+  }
 
   // enable loading of old runs
   var xhr = new XMLHttpRequest();
@@ -308,6 +321,11 @@
       load(ev.currentTarget.value);
     });
     document.getElementById("available-runs").appendChild(s);
+    if (selectedRun != null) {
+      // just set the selected run, no need to trigger "change"
+      // event here
+      s.value = "logs_" + selectedRun;
+    }
   };
   xhr.send();
 })();
