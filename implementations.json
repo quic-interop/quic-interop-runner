@@ -35,7 +35,7 @@
     "role": "both"
   },
   "neqo": {
-    "image": "neqoquic/neqo-qns:latest",
+    "image": "ghcr.io/mozilla/neqo-qns:latest",
     "url": "https://github.com/mozilla/neqo",
     "role": "both"
   },
