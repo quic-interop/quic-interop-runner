@@ -156,6 +156,7 @@ jobs:
     needs: [ wireshark, config, docker-pull-tools, docker-pull-images ]
     runs-on: ubuntu-latest
     continue-on-error: true
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix: 
