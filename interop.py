@@ -140,7 +140,7 @@ class InteropRunner:
         )
         if not self._is_unsupported(output.stdout.splitlines()):
             logging.error("%s client not compliant.", name)
-            logging.debug("%s", output.stdout.decode("utf-8"))
+            logging.debug("%s", output.stdout.decode("utf-8", errors="replace"))
             self.compliant[name] = False
             return False
         logging.debug("%s client compliant.", name)
@@ -166,7 +166,7 @@ class InteropRunner:
         )
         if not self._is_unsupported(output.stdout.splitlines()):
             logging.error("%s server not compliant.", name)
-            logging.debug("%s", output.stdout.decode("utf-8"))
+            logging.debug("%s", output.stdout.decode("utf-8", errors="replace"))
             self.compliant[name] = False
             return False
         logging.debug("%s server compliant.", name)
@@ -305,7 +305,9 @@ class InteropRunner:
         )
         if r.returncode != 0:
             logging.info(
-                "Copying logs from %s failed: %s", container, r.stdout.decode("utf-8")
+                "Copying logs from %s failed: %s",
+                container,
+                r.stdout.decode("utf-8", errors="replace"),
             )
 
     def _run_testcase(
@@ -388,7 +390,7 @@ class InteropRunner:
             output = ex.stdout
             expired = True
 
-        logging.debug("%s", output.decode("utf-8"))
+        logging.debug("%s", output.decode("utf-8", errors="replace"))
 
         if expired:
             logging.debug("Test failed: took longer than %ds.", testcase.timeout())
@@ -399,7 +401,7 @@ class InteropRunner:
                 stderr=subprocess.STDOUT,
                 timeout=60,
             )
-            logging.debug("%s", r.stdout.decode("utf-8"))
+            logging.debug("%s", r.stdout.decode("utf-8", errors="replace"))
 
         # copy the pcaps from the simulator
         self._copy_logs("sim", sim_log_dir)
