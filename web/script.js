@@ -283,7 +283,11 @@
         document.getElementById("run-selection-msg").innerHTML = errMsg;
         return;
       }
-      process(xhr.response);
+      var result = xhr.response;
+      var selectedRun = result.log_dir.replace("logs_", "");
+      var refresh = window.location.protocol + "//" + window.location.host + window.location.pathname + "?run=" + selectedRun;
+      window.history.pushState(null, null, refresh);
+      process(result);
       document.getElementsByTagName("body")[0].classList.remove("loading");
     };
     xhr.send();
