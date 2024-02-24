@@ -1,0 +1,83 @@
+name: 'QUIC Interop Runner Action'
+description: ''
+author: 'mxinden'
+branding:
+  icon: 'anchor'
+  color: 'blue'
+
+inputs:
+  name:
+    description: 'Name of the QUIC implementation'
+    required: true
+  image:
+    description: 'Docker image to be tested. Needs to reside either locally, or on some registry.'
+    required: true
+  url:
+    description: 'URL of the QUIC implementation'
+    required: true
+  role:
+    description: 'client/server/both'
+    required: false
+    default: 'both'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install dependencies
+      run: |
+        sudo add-apt-repository ppa:wireshark-dev/stable
+        sudo apt-get update
+        sudo apt-get install -y wireshark tshark
+      shell: bash
+    - uses: actions/setup-python@v4
+      with:
+        python-version: 3.8
+    - name: Enable IPv6 support
+      run: sudo modprobe ip6table_filter
+      shell: bash
+    - name: Checkout quic-interop/quic-interop-runner repository
+      uses: actions/checkout@v2
+      with:
+        repository: 'quic-interop/quic-interop-runner'
+        path: 'quic-interop-runner'
+    - name: Install Python packages
+      run: |
+        pwd
+        ls -la
+        cd quic-interop-runner
+        pip install -U pip
+        pip install -r requirements.txt
+      shell: bash
+    - run: docker image ls
+      shell: bash
+    - name: Run tests
+      id: test-run
+      run: |
+        cd quic-interop-runner
+        echo '{"neqo": {"image": "${{ inputs.image }}", "url": "${{ inputs.name }}", "role": "${{ inputs.role }}"}}' > implementations.json
+        cat implementations.json
+        python run.py --test handshake --log-dir output 2>&1 | tee github-comment
+      shell: bash
+    - uses: actions/upload-artifact@v4
+      id: artifact-upload-step
+      if: always()
+      with:
+        name: output
+        path: quic-interop-runner/output
+    - name: Format GitHub comment
+      run: |
+        echo '[**QUIC Interop Runner**](https://github.com/quic-interop/quic-interop-runner)' >> tmp
+        echo '' >> tmp
+        echo '```' >> tmp
+        cat quic-interop-runner/github-comment >> tmp
+        echo '```' >> tmp
+        echo '' >> tmp
+        echo 'Download artifacts [here](${{ steps.artifact-upload-step.outputs.artifact-url }}).' >> tmp
+        mv tmp quic-interop-runner/github-comment
+      if: always()
+      shell: bash
+    - name: Comment PR
+      if: github.event_name == 'pull_request'
+      uses: thollander/actions-comment-pull-request@v2
+      with:
+        filePath: quic-interop-runner/github-comment

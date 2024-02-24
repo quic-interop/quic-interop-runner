@@ -1,0 +1,17 @@
+on:
+  pull_request:
+  push:
+
+jobs:
+  main:
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: foo
+        uses: ./
+        with:
+          name: 'neqo'
+          image: 'ghcr.io/mozilla/neqo-qns:latest'
+          url: https://github.com/mozilla/neqo
