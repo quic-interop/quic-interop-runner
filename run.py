@@ -97,7 +97,11 @@ def main():
         impls = []
         for client in clients:
             for server in servers:
-                if must_include is None or client == must_include or server == must_include:
+                if (
+                    must_include is None
+                    or client == must_include
+                    or server == must_include
+                ):
                     impls.append((client, server))
         return impls
 
@@ -137,7 +141,11 @@ def main():
     t = get_tests_and_measurements(get_args().test)
     return InteropRunner(
         implementations=implementations,
-        client_server_pairs=get_impl_pairs(get_impls(get_args().client, client_implementations, "Client"), get_impls(get_args().server, server_implementations, "Server"),  get_args().must_include),
+        client_server_pairs=get_impl_pairs(
+            get_impls(get_args().client, client_implementations, "Client"),
+            get_impls(get_args().server, server_implementations, "Server"),
+            get_args().must_include,
+        ),
         tests=t[0],
         measurements=t[1],
         output=get_args().json,

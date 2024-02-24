@@ -73,7 +73,7 @@ class InteropRunner:
         self._start_time = datetime.now()
         self._tests = tests
         self._measurements = measurements
-        self._client_server_pairs=client_server_pairs
+        self._client_server_pairs = client_server_pairs
         self._implementations = implementations
         self._output = output
         self._log_dir = log_dir
@@ -85,9 +85,13 @@ class InteropRunner:
         logging.info("Saving logs to %s.", self._log_dir)
         for client, server in client_server_pairs:
             for test in self._tests:
-                self.test_results.setdefault(server, {}).setdefault(client, {}).setdefault(test, {})
+                self.test_results.setdefault(server, {}).setdefault(
+                    client, {}
+                ).setdefault(test, {})
             for measurement in measurements:
-                self.measurement_results.setdefault(server, {}).setdefault(client, {}).setdefault(measurement, {})
+                self.measurement_results.setdefault(server, {}).setdefault(
+                    client, {}
+                ).setdefault(measurement, {})
 
     def _is_unsupported(self, lines: List[str]) -> bool:
         return any("exited with code 127" in str(line) for line in lines) or any(
@@ -182,7 +186,7 @@ class InteropRunner:
             t.vrules = prettytable.ALL
             rows = {}
             columns = {}
-            for (client, server) in self._client_server_pairs:
+            for client, server in self._client_server_pairs:
                 columns[server] = {}
                 row = rows.setdefault(client, {})
                 cell = self.test_results[server][client]
@@ -246,10 +250,7 @@ class InteropRunner:
             "log_dir": self._log_dir,
             "servers": servers,
             "clients": clients,
-            "urls": {
-                x: self._implementations[x]["url"]
-                for x in clients + servers
-            },
+            "urls": {x: self._implementations[x]["url"] for x in clients + servers},
             "tests": {
                 x.abbreviation(): {
                     "name": x.name(),
