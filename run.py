@@ -65,6 +65,11 @@ def main():
         parser.add_argument(
             "-j", "--json", help="output the matrix to file in json format"
         )
+        parser.add_argument(
+            "-i",
+            "--must-include",
+            help="implementation that must be included",
+        )
         return parser.parse_args()
 
     replace_arg = get_args().replace
@@ -86,6 +91,14 @@ def main():
             if s not in availableImpls:
                 sys.exit(role + " implementation " + s + " not found.")
             impls.append(s)
+        return impls
+
+    def get_impl_pairs(clients, servers, must_include) -> List[Tuple[str, str]]:
+        impls = []
+        for client in clients:
+            for server in servers:
+                if must_include is None or client == must_include or server == must_include:
+                    impls.append((client, server))
         return impls
 
     def get_tests_and_measurements(
@@ -124,8 +137,7 @@ def main():
     t = get_tests_and_measurements(get_args().test)
     return InteropRunner(
         implementations=implementations,
-        servers=get_impls(get_args().server, server_implementations, "Server"),
-        clients=get_impls(get_args().client, client_implementations, "Client"),
+        client_server_pairs=get_impl_pairs(get_impls(get_args().client, client_implementations, "Client"), get_impls(get_args().server, server_implementations, "Server"),  get_args().must_include),
         tests=t[0],
         measurements=t[1],
         output=get_args().json,
