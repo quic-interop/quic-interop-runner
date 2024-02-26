@@ -1,9 +1,6 @@
 name: 'QUIC Interop Runner Action'
-description: ''
+description: 'Run the QUIC Interop Runner tests.'
 author: 'mxinden'
-branding:
-  icon: 'anchor'
-  color: 'blue'
 
 inputs:
   name:
@@ -29,55 +26,64 @@ runs:
         sudo apt-get update
         sudo apt-get install -y wireshark tshark
       shell: bash
+
     - uses: actions/setup-python@v4
       with:
         python-version: 3.8
+
     - name: Enable IPv6 support
       run: sudo modprobe ip6table_filter
       shell: bash
+
     - name: Checkout quic-interop/quic-interop-runner repository
       uses: actions/checkout@v2
       with:
         repository: 'quic-interop/quic-interop-runner'
         path: 'quic-interop-runner'
+
     - name: Install Python packages
       run: |
-        pwd
-        ls -la
         cd quic-interop-runner
         pip install -U pip
         pip install -r requirements.txt
       shell: bash
+
     - run: docker image ls
       shell: bash
+
     - name: Run tests
       id: test-run
       run: |
         cd quic-interop-runner
         echo '{"neqo": {"image": "${{ inputs.image }}", "url": "${{ inputs.name }}", "role": "${{ inputs.role }}"}}' > implementations.json
-        cat implementations.json
-        python run.py --test handshake --log-dir output 2>&1 | tee github-comment
+        python run.py --test handshake --log-dir logs 2>&1 | tee summary
       shell: bash
+
     - uses: actions/upload-artifact@v4
       id: artifact-upload-step
       if: always()
       with:
-        name: output
-        path: quic-interop-runner/output
-    - name: Format GitHub comment
-      run: |
-        echo '[**QUIC Interop Runner**](https://github.com/quic-interop/quic-interop-runner)' >> tmp
-        echo '' >> tmp
-        echo '```' >> tmp
-        cat quic-interop-runner/github-comment >> tmp
-        echo '```' >> tmp
-        echo '' >> tmp
-        echo 'Download artifacts [here](${{ steps.artifact-upload-step.outputs.artifact-url }}).' >> tmp
-        mv tmp quic-interop-runner/github-comment
-      if: always()
+        name: logs
+        path: quic-interop-runner/logs
+
+    # This action might be running off of a fork and would thus not have write
+    # permissions on the origin repository. In order to allow a separate
+    # priviledged action to post a comment on a pull request, upload the
+    # necessary metadata.
+    - name: store comment-data
       shell: bash
-    - name: Comment PR
       if: github.event_name == 'pull_request'
-      uses: thollander/actions-comment-pull-request@v2
+      env:
+        PULL_REQUEST_NUMBER: ${{ github.event.number }}
+      run: |
+        mkdir comment-data
+        mv quic-interop-runner/summary comment-data/summary
+        echo $PULL_REQUEST_NUMBER > comment-data/pr-number
+        echo '${{ steps.artifact-upload-step.outputs.artifact-url }}' > comment-data/logs-url
+
+    - name: Upload comment data
+      uses: actions/upload-artifact@v2
+      if: github.event_name == 'pull_request'
       with:
-        filePath: quic-interop-runner/github-comment
+        name: comment-data
+        path: ./comment-data

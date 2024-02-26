@@ -1,17 +1,21 @@
+name: quic-interop-runner
+
 on:
   pull_request:
-  push:
+  workflow_dispatch:
 
 jobs:
   main:
-    permissions:
-      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - id: foo
+
+      # Build your Docker image.
+
+      - name: Run QUIC Interop tests
         uses: ./
         with:
           name: 'neqo'
+          # Replace with the name of the freshly-build local docker image.
           image: 'ghcr.io/mozilla/neqo-qns:latest'
           url: https://github.com/mozilla/neqo
