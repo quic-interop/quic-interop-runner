@@ -180,8 +180,13 @@ class InteropRunner:
         logging.info("Run took %s", datetime.now() - self._start_time)
 
         def get_letters(result):
-            return "".join(
-                [test.abbreviation() for test in cell if cell[test] is result]
+            return (
+                result.symbol()
+                + "("
+                + ",".join(
+                    [test.abbreviation() for test in cell if cell[test] is result]
+                )
+                + ")"
             )
 
         if len(self._tests) > 0:
