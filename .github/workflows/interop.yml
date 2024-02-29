@@ -174,16 +174,16 @@ jobs:
         run: sudo modprobe ip6table_filter
       - run: docker image ls
       - name: Download tools Docker images
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: images-tools
       - name: Download ${{ matrix.server }} Docker image
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: image-${{ matrix.server }}
       - name: Download ${{ matrix.client }} Docker image
         if: ${{ matrix.server != matrix.client }}
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: image-${{ matrix.client }}
       - name: Load docker images
@@ -194,7 +194,7 @@ jobs:
           docker load --input ${{ matrix.client }}.tar.gz
       - run: docker image ls
       - name: Download Wireshark
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: wireshark
           path: wireshark
@@ -254,7 +254,7 @@ jobs:
         with:
           python-version: 3.8
       - name: Download results
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: results
       - name: Aggregate results
