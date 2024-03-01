@@ -24,7 +24,7 @@ runs:
       run: |
         sudo add-apt-repository ppa:wireshark-dev/stable
         sudo apt-get update
-        sudo apt-get install -y wireshark tshark
+        sudo apt-get install -y wireshark tshark jq
       shell: bash
 
     - uses: actions/setup-python@v4
@@ -55,8 +55,9 @@ runs:
       id: test-run
       run: |
         cd quic-interop-runner
-        echo '{"neqo": {"image": "${{ inputs.image }}", "url": "${{ inputs.name }}", "role": "${{ inputs.role }}"}}' > implementations.json
-        python run.py --test handshake --log-dir logs 2>&1 | tee summary
+        jq --arg key "${{ inputs.name }}" --argjson newEntry '{"neqo": {"image": "${{ inputs.image }}", "url": "${{ inputs.url }}", "role": "${{ inputs.role }}"}}' '.[$key] = $newEntry' implementations.json > temp.$$ && mv temp.$$ implementations.json
+        cat implementations.json
+        python run.py --must-include ${{ inputs.name }} --test handshake --log-dir logs 2>&1 | tee summary
       shell: bash
 
     - uses: actions/upload-artifact@v4
