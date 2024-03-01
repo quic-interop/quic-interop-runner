@@ -105,7 +105,7 @@ runs:
         echo '${{ steps.artifact-upload-step.outputs.artifact-url }}' > comment-data/logs-url
 
     - name: Upload comment data
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       if: github.event_name == 'pull_request'
       with:
         name: comment-data
