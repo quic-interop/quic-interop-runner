@@ -1,7 +1,9 @@
 name: interop
 on:
   schedule:
-  - cron: "0 */8 * * *" # every 8h
+   # Every 8h, at 15 minutes past the hour
+   # This makes sure that the cleanup cron job can run first.
+  - cron: "15 */8 * * *"
 
 # Cache key for caching the Wireshark build.
 # To trigger a rebuild of Wireshark increment this value.
@@ -15,7 +17,7 @@ jobs:
     steps:
       - name: Restore from cache
         id: restore-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         env:
           VERSION: ${{ env.WIRESHARK_CACHEKEY }}
         with:
@@ -26,7 +28,7 @@ jobs:
         run: |
           tar xfz tshark.tar.gz
           ./tshark -v
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: steps.restore-cache.outputs.cache-hit != 'true'
         with:
           repository: the-tcpdump-group/libpcap
@@ -36,7 +38,7 @@ jobs:
           ./autogen.sh
           ./configure --disable-dbus --disable-rdma
           sudo make install
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: steps.restore-cache.outputs.cache-hit != 'true'
         with:
           repository: wireshark/wireshark
@@ -54,7 +56,7 @@ jobs:
         if: steps.restore-cache.outputs.cache-hit != 'true'
         run: tar -czvf tshark.tar.gz -C run/ tshark
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wireshark
           path: tshark.tar.gz
@@ -79,7 +81,7 @@ jobs:
           STARTTIME=$(date +%s)
           echo $STARTTIME
           echo "starttime=$STARTTIME" >> $GITHUB_OUTPUT
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
           python-version: 3.8
@@ -107,7 +109,7 @@ jobs:
       matrix:
         image: [ 'quic-network-simulator', 'quic-interop-iperf-endpoint' ]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Pull
       run: |
         URL="martenseemann/${{ matrix.image }}"
@@ -120,7 +122,7 @@ jobs:
         docker save $URL | gzip --best > ${{ matrix.image }}.tar.gz
         du -sh ${{ matrix.image }}.tar.gz
     - name: Upload result
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: images-tools
         path: ${{ matrix.image }}.tar.gz
@@ -133,7 +135,7 @@ jobs:
         image: ${{ fromJson(needs.config.outputs.images) }}
     name: Pull ${{ matrix.image }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Run docker pull
         run: |
           URL=$(jq -r '.["${{ matrix.image }}"].image' implementations.json)
@@ -147,7 +149,7 @@ jobs:
           docker save $URL | gzip --best > ${{ matrix.image }}.tar.gz
           du -sh ${{ matrix.image }}.tar.gz
       - name: Upload result
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: image-${{ matrix.image }}
           path: ${{ matrix.image }}.tar.gz
@@ -156,6 +158,7 @@ jobs:
     needs: [ wireshark, config, docker-pull-tools, docker-pull-images ]
     runs-on: ubuntu-latest
     continue-on-error: true
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix: 
@@ -163,7 +166,7 @@ jobs:
         client: ${{ fromJson(needs.config.outputs.clients) }}
     name: (${{ matrix.server }} - ${{ matrix.client }})
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
           python-version: 3.8
@@ -171,16 +174,16 @@ jobs:
         run: sudo modprobe ip6table_filter
       - run: docker image ls
       - name: Download tools Docker images
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: images-tools
       - name: Download ${{ matrix.server }} Docker image
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: image-${{ matrix.server }}
       - name: Download ${{ matrix.client }} Docker image
         if: ${{ matrix.server != matrix.client }}
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: image-${{ matrix.client }}
       - name: Load docker images
@@ -191,7 +194,7 @@ jobs:
           docker load --input ${{ matrix.client }}.tar.gz
       - run: docker image ls
       - name: Download Wireshark
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: wireshark
           path: wireshark
@@ -228,12 +231,12 @@ jobs:
         with:
           switches: -avzr --relative
           path: logs/./${{ matrix.server }}_${{ matrix.client }}/
-          remote_path: /mnt/logs/${{ needs.config.outputs.logname }}
+          remote_path: ${{ vars.LOG_DIR }}/${{ needs.config.outputs.logname }}
           remote_host: interop.seemann.io
           remote_user: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
           remote_key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
       - name: Upload result
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: results
           if-no-files-found: error
@@ -246,12 +249,12 @@ jobs:
     env:
       LOGNAME: ${{ needs.config.outputs.logname }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
           python-version: 3.8
       - name: Download results
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: results
       - name: Aggregate results
@@ -265,7 +268,7 @@ jobs:
       - name: Print result
         run: jq '.' result.json
       - name: Upload result to artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: results
           path: result.json
@@ -275,12 +278,12 @@ jobs:
         with:
           switches: -avzr
           path: result.json
-          remote_path: /mnt/logs/${{ needs.config.outputs.logname }}/
+          remote_path: ${{ vars.LOG_DIR }}/${{ needs.config.outputs.logname }}/
           remote_host: interop.seemann.io
           remote_user: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
           remote_key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
       - name: Point interop.seemann.io to the latest result 
-        uses: appleboy/ssh-action@8f949198563a347a01c65ffc60399aef2b59d4ab # v1.0.1
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
         if: ${{ github.event_name == 'schedule' }}
         with:
           host: interop.seemann.io
@@ -288,7 +291,7 @@ jobs:
           key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
           envs: LOGNAME
           script: |
-            cd /mnt/logs
+            cd ${{ vars.LOG_DIR }}
             jq '. += [ "${{ needs.config.outputs.logname }}" ]' logs.json | sponge logs.json
             rm latest || true
             ln -s $LOGNAME latest
