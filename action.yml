@@ -55,7 +55,7 @@ runs:
       id: test-run
       run: |
         cd quic-interop-runner
-        jq --arg key "${{ inputs.name }}" --argjson newEntry '{"neqo": {"image": "${{ inputs.image }}", "url": "${{ inputs.url }}", "role": "${{ inputs.role }}"}}' '.[$key] = $newEntry' implementations.json > temp.$$ && mv temp.$$ implementations.json
+        jq --arg key "${{ inputs.name }}" --argjson newEntry '{"image": "${{ inputs.image }}", "url": "${{ inputs.url }}", "role": "${{ inputs.role }}"}' '.[$key] = $newEntry' implementations.json > temp.$$ && mv temp.$$ implementations.json
         cat implementations.json
         python run.py --must-include ${{ inputs.name }} --test handshake --log-dir logs 2>&1 | tee summary
       shell: bash
