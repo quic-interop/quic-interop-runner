@@ -79,7 +79,6 @@ runs:
         if [ -n "${{ inputs.test }}" ]; then
           ARGS="$ARGS --test ${{ inputs.test }}"
         fi
-        echo $ARGS
         python run.py $ARGS 2>&1 | tee summary
       shell: bash
 
