@@ -19,3 +19,6 @@ jobs:
           # Replace with the name of the freshly-build local docker image.
           image: 'ghcr.io/mozilla/neqo-qns:latest'
           url: https://github.com/mozilla/neqo
+          test: handshake
+          client: quic-go,ngtcp2,neqo,msquic
+          server: quic-go,ngtcp2,neqo,msquic
