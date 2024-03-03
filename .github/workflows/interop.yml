@@ -242,7 +242,7 @@ jobs:
       - name: Upload result
         uses: actions/upload-artifact@v4
         with:
-          name: results
+          name: results-${{ matrix.server }}-${{ matrix.client }}
           if-no-files-found: error
           path: |
             ${{ matrix.server }}_${{ matrix.client }}_results.json
@@ -260,7 +260,7 @@ jobs:
       - name: Download results
         uses: actions/download-artifact@v4
         with:
-          name: results
+          pattern: results-*
       - name: Aggregate results
         run: |
           python .github/workflows/aggregate.py \
@@ -274,7 +274,7 @@ jobs:
       - name: Upload result to artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: results
+          name: result-aggregated
           path: result.json
       - name: Upload logs to interop.seemann.io
         uses: burnett01/rsync-deployments@c04732dab25a8b2c000b7198a067bf26e93959e2 # v6.0.0
