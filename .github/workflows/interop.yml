@@ -124,7 +124,7 @@ jobs:
     - name: Upload result
       uses: actions/upload-artifact@v4
       with:
-        name: images-tools
+        name: images-${{ matrix.image }}
         path: ${{ matrix.image }}.tar.gz
         if-no-files-found: error
   docker-pull-images:
@@ -173,10 +173,14 @@ jobs:
       - name: Enable IPv6 support
         run: sudo modprobe ip6table_filter
       - run: docker image ls
-      - name: Download tools Docker images
+      - name: Download quic-network-simulator image
         uses: actions/download-artifact@v4
         with:
-          name: images-tools
+          name: images-quic-network-simulator
+      - name: Download quic-interop-iperf-endpoint image
+        uses: actions/download-artifact@v4
+        with:
+          name: images-quic-interop-iperf-endpoint
       - name: Download ${{ matrix.server }} Docker image
         uses: actions/download-artifact@v4
         with:
