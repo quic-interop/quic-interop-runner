@@ -263,6 +263,7 @@ jobs:
           pattern: results-*
       - name: Aggregate results
         run: |
+          mv results-*/*.json .
           python .github/workflows/aggregate.py \
             --start-time ${{ needs.config.outputs.starttime }} \
             --server ${{ join(fromJson(needs.config.outputs.servers), ',') }} \
