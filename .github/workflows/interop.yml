@@ -126,7 +126,7 @@ jobs:
     - name: Upload result
       uses: actions/upload-artifact@v4
       with:
-        name: images-tools-${{ github.run_id }}
+        name: images-${{ matrix.image }}
         path: ${{ matrix.image }}.tar.gz
         if-no-files-found: error
   docker-pull-images:
@@ -153,7 +153,7 @@ jobs:
       - name: Upload result
         uses: actions/upload-artifact@v4
         with:
-          name: image-${{ matrix.image }}-${{ github.run_id }}
+          name: image-${{ matrix.image }}
           path: ${{ matrix.image }}.tar.gz
           if-no-files-found: error
   tests:
@@ -175,19 +175,23 @@ jobs:
       - name: Enable IPv6 support
         run: sudo modprobe ip6table_filter
       - run: docker image ls
-      - name: Download tools Docker images
+      - name: Download quic-network-simulator image
         uses: actions/download-artifact@v4
         with:
-          name: images-tools-${{ github.run_id }}
+          name: images-quic-network-simulator
+      - name: Download quic-interop-iperf-endpoint image
+        uses: actions/download-artifact@v4
+        with:
+          name: images-quic-interop-iperf-endpoint
       - name: Download ${{ matrix.server }} Docker image
         uses: actions/download-artifact@v4
         with:
-          name: image-${{ matrix.server }}-${{ github.run_id }}
+          name: image-${{ matrix.server }}
       - name: Download ${{ matrix.client }} Docker image
         if: ${{ matrix.server != matrix.client }}
         uses: actions/download-artifact@v4
         with:
-          name: image-${{ matrix.client }}-${{ github.run_id }}
+          name: image-${{ matrix.client }}
       - name: Load docker images
         run: |
           docker load --input quic-network-simulator.tar.gz
@@ -240,7 +244,7 @@ jobs:
       - name: Upload result
         uses: actions/upload-artifact@v4
         with:
-          name: results-${{ github.run_id }}
+          name: results
           if-no-files-found: error
           path: |
             ${{ matrix.server }}_${{ matrix.client }}_results.json
@@ -258,7 +262,7 @@ jobs:
       - name: Download results
         uses: actions/download-artifact@v4
         with:
-          name: results-${{ github.run_id }}
+          name: results
       - name: Aggregate results
         run: |
           python .github/workflows/aggregate.py \
@@ -272,7 +276,7 @@ jobs:
       - name: Upload result to artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: results-${{ github.run_id }}
+          name: results
           path: result.json
       - name: Upload logs to interop.seemann.io
         uses: burnett01/rsync-deployments@c04732dab25a8b2c000b7198a067bf26e93959e2 # v6.0.0
