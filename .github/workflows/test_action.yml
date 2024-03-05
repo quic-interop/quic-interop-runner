@@ -1,4 +1,4 @@
-name: quic-interop-runner
+name: test-action
 
 on:
   pull_request:
