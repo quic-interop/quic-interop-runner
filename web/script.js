@@ -2,6 +2,7 @@
 
 (function() {
   "use strict";
+  const host = "https://quic-interop-runner.s3.us-east-005.backblazeb2.com";
   const map = { client: {}, server: {}, test: {} };
   const color_type = { succeeded: "success", unsupported: "secondary disabled", failed: "danger"};
 
@@ -24,7 +25,7 @@
     a.className = "btn btn-xs btn-" + color_type[res] + " " + res + " test-" + text.toLowerCase();
     var ttip_target = a;
     if (res !== "unsupported") {
-      a.href = "logs/" + log_dir + "/" + server + "_" + client + "/" + test;
+      a.href = `${host}/${log_dir}/${server}_${client}/${test}`;
       a.target = "_blank";
       ttip += "<br><br>(Click for logs.)";
     } else {
@@ -272,7 +273,7 @@
     document.getElementsByTagName("body")[0].classList.add("loading");
     var xhr = new XMLHttpRequest();
     xhr.responseType = 'json';
-    xhr.open('GET', 'logs/' + dir + '/result.json');
+    xhr.open('GET', `${host}/${dir}/result.json`);
     xhr.onreadystatechange = function() {
       if(xhr.readyState !== XMLHttpRequest.DONE) return;
       if(xhr.status !== 200) {
@@ -285,12 +286,10 @@
     xhr.send();
   }
 
-  load("latest");
-
   // enable loading of old runs
   var xhr = new XMLHttpRequest();
   xhr.responseType = 'json';
-  xhr.open('GET', 'logs/logs.json');
+  xhr.open('GET', `${host}/logs.json`);
   xhr.onreadystatechange = function() {
     if(xhr.readyState !== XMLHttpRequest.DONE) return;
     if(xhr.status !== 200) {
@@ -298,6 +297,8 @@
       return;
     }
     var s = document.createElement("select");
+    // load the latest run
+    load(xhr.response[xhr.response.length-1]);
     xhr.response.reverse().forEach(function(el) {
       var opt = document.createElement("option");
       opt.innerHTML = el.replace("logs_", "");
