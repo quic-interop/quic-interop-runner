@@ -281,6 +281,8 @@
         var run = dir.replace("logs_", "");
         var errMsg = '<strong>Error: could not locate result for "' + run + '" run</strong>';
         document.getElementById("run-selection-msg").innerHTML = errMsg;
+        var refresh = window.location.protocol + "//" + window.location.host + window.location.pathname + "?run=" + run;
+        window.history.pushState(null, null, refresh);
         return;
       }
       var result = xhr.response;
