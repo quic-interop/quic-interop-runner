@@ -82,7 +82,7 @@ jobs:
           echo $STARTTIME
           echo "starttime=$STARTTIME" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: 3.8
       - name: Determine servers
@@ -124,7 +124,7 @@ jobs:
     - name: Upload result
       uses: actions/upload-artifact@v4
       with:
-        name: images-tools
+        name: images-${{ matrix.image }}
         path: ${{ matrix.image }}.tar.gz
         if-no-files-found: error
   docker-pull-images:
@@ -167,16 +167,20 @@ jobs:
     name: (${{ matrix.server }} - ${{ matrix.client }})
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: 3.8
       - name: Enable IPv6 support
         run: sudo modprobe ip6table_filter
       - run: docker image ls
-      - name: Download tools Docker images
+      - name: Download quic-network-simulator image
         uses: actions/download-artifact@v4
         with:
-          name: images-tools
+          name: images-quic-network-simulator
+      - name: Download quic-interop-iperf-endpoint image
+        uses: actions/download-artifact@v4
+        with:
+          name: images-quic-interop-iperf-endpoint
       - name: Download ${{ matrix.server }} Docker image
         uses: actions/download-artifact@v4
         with:
@@ -238,7 +242,7 @@ jobs:
       - name: Upload result
         uses: actions/upload-artifact@v4
         with:
-          name: results
+          name: results-${{ matrix.server }}-${{ matrix.client }}
           if-no-files-found: error
           path: |
             ${{ matrix.server }}_${{ matrix.client }}_results.json
@@ -250,15 +254,16 @@ jobs:
       LOGNAME: ${{ needs.config.outputs.logname }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: 3.8
       - name: Download results
         uses: actions/download-artifact@v4
         with:
-          name: results
+          pattern: results-*
       - name: Aggregate results
         run: |
+          mv results-*/*.json .
           python .github/workflows/aggregate.py \
             --start-time ${{ needs.config.outputs.starttime }} \
             --server ${{ join(fromJson(needs.config.outputs.servers), ',') }} \
@@ -270,7 +275,7 @@ jobs:
       - name: Upload result to artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: results
+          name: result-aggregated
           path: result.json
       - name: Upload logs to interop.seemann.io
         uses: burnett01/rsync-deployments@c04732dab25a8b2c000b7198a067bf26e93959e2 # v6.0.0

@@ -247,8 +247,8 @@ class InteropRunner:
     def _export_results(self):
         if not self._output:
             return
-        clients = list(set(server for client, server in self._client_server_pairs))
-        servers = list(set(server for client, server in self._client_server_pairs))
+        clients = list(set(client for client, _ in self._client_server_pairs))
+        servers = list(set(server for _, server in self._client_server_pairs))
         out = {
             "start_time": self._start_time.timestamp(),
             "end_time": datetime.now().timestamp(),
