@@ -53,3 +53,4 @@ jobs:
         with:
           filePath: comment
           pr_number: ${{ steps.pr-number.outputs.number }}
+          comment_tag: quic-network-simulator-comment
