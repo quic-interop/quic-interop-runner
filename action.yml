@@ -32,6 +32,12 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Checkout quic-interop/quic-interop-runner repository
+      uses: actions/checkout@v4
+      with:
+        repository: 'quic-interop/quic-interop-runner'
+        path: 'quic-interop-runner'
+
     - name: Enable IPv6 support
       run: sudo modprobe ip6table_filter
       shell: bash
