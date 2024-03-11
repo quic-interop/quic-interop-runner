@@ -60,9 +60,6 @@ runs:
         pip install -r requirements.txt
       shell: bash
 
-    - run: docker image ls
-      shell: bash
-
     - name: Run tests
       id: test-run
       run: |
