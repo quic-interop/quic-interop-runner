@@ -48,6 +48,7 @@ class InteropRunner:
     _tests = []
     _measurements = []
     _output = ""
+    _markdown = False
     _log_dir = ""
     _save_files = False
 
@@ -58,6 +59,7 @@ class InteropRunner:
         tests: List[testcases.TestCase],
         measurements: List[testcases.Measurement],
         output: str,
+        markdown: bool,
         debug: bool,
         save_files=False,
         log_dir="",
@@ -76,6 +78,7 @@ class InteropRunner:
         self._client_server_pairs = client_server_pairs
         self._implementations = implementations
         self._output = output
+        self._markdown = markdown
         self._log_dir = log_dir
         self._save_files = save_files
         if len(self._log_dir) == 0:
@@ -187,6 +190,8 @@ class InteropRunner:
 
         if len(self._tests) > 0:
             t = prettytable.PrettyTable()
+            if self._markdown:
+                t.set_style(prettytable.MARKDOWN)
             t.hrules = prettytable.ALL
             t.vrules = prettytable.ALL
             rows = {}

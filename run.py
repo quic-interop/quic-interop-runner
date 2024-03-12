@@ -66,6 +66,14 @@ def main():
             "-j", "--json", help="output the matrix to file in json format"
         )
         parser.add_argument(
+            "-m",
+            "--markdown",
+            help="output the matrix in Markdown format",
+            action="store_const",
+            const=True,
+            default=False,
+        )
+        parser.add_argument(
             "-i",
             "--must-include",
             help="implementation that must be included",
@@ -149,6 +157,7 @@ def main():
         tests=t[0],
         measurements=t[1],
         output=get_args().json,
+        markdown=get_args().markdown,
         debug=get_args().debug,
         log_dir=get_args().log_dir,
         save_files=get_args().save_files,
