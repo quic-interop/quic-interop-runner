@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 from datetime import timedelta
-from enum import Enum, IntEnum
+from enum import IntEnum
 from trace import (
     QUIC_V2,
     Direction,
@@ -23,17 +23,13 @@ from typing import List
 from Crypto.Cipher import AES
 
 from result import TestResult
+from perspective import Perspective
 
 KB = 1 << 10
 MB = 1 << 20
 
 QUIC_DRAFT = 34  # draft-34
 QUIC_VERSION = hex(0x1)
-
-
-class Perspective(Enum):
-    SERVER = "server"
-    CLIENT = "client"
 
 
 class ECN(IntEnum):
@@ -1638,7 +1634,7 @@ class MeasurementCrossTraffic(MeasurementGoodput):
         return ["iperf_server", "iperf_client"]
 
 
-TESTCASES = [
+TESTCASES_QUIC = [
     TestCaseHandshake,
     TestCaseTransfer,
     TestCaseLongRTT,

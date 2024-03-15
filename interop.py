@@ -15,9 +15,9 @@ from typing import Callable, List, Tuple
 import prettytable
 from termcolor import colored
 
-import testcases
+import testcases_quic
 from result import TestResult
-from testcases import Perspective
+from perspective import Perspective
 
 
 def random_string(length: int):
@@ -56,8 +56,8 @@ class InteropRunner:
         self,
         implementations: dict,
         client_server_pairs: List[Tuple[str, str]],
-        tests: List[testcases.TestCase],
-        measurements: List[testcases.Measurement],
+        tests: List[testcases_quic.TestCase],
+        measurements: List[testcases_quic.Measurement],
         output: str,
         markdown: bool,
         debug: bool,
@@ -116,7 +116,7 @@ class InteropRunner:
             dir="/tmp", prefix="compliance_downloads_"
         )
 
-        testcases.generate_cert_chain(certs_dir.name)
+        testcases_quic.generate_cert_chain(certs_dir.name)
 
         # check that the client is capable of returning UNSUPPORTED
         logging.debug("Checking compliance of %s client", name)
@@ -268,8 +268,8 @@ class InteropRunner:
                 }
                 for x in self._tests + self._measurements
             },
-            "quic_draft": testcases.QUIC_DRAFT,
-            "quic_version": testcases.QUIC_VERSION,
+            "quic_draft": testcases_quic.QUIC_DRAFT,
+            "quic_version": testcases_quic.QUIC_VERSION,
             "results": [],
             "measurements": [],
         }
@@ -329,7 +329,7 @@ class InteropRunner:
             )
 
     def _run_testcase(
-        self, server: str, client: str, test: Callable[[], testcases.TestCase]
+        self, server: str, client: str, test: Callable[[], testcases_quic.TestCase]
     ) -> TestResult:
         return self._run_test(server, client, None, test)[0]
 
@@ -338,7 +338,7 @@ class InteropRunner:
         server: str,
         client: str,
         log_dir_prefix: None,
-        test: Callable[[], testcases.TestCase],
+        test: Callable[[], testcases_quic.TestCase],
     ) -> Tuple[TestResult, float]:
         start_time = datetime.now()
         sim_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_sim_")
@@ -381,7 +381,7 @@ class InteropRunner:
             "CLIENT=" + self._implementations[client]["image"] + " "
             "SERVER=" + self._implementations[server]["image"] + " "
             'REQUESTS="' + reqs + '" '
-            'VERSION="' + testcases.QUIC_VERSION + '" '
+            'VERSION="' + testcases_quic.QUIC_VERSION + '" '
         ).format(testcase.scenario())
         params += " ".join(testcase.additional_envs())
         containers = "sim client server " + " ".join(testcase.additional_containers())
@@ -475,7 +475,7 @@ class InteropRunner:
         return status, value
 
     def _run_measurement(
-        self, server: str, client: str, test: Callable[[], testcases.Measurement]
+        self, server: str, client: str, test: Callable[[], testcases_quic.Measurement]
     ) -> MeasurementResult:
         values = []
         for i in range(0, test.repetitions()):

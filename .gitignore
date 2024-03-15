@@ -3,7 +3,7 @@ logs/
 logs_*/
 *.json
 venv/
-!implementations.json
+!implementations_quic.json
 web/latest
 
 *.egg-info/
