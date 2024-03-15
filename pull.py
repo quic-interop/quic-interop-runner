@@ -2,7 +2,7 @@ import argparse
 import os
 import sys
 
-from implementations import IMPLEMENTATIONS
+from implementations import get_quic_implementations
 
 print("Pulling the simulator...")
 os.system("docker pull martenseemann/quic-network-simulator")
@@ -17,14 +17,15 @@ def get_args():
     return parser.parse_args()
 
 
+impls = get_quic_implementations()
 implementations = {}
 if get_args().implementations:
     for s in get_args().implementations.split(","):
-        if s not in [n for n, _ in IMPLEMENTATIONS.items()]:
+        if s not in [n for n, _ in impls.items()]:
             sys.exit("implementation " + s + " not found.")
-        implementations[s] = IMPLEMENTATIONS[s]
+        implementations[s] = impls[s]
 else:
-    implementations = IMPLEMENTATIONS
+    implementations = impls
 
 for name, value in implementations.items():
     print("\nPulling " + name + "...")

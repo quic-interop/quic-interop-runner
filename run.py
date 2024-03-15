@@ -4,28 +4,29 @@ import argparse
 import sys
 from typing import List, Tuple
 
-import testcases
-from implementations import IMPLEMENTATIONS, Role
+import testcase
+from implementations import Role, get_quic_implementations
 from interop import InteropRunner
-from testcases import MEASUREMENTS, TESTCASES
-
-implementations = {
-    name: {"image": value["image"], "url": value["url"]}
-    for name, value in IMPLEMENTATIONS.items()
-}
-client_implementations = [
-    name
-    for name, value in IMPLEMENTATIONS.items()
-    if value["role"] == Role.BOTH or value["role"] == Role.CLIENT
-]
-server_implementations = [
-    name
-    for name, value in IMPLEMENTATIONS.items()
-    if value["role"] == Role.BOTH or value["role"] == Role.SERVER
-]
+from testcases_quic import MEASUREMENTS, TESTCASES_QUIC
 
 
 def main():
+    impls = get_quic_implementations()
+    implementations_all = {
+        name: {"image": value["image"], "url": value["url"]}
+        for name, value in impls.items()
+    }
+    client_implementations = [
+        name
+        for name, value in impls.items()
+        if value["role"] == Role.BOTH or value["role"] == Role.CLIENT
+    ]
+    server_implementations = [
+        name
+        for name, value in impls.items()
+        if value["role"] == Role.BOTH or value["role"] == Role.SERVER
+    ]
+
     def get_args():
         parser = argparse.ArgumentParser()
         parser.add_argument(
@@ -46,7 +47,7 @@ def main():
             "-t",
             "--test",
             help="test cases (comma-separatated). Valid test cases are: "
-            + ", ".join([x.name() for x in TESTCASES + MEASUREMENTS]),
+            + ", ".join([x.name() for x in TESTCASES_QUIC + MEASUREMENTS]),
         )
         parser.add_argument(
             "-r",
@@ -92,9 +93,9 @@ def main():
             if len(pair) != 2:
                 sys.exit("Invalid format for replace")
             name, image = pair[0], pair[1]
-            if name not in IMPLEMENTATIONS:
+            if name not in impls:
                 sys.exit("Implementation " + name + " not found.")
-            implementations[name]["image"] = image
+            implementations_all[name]["image"] = image
 
     def get_impls(arg, availableImpls, role) -> List[str]:
         if not arg:
@@ -120,11 +121,11 @@ def main():
 
     def get_tests_and_measurements(
         arg,
-    ) -> Tuple[List[testcases.TestCase], List[testcases.TestCase]]:
+    ) -> Tuple[List[testcase.TestCase], List[testcase.TestCase]]:
         if arg is None:
-            return TESTCASES, MEASUREMENTS
+            return TESTCASES_QUIC, MEASUREMENTS
         elif arg == "onlyTests":
-            return TESTCASES, []
+            return TESTCASES_QUIC, []
         elif arg == "onlyMeasurements":
             return [], MEASUREMENTS
         elif not arg:
@@ -132,8 +133,8 @@ def main():
         tests = []
         measurements = []
         for t in arg.split(","):
-            if t in [tc.name() for tc in TESTCASES]:
-                tests += [tc for tc in TESTCASES if tc.name() == t]
+            if t in [tc.name() for tc in TESTCASES_QUIC]:
+                tests += [tc for tc in TESTCASES_QUIC if tc.name() == t]
             elif t in [tc.name() for tc in MEASUREMENTS]:
                 measurements += [tc for tc in MEASUREMENTS if tc.name() == t]
             else:
@@ -144,7 +145,7 @@ def main():
                         "Available measurements: {}"
                     ).format(
                         t,
-                        ", ".join([t.name() for t in TESTCASES]),
+                        ", ".join([t.name() for t in TESTCASES_QUIC]),
                         ", ".join([t.name() for t in MEASUREMENTS]),
                     )
                 )
@@ -160,7 +161,7 @@ def main():
         if len(kind) == 1:
             no_auto_unsupported.add(kind[0])
     return InteropRunner(
-        implementations=implementations,
+        implementations=implementations_all,
         client_server_pairs=get_impl_pairs(clients, servers, get_args().must_include),
         tests=t[0],
         measurements=t[1],
