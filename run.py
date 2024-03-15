@@ -4,7 +4,7 @@ import argparse
 import sys
 from typing import List, Tuple
 
-import testcases_quic
+import testcase
 from implementations import Role, get_quic_implementations
 from interop import InteropRunner
 from testcases_quic import MEASUREMENTS, TESTCASES_QUIC
@@ -116,7 +116,7 @@ def main():
 
     def get_tests_and_measurements(
         arg,
-    ) -> Tuple[List[testcases_quic.TestCase], List[testcases_quic.TestCase]]:
+    ) -> Tuple[List[testcase.TestCase], List[testcase.TestCase]]:
         if arg is None:
             return TESTCASES_QUIC, MEASUREMENTS
         elif arg == "onlyTests":

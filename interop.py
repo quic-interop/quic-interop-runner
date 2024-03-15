@@ -11,13 +11,12 @@ import sys
 import tempfile
 from datetime import datetime
 from typing import Callable, List, Tuple
-
 import prettytable
 from termcolor import colored
 
 import testcases_quic
 from result import TestResult
-from perspective import Perspective
+from testcase import Perspective
 
 
 def random_string(length: int):
@@ -338,7 +337,7 @@ class InteropRunner:
         server: str,
         client: str,
         log_dir_prefix: None,
-        test: Callable[[], testcases_quic.TestCase],
+        fn: Callable[[], testcases_quic.TestCase],
     ) -> Tuple[TestResult, float]:
         start_time = datetime.now()
         sim_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_sim_")
@@ -352,7 +351,7 @@ class InteropRunner:
         log_handler.setFormatter(formatter)
         logging.getLogger().addHandler(log_handler)
 
-        testcase = test(
+        test = fn(
             sim_log_dir=sim_log_dir,
             client_keylog_file=client_log_dir.name + "/keys.log",
             server_keylog_file=server_log_dir.name + "/keys.log",
@@ -363,18 +362,18 @@ class InteropRunner:
             + ". Client: "
             + client
             + ". Running test case: "
-            + str(testcase)
+            + str(test)
         )
 
-        reqs = " ".join([testcase.urlprefix() + p for p in testcase.get_paths()])
+        reqs = " ".join([test.urlprefix() + p for p in test.get_paths()])
         logging.debug("Requests: %s", reqs)
         params = (
             "WAITFORSERVER=server:443 "
-            "CERTS=" + testcase.certs_dir() + " "
-            "TESTCASE_SERVER=" + testcase.testname(Perspective.SERVER) + " "
-            "TESTCASE_CLIENT=" + testcase.testname(Perspective.CLIENT) + " "
-            "WWW=" + testcase.www_dir() + " "
-            "DOWNLOADS=" + testcase.download_dir() + " "
+            "CERTS=" + test.certs_dir() + " "
+            "TESTCASE_SERVER=" + test.testname(Perspective.SERVER) + " "
+            "TESTCASE_CLIENT=" + test.testname(Perspective.CLIENT) + " "
+            "WWW=" + test.www_dir() + " "
+            "DOWNLOADS=" + test.download_dir() + " "
             "SERVER_LOGS=" + server_log_dir.name + " "
             "CLIENT_LOGS=" + client_log_dir.name + " "
             'SCENARIO="{}" '
@@ -382,9 +381,9 @@ class InteropRunner:
             "SERVER=" + self._implementations[server]["image"] + " "
             'REQUESTS="' + reqs + '" '
             'VERSION="' + testcases_quic.QUIC_VERSION + '" '
-        ).format(testcase.scenario())
-        params += " ".join(testcase.additional_envs())
-        containers = "sim client server " + " ".join(testcase.additional_containers())
+        ).format(test.scenario())
+        params += " ".join(test.additional_envs())
+        containers = "sim client server " + " ".join(test.additional_containers())
         cmd = (
             params
             + " docker compose --env-file empty.env up --abort-on-container-exit --timeout 1 "
@@ -401,7 +400,7 @@ class InteropRunner:
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                timeout=testcase.timeout(),
+                timeout=test.timeout(),
             )
             output = r.stdout
         except subprocess.TimeoutExpired as ex:
@@ -411,7 +410,7 @@ class InteropRunner:
         logging.debug("%s", output.decode("utf-8", errors="replace"))
 
         if expired:
-            logging.debug("Test failed: took longer than %ds.", testcase.timeout())
+            logging.debug("Test failed: took longer than %ds.", test.timeout())
             r = subprocess.run(
                 "docker compose --env-file empty.env stop " + containers,
                 shell=True,
@@ -432,7 +431,7 @@ class InteropRunner:
                 status = TestResult.UNSUPPORTED
             elif any("client exited with code 0" in str(line) for line in lines):
                 try:
-                    status = testcase.check()
+                    status = test.check()
                 except FileNotFoundError as e:
                     logging.error(f"testcase.check() threw FileNotFoundError: {e}")
                     status = TestResult.FAILED
@@ -441,7 +440,7 @@ class InteropRunner:
         logging.getLogger().removeHandler(log_handler)
         log_handler.close()
         if status == TestResult.FAILED or status == TestResult.SUCCEEDED:
-            log_dir = self._log_dir + "/" + server + "_" + client + "/" + str(testcase)
+            log_dir = self._log_dir + "/" + server + "_" + client + "/" + str(test)
             if log_dir_prefix:
                 log_dir += "/" + log_dir_prefix
             shutil.copytree(server_log_dir.name, log_dir + "/server")
@@ -449,26 +448,26 @@ class InteropRunner:
             shutil.copytree(sim_log_dir.name, log_dir + "/sim")
             shutil.copyfile(log_file.name, log_dir + "/output.txt")
             if self._save_files and status == TestResult.FAILED:
-                shutil.copytree(testcase.www_dir(), log_dir + "/www")
+                shutil.copytree(test.www_dir(), log_dir + "/www")
                 try:
-                    shutil.copytree(testcase.download_dir(), log_dir + "/downloads")
+                    shutil.copytree(test.download_dir(), log_dir + "/downloads")
                 except Exception as exception:
                     logging.info("Could not copy downloaded files: %s", exception)
 
-        testcase.cleanup()
+        test.cleanup()
         server_log_dir.cleanup()
         client_log_dir.cleanup()
         sim_log_dir.cleanup()
         logging.debug(
             "Test: %s took %ss, status: %s",
-            str(testcase),
+            str(test),
             (datetime.now() - start_time).total_seconds(),
             str(status),
         )
 
         # measurements also have a value
-        if hasattr(testcase, "result"):
-            value = testcase.result()
+        if hasattr(test, "result"):
+            value = test.result()
         else:
             value = None
 
