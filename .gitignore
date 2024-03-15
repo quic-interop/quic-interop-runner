@@ -2,6 +2,7 @@ certs/
 logs/
 logs_*/
 *.json
+venv/
 !implementations.json
 web/latest
 
