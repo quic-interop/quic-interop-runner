@@ -13,7 +13,6 @@ from typing import List, Tuple
 
 from result import TestResult
 from testcase import (
-    QUIC_VERSION,
     Measurement,
     Perspective,
     TestCase,
