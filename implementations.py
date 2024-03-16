@@ -10,8 +10,16 @@ class Role(Enum):
 
 
 def get_quic_implementations() -> Dict[str, Dict[str, str | Role]]:
+    return get_implementations("implementations_quic.json")
+
+
+def get_webtransport_implementations() -> Dict[str, Dict[str, str | Role]]:
+    return get_implementations("implementations_webtransport.json")
+
+
+def get_implementations(filename: str) -> Dict[str, Dict[str, str | Role]]:
     implementations: Dict[str, Dict[str, str | Role]] = {}
-    with open("implementations_quic.json", "r") as f:
+    with open(filename, "r") as f:
         data = json.load(f)
         for name, val in data.items():
             implementations[name] = {"image": val["image"], "url": val["url"]}

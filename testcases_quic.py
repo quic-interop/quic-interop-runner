@@ -39,7 +39,20 @@ class ECN(IntEnum):
     CE = 3
 
 
-class TestCaseVersionNegotiation(TestCase):
+class TestCaseQuic(TestCase):
+    def _check_files(self) -> bool:
+        return super()._check_files(
+            download_dir=self.client_download_dir(), files=self._files
+        )
+
+    def get_paths(self):
+        return [self.urlprefix() + p for p in self.get_paths_raw()]
+
+    def get_paths_raw(self):
+        return super().get_paths_raw()
+
+
+class TestCaseVersionNegotiation(TestCaseQuic):
     @staticmethod
     def name():
         return "versionnegotiation"
@@ -52,7 +65,7 @@ class TestCaseVersionNegotiation(TestCase):
     def desc():
         return "A version negotiation packet is elicited and acted on."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         return [""]
 
     def check(self) -> TestResult:
@@ -74,7 +87,7 @@ class TestCaseVersionNegotiation(TestCase):
         return TestResult.FAILED
 
 
-class TestCaseHandshake(TestCase):
+class TestCaseHandshake(TestCaseQuic):
     @staticmethod
     def name():
         return "handshake"
@@ -87,7 +100,7 @@ class TestCaseHandshake(TestCase):
     def desc():
         return "Handshake completes successfully."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [self._generate_random_file(1 * KB)]
         return self._files
 
@@ -152,7 +165,7 @@ class TestCaseLongRTT(TestCaseHandshake):
         return TestResult.SUCCEEDED
 
 
-class TestCaseTransfer(TestCase):
+class TestCaseTransfer(TestCaseQuic):
     @staticmethod
     def name():
         return "transfer"
@@ -165,7 +178,7 @@ class TestCaseTransfer(TestCase):
     def desc():
         return "Stream data is being sent and received correctly. Connection close completes with a zero error code."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [
             self._generate_random_file(2 * MB),
             self._generate_random_file(3 * MB),
@@ -184,7 +197,7 @@ class TestCaseTransfer(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseChaCha20(TestCase):
+class TestCaseChaCha20(TestCaseQuic):
     @staticmethod
     def name():
         return "chacha20"
@@ -201,7 +214,7 @@ class TestCaseChaCha20(TestCase):
     def desc():
         return "Handshake completes using ChaCha20."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [self._generate_random_file(3 * MB)]
         return self._files
 
@@ -228,7 +241,7 @@ class TestCaseChaCha20(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseMultiplexing(TestCase):
+class TestCaseMultiplexing(TestCaseQuic):
     @staticmethod
     def name():
         return "multiplexing"
@@ -245,7 +258,7 @@ class TestCaseMultiplexing(TestCase):
     def desc():
         return "Thousands of files are transferred over a single connection, and server increased stream limits to accomodate client requests."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         for _ in range(1, 2000):
             self._files.append(self._generate_random_file(32))
         return self._files
@@ -279,7 +292,7 @@ class TestCaseMultiplexing(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseRetry(TestCase):
+class TestCaseRetry(TestCaseQuic):
     @staticmethod
     def name():
         return "retry"
@@ -292,7 +305,7 @@ class TestCaseRetry(TestCase):
     def desc():
         return "Server sends a Retry, and a subsequent connection using the Retry token completes successfully."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [
             self._generate_random_file(10 * KB),
         ]
@@ -345,7 +358,7 @@ class TestCaseRetry(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseResumption(TestCase):
+class TestCaseResumption(TestCaseQuic):
     @staticmethod
     def name():
         return "resumption"
@@ -358,7 +371,7 @@ class TestCaseResumption(TestCase):
     def desc():
         return "Connection is established using TLS Session Resumption."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [
             self._generate_random_file(5 * KB),
             self._generate_random_file(10 * KB),
@@ -403,7 +416,7 @@ class TestCaseResumption(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseZeroRTT(TestCase):
+class TestCaseZeroRTT(TestCaseQuic):
     NUM_FILES = 40
     FILESIZE = 32  # in bytes
     FILENAMELEN = 250
@@ -420,7 +433,7 @@ class TestCaseZeroRTT(TestCase):
     def desc():
         return "0-RTT data is being sent and acted on."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         for _ in range(self.NUM_FILES):
             filename = random_string(self.FILENAMELEN)
             self._files.append(self._generate_random_file(self.FILESIZE, filename))
@@ -448,7 +461,7 @@ class TestCaseZeroRTT(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseHTTP3(TestCase):
+class TestCaseHTTP3(TestCaseQuic):
     @staticmethod
     def name():
         return "http3"
@@ -461,7 +474,7 @@ class TestCaseHTTP3(TestCase):
     def desc():
         return "An H3 transaction succeeded."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [
             self._generate_random_file(5 * KB),
             self._generate_random_file(10 * KB),
@@ -480,7 +493,7 @@ class TestCaseHTTP3(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseAmplificationLimit(TestCase):
+class TestCaseAmplificationLimit(TestCaseQuic):
     @staticmethod
     def name():
         return "amplificationlimit"
@@ -509,7 +522,7 @@ class TestCaseAmplificationLimit(TestCase):
         # Let the ClientHello pass, but drop a bunch of retransmissions afterwards.
         return "droplist --delay=15ms --bandwidth=10Mbps --queue=25 --drops_to_server=2,3,4,5,6,7"
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [self._generate_random_file(5 * KB)]
         return self._files
 
@@ -599,7 +612,7 @@ class TestCaseAmplificationLimit(TestCase):
         return res
 
 
-class TestCaseBlackhole(TestCase):
+class TestCaseBlackhole(TestCaseQuic):
     @staticmethod
     def name():
         return "blackhole"
@@ -621,7 +634,7 @@ class TestCaseBlackhole(TestCase):
         """Scenario for the ns3 simulator"""
         return "blackhole --delay=15ms --bandwidth=10Mbps --queue=25 --on=5s --off=2s"
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [self._generate_random_file(10 * MB)]
         return self._files
 
@@ -655,7 +668,7 @@ class TestCaseKeyUpdate(TestCaseHandshake):
     def desc():
         return "One of the two endpoints updates keys and the peer responds correctly."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [self._generate_random_file(3 * MB)]
         return self._files
 
@@ -722,7 +735,7 @@ class TestCaseKeyUpdate(TestCaseHandshake):
         return TestResult.SUCCEEDED
 
 
-class TestCaseHandshakeLoss(TestCase):
+class TestCaseHandshakeLoss(TestCaseQuic):
     _num_runs = 50
 
     @staticmethod
@@ -750,7 +763,7 @@ class TestCaseHandshakeLoss(TestCase):
         """Scenario for the ns3 simulator"""
         return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=30 --rate_to_client=30 --burst_to_server=3 --burst_to_client=3"
 
-    def get_paths(self):
+    def get_paths_raw(self):
         for _ in range(self._num_runs):
             self._files.append(self._generate_random_file(1 * KB))
         return self._files
@@ -768,7 +781,7 @@ class TestCaseHandshakeLoss(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseTransferLoss(TestCase):
+class TestCaseTransferLoss(TestCaseQuic):
     @staticmethod
     def name():
         return "transferloss"
@@ -790,7 +803,7 @@ class TestCaseTransferLoss(TestCase):
         """Scenario for the ns3 simulator"""
         return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=2 --rate_to_client=2 --burst_to_server=3 --burst_to_client=3"
 
-    def get_paths(self):
+    def get_paths_raw(self):
         # At a packet loss rate of 2% and a MTU of 1500 bytes, we can expect 27 dropped packets.
         self._files = [self._generate_random_file(2 * MB)]
         return self._files
@@ -853,7 +866,7 @@ class TestCaseECN(TestCaseHandshake):
     def abbreviation():
         return "E"
 
-    def get_paths(self):
+    def get_paths_raw(self):
         # Transfer a bit more data, so that QUIC implementations that do ECN validation after the
         # handshake have a chance to ACK some ECN marked packets.
         self._files = [self._generate_random_file(100 * KB)]
@@ -954,7 +967,7 @@ class TestCasePortRebinding(TestCaseTransfer):
     def desc():
         return "Transfer completes under frequent port rebindings on the client side."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [
             self._generate_random_file(10 * MB),
         ]
@@ -1121,7 +1134,7 @@ class TestCaseIPv6(TestCaseTransfer):
     def desc():
         return "A transfer across an IPv6-only network succeeded."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [
             self._generate_random_file(5 * KB),
             self._generate_random_file(10 * KB),
@@ -1174,7 +1187,7 @@ class TestCaseConnectionMigration(TestCasePortRebinding):
         """URL prefix"""
         return "https://server46:443/"
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [
             self._generate_random_file(2 * MB),
         ]
@@ -1222,7 +1235,7 @@ class TestCaseConnectionMigration(TestCasePortRebinding):
         return TestResult.SUCCEEDED
 
 
-class TestCaseV2(TestCase):
+class TestCaseV2(TestCaseQuic):
     @staticmethod
     def name():
         return "v2"
@@ -1235,7 +1248,7 @@ class TestCaseV2(TestCase):
     def desc():
         return "Server should select QUIC v2 in compatible version negotiation."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [self._generate_random_file(1 * KB)]
         return self._files
 
@@ -1340,6 +1353,9 @@ class MeasurementGoodput(Measurement):
         return 5
 
     def get_paths(self):
+        return [self.urlprefix() + p for p in self.get_paths_raw()]
+
+    def get_paths_raw(self):
         self._files = [self._generate_random_file(self.FILESIZE)]
         return self._files
 

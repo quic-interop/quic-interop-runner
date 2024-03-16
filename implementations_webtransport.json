@@ -1,0 +1,12 @@
+{
+  "webtransport-go": {
+    "image": "martenseemann/webtransport-go-interop:latest",
+    "url": "https://github.com/quic-go/webtransport-go",
+    "role": "both"
+  },
+  "chrome": {
+    "image": "martenseemann/chrome-webtransport-interop-runner",
+    "url": "https://github.com/quic-interop/chrome-webtransport-interop-runner",
+    "role": "client"
+  }
+}
