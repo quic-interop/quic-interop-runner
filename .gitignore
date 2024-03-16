@@ -2,7 +2,7 @@ certs/
 logs/
 logs_*/
 *.json
-!implementations_quic.json
+!implementations_*.json
 web/latest
 
 *.egg-info/

@@ -189,12 +189,18 @@ class TestCase(abc.ABC):
             self._cached_server_trace = TraceAnalyzer(trace, self._keylog_file())
         return self._cached_server_trace
 
-    def _generate_random_file(self, size: int, filename: str = None) -> str:
+    def _generate_random_file(
+        self, size: int, filename: str = None, directory: str = None
+    ) -> str:
         if filename is None:
             filename = generate_slug()
         # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
         enc = AES.new(os.urandom(32), AES.MODE_OFB, b"a" * 16)
-        f = open(self.server_www_dir() + filename, "wb")
+        if directory is not None:
+            path = os.path.join(directory, filename)
+        else:
+            path = os.path.join(self.server_www_dir(), filename)
+        f = open(path, "wb")
         f.write(enc.encrypt(b" " * size))
         f.close()
         logging.debug("Generated random file: %s of size: %d", filename, size)
@@ -213,29 +219,40 @@ class TestCase(abc.ABC):
             return False
         return self._check_files()
 
-    def _check_files(self) -> bool:
-        if len(self._files) == 0:
+    def _check_files(
+        self, source_dir: str = None, download_dir: str = None, files: List[str] = None
+    ) -> bool:
+        if source_dir is None:
+            source_dir = self.server_www_dir()
+        if download_dir is None:
+            download_dir = self.client_download_dir()
+        if files is None:
+            files = self._files
+
+        if len(files) == 0:
             raise Exception("No test files generated.")
-        files = [
+
+        downloaded_files = [
             n
-            for n in os.listdir(self.client_download_dir())
-            if os.path.isfile(os.path.join(self.client_download_dir(), n))
+            for n in os.listdir(download_dir)
+            if os.path.isfile(os.path.join(download_dir, n))
         ]
-        too_many = [f for f in files if f not in self._files]
+        too_many = [f for f in downloaded_files if f not in files]
         if len(too_many) != 0:
             logging.info("Found unexpected downloaded files: %s", too_many)
-        too_few = [f for f in self._files if f not in files]
+        too_few = [f for f in files if f not in downloaded_files]
         if len(too_few) != 0:
             logging.info("Missing files: %s", too_few)
         if len(too_many) != 0 or len(too_few) != 0:
             return False
-        for f in self._files:
-            fp = self.client_download_dir() + f
+
+        for f in files:
+            fp = os.path.join(download_dir, f)
             if not os.path.isfile(fp):
                 logging.info("File %s does not exist.", fp)
                 return False
             try:
-                size = os.path.getsize(self.server_www_dir() + f)
+                size = os.path.getsize(os.path.join(source_dir, f))
                 downloaded_size = os.path.getsize(fp)
                 if size != downloaded_size:
                     logging.info(
@@ -245,13 +262,13 @@ class TestCase(abc.ABC):
                         downloaded_size,
                     )
                     return False
-                if not filecmp.cmp(self.server_www_dir() + f, fp, shallow=False):
+                if not filecmp.cmp(os.path.join(source_dir, f), fp, shallow=False):
                     logging.info("File contents of %s do not match.", fp)
                     return False
             except Exception as exception:
                 logging.info(
                     "Could not compare files %s and %s: %s",
-                    self.server_www_dir() + f,
+                    os.path.join(source_dir, f),
                     fp,
                     exception,
                 )
@@ -299,9 +316,14 @@ class TestCase(abc.ABC):
             self._server_download_dir.cleanup()
             self._server_download_dir = None
 
-    @abc.abstractmethod
     def get_paths(self):
-        pass
+        return []
+
+    def get_paths_raw(self):
+        return []
+
+    def get_paths_server(self):
+        return []
 
     @abc.abstractmethod
     def check(self) -> TestResult:

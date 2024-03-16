@@ -413,7 +413,7 @@ class InteropRunner:
             + str(test)
         )
 
-        reqs = " ".join([test.urlprefix() + p for p in test.get_paths()])
+        reqs = test.get_paths()
         logging.debug("Requests: %s", reqs)
         params = (
             "WAITFORSERVER=server:443 "
@@ -429,7 +429,8 @@ class InteropRunner:
             'SCENARIO="{}" '
             "CLIENT=" + self._implementations[client]["image"] + " "
             "SERVER=" + self._implementations[server]["image"] + " "
-            'REQUESTS="' + reqs + '" '
+            'REQUESTS_CLIENT="' + " ".join(reqs) + '" '
+            'REQUESTS_SERVER="' + " ".join(test.get_paths_server()) + '" '
         ).format(test.scenario())
         params += " ".join(test.additional_envs())
         containers = "sim client server " + " ".join(test.additional_containers())
@@ -476,9 +477,20 @@ class InteropRunner:
 
         if not expired:
             lines = output.splitlines()
+            exit_lines = [
+                str(line) for line in lines if "exited with code" in str(line)
+            ]
+            if exit_lines:
+                logging.debug("Container exits: %s", " | ".join(exit_lines))
+            client_exited_ok = any(
+                "client exited with code 0" in str(line) for line in lines
+            )
+            server_exited_ok = any(
+                "server exited with code 0" in str(line) for line in lines
+            )
             if self._is_unsupported(lines):
                 status = TestResult.UNSUPPORTED
-            elif any("client exited with code 0" in str(line) for line in lines):
+            elif client_exited_ok or server_exited_ok:
                 try:
                     status = test.check()
                 except FileNotFoundError as e:

@@ -5,30 +5,25 @@ import sys
 from typing import List, Tuple
 
 import testcase
-from implementations import Role, get_quic_implementations
+from implementations import (
+    Role,
+    get_quic_implementations,
+    get_webtransport_implementations,
+)
 from interop import InteropRunner
 from testcases_quic import MEASUREMENTS, TESTCASES_QUIC
+from testcases_webtransport import TESTCASES_WEBTRANSPORT
 
 
 def main():
-    impls = get_quic_implementations()
-    implementations_all = {
-        name: {"image": value["image"], "url": value["url"]}
-        for name, value in impls.items()
-    }
-    client_implementations = [
-        name
-        for name, value in impls.items()
-        if value["role"] == Role.BOTH or value["role"] == Role.CLIENT
-    ]
-    server_implementations = [
-        name
-        for name, value in impls.items()
-        if value["role"] == Role.BOTH or value["role"] == Role.SERVER
-    ]
-
     def get_args():
         parser = argparse.ArgumentParser()
+        parser.add_argument(
+            "-p",
+            "--protocol",
+            default="quic",
+            help="quic / webtransport",
+        )
         parser.add_argument(
             "-d",
             "--debug",
@@ -86,6 +81,29 @@ def main():
         )
         return parser.parse_args()
 
+    protocol = get_args().protocol
+    if protocol == "quic":
+        impls = get_quic_implementations()
+    elif protocol == "webtransport":
+        impls = get_webtransport_implementations()
+    else:
+        sys.exit("Unknown protocol: " + protocol)
+
+    implementations_all = {
+        name: {"image": value["image"], "url": value["url"]}
+        for name, value in impls.items()
+    }
+    client_implementations = [
+        name
+        for name, value in impls.items()
+        if value["role"] == Role.BOTH or value["role"] == Role.CLIENT
+    ]
+    server_implementations = [
+        name
+        for name, value in impls.items()
+        if value["role"] == Role.BOTH or value["role"] == Role.SERVER
+    ]
+
     replace_arg = get_args().replace
     if replace_arg:
         for s in replace_arg.split(","):
@@ -122,10 +140,14 @@ def main():
     def get_tests_and_measurements(
         arg,
     ) -> Tuple[List[testcase.TestCase], List[testcase.TestCase]]:
+        if protocol == "quic":
+            testcases = TESTCASES_QUIC
+        elif protocol == "webtransport":
+            testcases = TESTCASES_WEBTRANSPORT
         if arg is None:
-            return TESTCASES_QUIC, MEASUREMENTS
+            return testcases, MEASUREMENTS
         elif arg == "onlyTests":
-            return TESTCASES_QUIC, []
+            return testcases, []
         elif arg == "onlyMeasurements":
             return [], MEASUREMENTS
         elif not arg:
@@ -133,8 +155,8 @@ def main():
         tests = []
         measurements = []
         for t in arg.split(","):
-            if t in [tc.name() for tc in TESTCASES_QUIC]:
-                tests += [tc for tc in TESTCASES_QUIC if tc.name() == t]
+            if t in [tc.name() for tc in testcases]:
+                tests += [tc for tc in testcases if tc.name() == t]
             elif t in [tc.name() for tc in MEASUREMENTS]:
                 measurements += [tc for tc in MEASUREMENTS if tc.name() == t]
             else:
@@ -145,7 +167,7 @@ def main():
                         "Available measurements: {}"
                     ).format(
                         t,
-                        ", ".join([t.name() for t in TESTCASES_QUIC]),
+                        ", ".join([t.name() for t in testcases]),
                         ", ".join([t.name() for t in MEASUREMENTS]),
                     )
                 )
