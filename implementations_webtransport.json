@@ -1,0 +1,7 @@
+{
+  "webtransport-go": {
+    "image": "martenseemann/webtransport-go-interop:latest",
+    "url": "https://github.com/quic-go/webtransport-go",
+    "role": "both"
+  }
+}
