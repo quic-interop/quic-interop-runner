@@ -32,10 +32,12 @@ inputs:
 runs:
   using: "composite"
   steps:
+    # TODO: Update repository and ref
     - name: Checkout quic-interop/quic-interop-runner repository
       uses: actions/checkout@v4
       with:
-        repository: 'quic-interop/quic-interop-runner'
+        repository: 'mxinden/quic-interop-runner'
+        ref: 'action'
         path: 'quic-interop-runner'
 
     - name: Enable IPv6 support
