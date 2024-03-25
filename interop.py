@@ -240,7 +240,7 @@ class InteropRunner:
                         results.append(colored(measurement.abbreviation(), "grey"))
                     elif res.result == TestResult.FAILED:
                         results.append(colored(measurement.abbreviation(), "red"))
-                row[server] += "\n".join(results)
+                row[server] = "\n".join(results)
             t.field_names = [""] + [column for column, _ in columns.items()]
             for client, results in rows.items():
                 row = [client]
