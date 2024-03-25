@@ -68,7 +68,7 @@ runs:
         cd quic-interop-runner
         jq --arg key "${{ inputs.name }}" --argjson newEntry '{"image": "${{ inputs.image }}", "url": "${{ inputs.url }}", "role": "${{ inputs.role }}"}' '.[$key] = $newEntry' implementations.json > temp.$$ && mv temp.$$ implementations.json
         cat implementations.json
-        ARGS="--log-dir logs --must-include ${{ inputs.name }}"
+        ARGS="--log-dir logs --markdown --must-include ${{ inputs.name }}"
         if [ -n "${{ inputs.client }}" ]; then
           ARGS="$ARGS --client ${{ inputs.client }}"
         fi
@@ -99,7 +99,7 @@ runs:
         PULL_REQUEST_NUMBER: ${{ github.event.number }}
       run: |
         mkdir comment-data
-        mv quic-interop-runner/summary comment-data/summary
+        cat quic-interop-runner/summary | awk '/^\|:--/{flag=1} flag' >> comment-data/summary
         echo $PULL_REQUEST_NUMBER > comment-data/pr-number
         echo '${{ steps.artifact-upload-step.outputs.artifact-url }}' > comment-data/logs-url
 
