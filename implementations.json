@@ -10,7 +10,7 @@
     "role": "both"
   },
   "mvfst": {
-    "image": "lnicco/mvfst-qns:latest",
+    "image": "ghcr.io/facebook/proxygen/mvfst-interop:latest",
     "url": "https://github.com/facebookincubator/mvfst",
     "role": "both"
   },
