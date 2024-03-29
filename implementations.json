@@ -75,7 +75,7 @@
     "role": "both"
   },
   "s2n-quic": {
-    "image": "awss2n/s2n-quic-qns:latest",
+    "image": "ghcr.io/aws/s2n-quic/s2n-quic-qns:latest",
     "url": "https://github.com/aws/s2n-quic",
     "role": "both"
   },
