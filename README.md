@@ -2,6 +2,9 @@
 
 The Interop Test Runner aims to automatically generate an interop matrix by running multiple **test cases** using different QUIC implementations.
 
+* Research Article: [Automating QUIC Interoperability Testing](https://dl.acm.org/doi/10.1145/3405796.3405826)
+* IETF Blog Post: [Automating interoperability testing to improve open standards for the Internet](https://www.ietf.org/blog/quic-automated-interop-testing/)
+
 ## Requirements
 
 The Interop Runner is written in Python 3. You'll need to install the
