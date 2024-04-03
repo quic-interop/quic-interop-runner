@@ -215,6 +215,8 @@ class InteropRunner:
 
         if len(self._measurements) > 0:
             t = prettytable.PrettyTable()
+            if self._markdown:
+                t.set_style(prettytable.MARKDOWN)
             t.hrules = prettytable.ALL
             t.vrules = prettytable.ALL
             t.field_names = [""]
