@@ -217,7 +217,6 @@ class InteropRunner:
             t = prettytable.PrettyTable()
             t.hrules = prettytable.ALL
             t.vrules = prettytable.ALL
-            t.field_names = [""]
             rows = {}
             columns = {}
             for client, server in self._client_server_pairs:
