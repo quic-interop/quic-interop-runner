@@ -174,6 +174,25 @@ class InteropRunner:
         self.compliant[name] = True
         return True
 
+    def _postprocess_results(self):
+        clients = list(set(client for client, _ in self._client_server_pairs))
+        servers = list(set(server for _, server in self._client_server_pairs))
+        # If a client failed a test against all servers, make the test unsupported for the client
+        questionable = [TestResult.FAILED, TestResult.UNSUPPORTED]
+        for c in clients:
+            for t in self._tests:
+                if all(self.test_results[s][c][t] in questionable for s in servers):
+                    # Client failed test against all servers
+                    for s in servers:
+                        self.test_results[s][c][t] = TestResult.UNSUPPORTED
+        # If a server failed a test against all clients, make the test unsupported for the server
+        for s in servers:
+            for t in self._tests:
+                if all(self.test_results[s][c][t] in questionable for c in clients):
+                    # Server failed test against all clients
+                    for c in clients:
+                        self.test_results[s][c][t] = TestResult.UNSUPPORTED
+
     def _print_results(self):
         """print the interop table"""
         logging.info("Run took %s", datetime.now() - self._start_time)
@@ -530,6 +549,7 @@ class InteropRunner:
                 res = self._run_measurement(server, client, measurement)
                 self.measurement_results[server][client][measurement] = res
 
+        self._postprocess_results()
         self._print_results()
         self._export_results()
         return nr_failed
