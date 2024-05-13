@@ -154,7 +154,7 @@ def main():
     t = get_tests_and_measurements(get_args().test)
     clients = get_impls(get_args().client, client_implementations, "Client")
     servers = get_impls(get_args().server, server_implementations, "Server")
-    # If there is only one client or server, we should not automatically  mark tests as unsupported
+    # If there is only one client or server, we should not automatically mark tests as unsupported
     no_auto_unsupported = set()
     for kind in [clients, servers]:
         if len(kind) == 1:
