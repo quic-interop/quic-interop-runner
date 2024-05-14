@@ -51,6 +51,7 @@ class InteropRunner:
     _markdown = False
     _log_dir = ""
     _save_files = False
+    _no_auto_unsupported = []
 
     def __init__(
         self,
@@ -63,6 +64,7 @@ class InteropRunner:
         debug: bool,
         save_files=False,
         log_dir="",
+        no_auto_unsupported=[],
     ):
         logger = logging.getLogger()
         logger.setLevel(logging.DEBUG)
@@ -81,6 +83,7 @@ class InteropRunner:
         self._markdown = markdown
         self._log_dir = log_dir
         self._save_files = save_files
+        self._no_auto_unsupported = no_auto_unsupported
         if len(self._log_dir) == 0:
             self._log_dir = "logs_{:%Y-%m-%dT%H:%M:%S}".format(self._start_time)
         if os.path.exists(self._log_dir):
@@ -179,17 +182,23 @@ class InteropRunner:
         servers = list(set(server for _, server in self._client_server_pairs))
         # If a client failed a test against all servers, make the test unsupported for the client
         questionable = [TestResult.FAILED, TestResult.UNSUPPORTED]
-        for c in clients:
+        for c in set(clients) - set(self._no_auto_unsupported):
             for t in self._tests:
                 if all(self.test_results[s][c][t] in questionable for s in servers):
-                    # Client failed test against all servers
+                    print(
+                        f'Client {c} failed test "{t.name()}" against all servers, '
+                        + 'marking the entire test as "unsupported"'
+                    )
                     for s in servers:
                         self.test_results[s][c][t] = TestResult.UNSUPPORTED
         # If a server failed a test against all clients, make the test unsupported for the server
-        for s in servers:
+        for s in set(servers) - set(self._no_auto_unsupported):
             for t in self._tests:
                 if all(self.test_results[s][c][t] in questionable for c in clients):
-                    # Server failed test against all clients
+                    print(
+                        f'Server {s} failed test "{t.name()}" against all clients, '
+                        + 'marking the entire test as "unsupported"'
+                    )
                     for c in clients:
                         self.test_results[s][c][t] = TestResult.UNSUPPORTED
 

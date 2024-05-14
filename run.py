@@ -78,6 +78,11 @@ def main():
             "--must-include",
             help="implementation that must be included",
         )
+        parser.add_argument(
+            "-n",
+            "--no-auto-unsupported",
+            help="implementations for which auto-marking as unsupported when all tests fail should be skipped",
+        )
         return parser.parse_args()
 
     replace_arg = get_args().replace
@@ -147,13 +152,16 @@ def main():
         return tests, measurements
 
     t = get_tests_and_measurements(get_args().test)
+    clients = get_impls(get_args().client, client_implementations, "Client")
+    servers = get_impls(get_args().server, server_implementations, "Server")
+    # If there is only one client or server, we should not automatically mark tests as unsupported
+    no_auto_unsupported = set()
+    for kind in [clients, servers]:
+        if len(kind) == 1:
+            no_auto_unsupported.add(kind[0])
     return InteropRunner(
         implementations=implementations,
-        client_server_pairs=get_impl_pairs(
-            get_impls(get_args().client, client_implementations, "Client"),
-            get_impls(get_args().server, server_implementations, "Server"),
-            get_args().must_include,
-        ),
+        client_server_pairs=get_impl_pairs(clients, servers, get_args().must_include),
         tests=t[0],
         measurements=t[1],
         output=get_args().json,
@@ -161,6 +169,13 @@ def main():
         debug=get_args().debug,
         log_dir=get_args().log_dir,
         save_files=get_args().save_files,
+        no_auto_unsupported=(
+            no_auto_unsupported
+            if get_args().no_auto_unsupported is None
+            else get_impls(
+                get_args().no_auto_unsupported, clients + servers, "Client/Server"
+            )
+        ),
     ).run()
 
 
