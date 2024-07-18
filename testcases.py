@@ -1113,11 +1113,7 @@ class TestCaseECN(TestCaseHandshake):
         return e[ECN.ECT0] != 0 or e[ECN.ECT1] != 0
 
     def _check_ecn_marks(self, e) -> bool:
-        return (
-            e[ECN.NONE] >= 0
-            and e[ECN.CE] == 0
-            and ((e[ECN.ECT0] == 0) != (e[ECN.ECT1] == 0))
-        )
+        return e[ECN.CE] == 0 and self._check_ecn_any(e)
 
     def _check_ack_ecn(self, tr) -> bool:
         # NOTE: We only check whether the trace contains any ACK-ECN information, not whether it is valid
