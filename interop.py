@@ -184,7 +184,9 @@ class InteropRunner:
         questionable = [TestResult.FAILED, TestResult.UNSUPPORTED]
         for c in set(clients) - set(self._no_auto_unsupported):
             for t in self._tests:
-                if all(self.test_results[s][c][t] in questionable for s in servers):
+                if len(servers) > 1 and all(
+                    self.test_results[s][c][t] in questionable for s in servers
+                ):
                     print(
                         f'Client {c} failed test "{t.name()}" against all servers, '
                         + 'marking the entire test as "unsupported"'
@@ -194,7 +196,9 @@ class InteropRunner:
         # If a server failed a test against all clients, make the test unsupported for the server
         for s in set(servers) - set(self._no_auto_unsupported):
             for t in self._tests:
-                if all(self.test_results[s][c][t] in questionable for c in clients):
+                if len(clients) > 1 and all(
+                    self.test_results[s][c][t] in questionable for c in clients
+                ):
                     print(
                         f'Server {s} failed test "{t.name()}" against all clients, '
                         + 'marking the entire test as "unsupported"'
