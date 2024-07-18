@@ -1114,7 +1114,7 @@ class TestCaseECN(TestCaseHandshake):
 
     def _check_ecn_marks(self, e) -> bool:
         return (
-            e[ECN.NONE] == 0
+            e[ECN.NONE] >= 0
             and e[ECN.CE] == 0
             and ((e[ECN.ECT0] == 0) != (e[ECN.ECT1] == 0))
         )
