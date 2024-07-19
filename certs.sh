@@ -25,7 +25,7 @@ openssl req -x509 -sha256 -nodes -days 10 -key "$CERTDIR"/ca_0.key \
 fakedns=""
 if [ "$CHAINLEN" != "1" ]; then
   for i in $(seq 1 20); do
-    fakedns="$fakedns,DNS:$(LC_CTYPE=C tr -dc 0-9A-Za-z < /dev/urandom | head -c 250)"
+    fakedns="$fakedns,DNS:$(LC_CTYPE=C tr -dc '[:alnum:]' </dev/urandom | head -c 250)"
   done
 fi
 
