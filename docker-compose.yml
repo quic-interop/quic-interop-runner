@@ -41,7 +41,6 @@ services:
       - SSLKEYLOGFILE=/logs/keys.log
       - QLOGDIR=/logs/qlog/
       - TESTCASE=$TESTCASE_SERVER
-      - VERSION=$VERSION
     depends_on:
       - sim
     cap_add: 
@@ -70,7 +69,6 @@ services:
       - QLOGDIR=/logs/qlog/
       - TESTCASE=$TESTCASE_CLIENT
       - REQUESTS=$REQUESTS
-      - VERSION=$VERSION
     depends_on:
       - sim
     cap_add: 
