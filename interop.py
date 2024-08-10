@@ -180,6 +180,10 @@ class InteropRunner:
     def _postprocess_results(self):
         clients = list(set(client for client, _ in self._client_server_pairs))
         servers = list(set(server for _, server in self._client_server_pairs))
+        if not (len(clients) > 1 and len(servers) > 1):
+            # "auto unsupported" test-result classification is only applicable when there's more than
+            # one server and more than one client
+            return
         # If a client failed a test against all servers, make the test unsupported for the client
         questionable = [TestResult.FAILED, TestResult.UNSUPPORTED]
         for c in set(clients) - set(self._no_auto_unsupported):
