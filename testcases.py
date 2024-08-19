@@ -160,18 +160,16 @@ class TestCase(abc.ABC):
 
     def _client_trace(self):
         if self._cached_client_trace is None:
-            path = self._sim_log_dir.name + "/trace_node_left.pcap"
-            if os.path.getsize(path) == 0:
-                path = self._sim_log_dir.name + "/tcpdump_left.pcap"
-            self._cached_client_trace = TraceAnalyzer(path, self._keylog_file())
+            self._cached_client_trace = TraceAnalyzer(
+                self._sim_log_dir.name + "/tcpdump_left.pcap", self._keylog_file()
+            )
         return self._cached_client_trace
 
     def _server_trace(self):
         if self._cached_server_trace is None:
-            path = self._sim_log_dir.name + "/trace_node_right.pcap"
-            if os.path.getsize(path) == 0:
-                path = self._sim_log_dir.name + "/tcpdump_right.pcap"
-            self._cached_server_trace = TraceAnalyzer(path, self._keylog_file())
+            self._cached_server_trace = TraceAnalyzer(
+                self._sim_log_dir.name + "/tcpdump_right.pcap", self._keylog_file()
+            )
         return self._cached_server_trace
 
     # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
