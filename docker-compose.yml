@@ -2,7 +2,7 @@ version: "2.4"
 
 services:
   sim:
-    image: martenseemann/quic-network-simulator
+    image: larseggert/quic-network-simulator:tcpdump
     container_name: sim
     hostname: sim
     stdin_open: true

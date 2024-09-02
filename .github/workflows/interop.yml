@@ -1,9 +1,8 @@
 name: interop
 on:
-  schedule:
-   # Every 8h, at 15 minutes past the hour
-   # This makes sure that the cleanup cron job can run first.
-  - cron: "15 */8 * * *"
+  push:
+    branches:
+      - tcpdump
 
 # Cache key for caching the Wireshark build.
 # To trigger a rebuild of Wireshark increment this value.
