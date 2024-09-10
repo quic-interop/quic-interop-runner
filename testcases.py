@@ -997,7 +997,7 @@ class TestCaseHandshakeLoss(TestCase):
     @staticmethod
     def scenario() -> str:
         """Scenario for the ns3 simulator"""
-        return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=30 --rate_to_client=30"
+        return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=30 --rate_to_client=30 --burst_to_server=3 --burst_to_client=3"
 
     def get_paths(self):
         for _ in range(self._num_runs):
@@ -1036,7 +1036,7 @@ class TestCaseTransferLoss(TestCase):
     @staticmethod
     def scenario() -> str:
         """Scenario for the ns3 simulator"""
-        return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=2 --rate_to_client=2"
+        return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=2 --rate_to_client=2 --burst_to_server=3 --burst_to_client=3"
 
     def get_paths(self):
         # At a packet loss rate of 2% and a MTU of 1500 bytes, we can expect 27 dropped packets.
@@ -1069,7 +1069,7 @@ class TestCaseHandshakeCorruption(TestCaseHandshakeLoss):
     @staticmethod
     def scenario() -> str:
         """Scenario for the ns3 simulator"""
-        return "corrupt-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=30 --rate_to_client=30"
+        return "corrupt-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=30 --rate_to_client=30 --burst_to_server=3 --burst_to_client=3"
 
 
 class TestCaseTransferCorruption(TestCaseTransferLoss):
@@ -1088,7 +1088,7 @@ class TestCaseTransferCorruption(TestCaseTransferLoss):
     @staticmethod
     def scenario() -> str:
         """Scenario for the ns3 simulator"""
-        return "corrupt-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=2 --rate_to_client=2"
+        return "corrupt-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=2 --rate_to_client=2 --burst_to_server=3 --burst_to_client=3"
 
 
 class TestCaseECN(TestCaseHandshake):
