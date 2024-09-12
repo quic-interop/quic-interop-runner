@@ -170,7 +170,9 @@ class TestCase(abc.ABC):
         with tempfile.NamedTemporaryFile() as tmp:
             r = subprocess.run(
                 f"editcap --inject-secrets tls,{keylog} {trace} {tmp.name}",
-                shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
             )
             logging.debug("%s", r.stdout.decode("utf-8"))
             if r.returncode != 0:
