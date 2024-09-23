@@ -4,6 +4,7 @@ import logging
 import os
 import random
 import re
+import shutil
 import string
 import subprocess
 import sys
@@ -158,18 +159,38 @@ class TestCase(abc.ABC):
             return self._server_keylog_file
         logging.debug("No key log file found.")
 
+    def _inject_keylog_if_possible(self, trace: str):
+        """
+        Inject the keylog file into the pcap file if it is available and valid.
+        """
+        keylog = self._keylog_file()
+        if keylog is None:
+            return
+
+        with tempfile.NamedTemporaryFile() as tmp:
+            r = subprocess.run(
+                f"editcap --inject-secrets tls,{keylog} {trace} {tmp.name}",
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+            logging.debug("%s", r.stdout.decode("utf-8"))
+            if r.returncode != 0:
+                return
+            shutil.move(tmp.name, trace)
+
     def _client_trace(self):
         if self._cached_client_trace is None:
-            self._cached_client_trace = TraceAnalyzer(
-                self._sim_log_dir.name + "/trace_node_left.pcap", self._keylog_file()
-            )
+            trace = self._sim_log_dir.name + "/trace_node_left.pcap"
+            self._inject_keylog_if_possible(trace)
+            self._cached_client_trace = TraceAnalyzer(trace, self._keylog_file())
         return self._cached_client_trace
 
     def _server_trace(self):
         if self._cached_server_trace is None:
-            self._cached_server_trace = TraceAnalyzer(
-                self._sim_log_dir.name + "/trace_node_right.pcap", self._keylog_file()
-            )
+            trace = self._sim_log_dir.name + "/trace_node_right.pcap"
+            self._inject_keylog_if_possible(trace)
+            self._cached_server_trace = TraceAnalyzer(trace, self._keylog_file())
         return self._cached_server_trace
 
     # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
