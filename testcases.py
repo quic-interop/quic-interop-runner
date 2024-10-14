@@ -1239,15 +1239,10 @@ class TestCasePortRebinding(TestCaseTransfer):
             self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
         )
 
-        ports = list(set(getattr(p["udp"], "dstport") for p in tr_server))
-
-        logging.info("Server saw these client ports: %s", ports)
-        if len(ports) <= 1:
-            logging.info("Server saw only a single client port in use; test broken?")
-            return TestResult.FAILED
-
+        cur = None
         last = None
-        num_migrations = 0
+        paths = set()
+        challenges = set()
         for p in tr_server:
             cur = (
                 (
@@ -1261,9 +1256,9 @@ class TestCasePortRebinding(TestCaseTransfer):
                 last = cur
                 continue
 
-            if last != cur:
+            if last != cur and cur not in paths:
+                paths.add(last)
                 last = cur
-                num_migrations += 1
                 # packet to different IP/port, should have a PATH_CHALLENGE frame
                 if hasattr(p["quic"], "path_challenge.data") is False:
                     logging.info(
@@ -1272,25 +1267,18 @@ class TestCasePortRebinding(TestCaseTransfer):
                     )
                     logging.info(p["quic"])
                     return TestResult.FAILED
+                else:
+                    challenges.add(getattr(p["quic"], "path_challenge.data"))
+
+        paths.add(cur)
+
+        if len(paths) <= 1:
+            logging.info("Server saw the client use only a single path; test broken?")
+            return TestResult.FAILED
 
         tr_client = self._client_trace()._get_packets(
             self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
         )
-
-        challenges = list(
-            set(
-                getattr(p["quic"], "path_challenge.data")
-                for p in tr_server
-                if hasattr(p["quic"], "path_challenge.data")
-            )
-        )
-        if len(challenges) < num_migrations:
-            logging.info(
-                "Saw %d migrations, but only %d unique PATH_CHALLENGE frames",
-                len(challenges),
-                num_migrations,
-            )
-            return TestResult.FAILED
 
         responses = list(
             set(
@@ -1675,11 +1663,9 @@ TESTCASES = [
     TestCaseTransferCorruption,
     TestCaseIPv6,
     TestCaseV2,
-    # The next three tests are disabled due to Wireshark not being able
-    # to decrypt packets sent on the new path.
-    # TestCasePortRebinding,
-    # TestCaseAddressRebinding,
-    # TestCaseConnectionMigration,
+    TestCasePortRebinding,
+    TestCaseAddressRebinding,
+    TestCaseConnectionMigration,
 ]
 
 MEASUREMENTS = [
