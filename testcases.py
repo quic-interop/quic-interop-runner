@@ -1209,6 +1209,8 @@ class TestCasePortRebinding(TestCaseTransfer):
 
     @staticmethod
     def testname(p: Perspective):
+        if p is Perspective.CLIENT:
+            return "rebind-port"
         return "transfer"
 
     @staticmethod
@@ -1304,6 +1306,12 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
     @staticmethod
     def abbreviation():
         return "BA"
+
+    @staticmethod
+    def testname(p: Perspective):
+        if p is Perspective.CLIENT:
+            return "rebind-addr"
+        return "transfer"
 
     @staticmethod
     def desc():
