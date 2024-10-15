@@ -1422,6 +1422,11 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
     def scenario() -> str:
         return super(TestCaseTransfer, TestCaseTransfer).scenario()
 
+    @staticmethod
+    def urlprefix() -> str:
+        """URL prefix"""
+        return "https://server46:443/"
+
     def get_paths(self):
         self._files = [
             self._generate_random_file(2 * MB),
@@ -1440,6 +1445,7 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
         )
 
         last = None
+        paths = set()
         dcid = None
         for p in tr_client:
             cur = (
@@ -1455,7 +1461,8 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
                 dcid = getattr(p["quic"], "dcid")
                 continue
 
-            if last != cur:
+            if last != cur and cur not in paths:
+                paths.add(last)
                 last = cur
                 # packet to different IP/port, should have a new DCID
                 if dcid == getattr(p["quic"], "dcid"):
