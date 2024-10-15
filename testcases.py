@@ -1427,6 +1427,11 @@ class TestCaseConnectionMigration(TestCasePortRebinding):
     def scenario() -> str:
         return super(TestCaseTransfer, TestCaseTransfer).scenario()
 
+    @staticmethod
+    def urlprefix() -> str:
+        """URL prefix"""
+        return "https://server46:443/"
+
     def get_paths(self):
         self._files = [
             self._generate_random_file(2 * MB),
