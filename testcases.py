@@ -177,7 +177,7 @@ class TestCase(abc.ABC):
             logging.debug("%s", r.stdout.decode("utf-8"))
             if r.returncode != 0:
                 return
-            shutil.move(tmp.name, trace)
+            shutil.copyfile(tmp.name, trace)
 
     def _client_trace(self):
         if self._cached_client_trace is None:
