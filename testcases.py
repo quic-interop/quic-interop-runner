@@ -19,7 +19,7 @@ from trace import (
     get_direction,
     get_packet_type,
 )
-from typing import List
+from typing import List, Tuple
 
 from Crypto.Cipher import AES
 
@@ -1228,6 +1228,23 @@ class TestCasePortRebinding(TestCaseTransfer):
         """Scenario for the ns3 simulator"""
         return "rebind --delay=15ms --bandwidth=10Mbps --queue=25 --first-rebind=1s --rebind-freq=5s"
 
+    @staticmethod
+    def _path(p: List) -> Tuple[str, int, str, int]:
+        return (
+            (
+                getattr(p["ipv6"], "src")
+                if "IPV6" in str(p.layers)
+                else getattr(p["ip"], "src")
+            ),
+            int(getattr(p["udp"], "srcport")),
+            (
+                getattr(p["ipv6"], "dst")
+                if "IPV6" in str(p.layers)
+                else getattr(p["ip"], "dst")
+            ),
+            int(getattr(p["udp"], "dstport")),
+        )
+
     def check(self) -> TestResult:
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
@@ -1246,14 +1263,7 @@ class TestCasePortRebinding(TestCaseTransfer):
         paths = set()
         challenges = set()
         for p in tr_server:
-            cur = (
-                (
-                    getattr(p["ipv6"], "dst")
-                    if "IPV6" in str(p.layers)
-                    else getattr(p["ip"], "dst")
-                ),
-                int(getattr(p["udp"], "dstport")),
-            )
+            cur = self._path(p)
             if last is None:
                 last = cur
                 continue
@@ -1264,7 +1274,7 @@ class TestCasePortRebinding(TestCaseTransfer):
                 # packet to different IP/port, should have a PATH_CHALLENGE frame
                 if hasattr(p["quic"], "path_challenge.data") is False:
                     logging.info(
-                        "First server packet to new client destination %s did not contain a PATH_CHALLENGE frame",
+                        "First server packet on new path %s did not contain a PATH_CHALLENGE frame",
                         cur,
                     )
                     logging.info(p["quic"])
@@ -1320,10 +1330,7 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
     @staticmethod
     def scenario() -> str:
         """Scenario for the ns3 simulator"""
-        return (
-            super(TestCaseAddressRebinding, TestCaseAddressRebinding).scenario()
-            + " --rebind-addr"
-        )
+        return super(TestCaseAddressRebinding).scenario() + " --rebind-addr"
 
     def check(self) -> TestResult:
         if not self._keylog_file():
@@ -1399,7 +1406,7 @@ class TestCaseIPv6(TestCaseTransfer):
         return TestResult.SUCCEEDED
 
 
-class TestCaseConnectionMigration(TestCaseAddressRebinding):
+class TestCaseConnectionMigration(TestCasePortRebinding):
     @staticmethod
     def name():
         return "connectionmigration"
@@ -1410,9 +1417,7 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
 
     @staticmethod
     def testname(p: Perspective):
-        if p is Perspective.CLIENT:
-            return "connectionmigration"
-        return "transfer"
+        return "connectionmigration"
 
     @staticmethod
     def desc():
@@ -1421,11 +1426,6 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
     @staticmethod
     def scenario() -> str:
         return super(TestCaseTransfer, TestCaseTransfer).scenario()
-
-    @staticmethod
-    def urlprefix() -> str:
-        """URL prefix"""
-        return "https://server46:443/"
 
     def get_paths(self):
         self._files = [
@@ -1448,14 +1448,7 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
         paths = set()
         dcid = None
         for p in tr_client:
-            cur = (
-                (
-                    getattr(p["ipv6"], "src")
-                    if "IPV6" in str(p.layers)
-                    else getattr(p["ip"], "src")
-                ),
-                int(getattr(p["udp"], "srcport")),
-            )
+            cur = self._path(p)
             if last is None:
                 last = cur
                 dcid = getattr(p["quic"], "dcid")

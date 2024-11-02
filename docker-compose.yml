@@ -1,5 +1,3 @@
-version: "2.4"
-
 services:
   sim:
     image: martenseemann/quic-network-simulator
@@ -10,7 +8,7 @@ services:
     environment:
       - WAITFORSERVER=$WAITFORSERVER
       - SCENARIO=$SCENARIO
-    cap_add: 
+    cap_add:
       - NET_ADMIN
       - NET_RAW
     expose:
@@ -43,7 +41,7 @@ services:
       - TESTCASE=$TESTCASE_SERVER
     depends_on:
       - sim
-    cap_add: 
+    cap_add:
       - NET_ADMIN
     ulimits:
       memlock: 67108864
@@ -51,6 +49,9 @@ services:
       rightnet:
         ipv4_address: 193.167.100.100
         ipv6_address: fd00:cafe:cafe:100::100
+    extra_hosts:
+      - "server4:193.167.100.100"
+      - "server6:fd00:cafe:cafe:100::100"
 
   client:
     image: $CLIENT
@@ -71,7 +72,7 @@ services:
       - REQUESTS=$REQUESTS
     depends_on:
       - sim
-    cap_add: 
+    cap_add:
       - NET_ADMIN
     ulimits:
       memlock: 67108864
@@ -84,7 +85,7 @@ services:
       - "server6:fd00:cafe:cafe:100::100"
       - "server46:193.167.100.100"
       - "server46:fd00:cafe:cafe:100::100"
-  
+
   iperf_server:
     image: martenseemann/quic-interop-iperf-endpoint
     container_name: iperf_server
@@ -96,7 +97,7 @@ services:
       - IPERF_CONGESTION=$IPERF_CONGESTION
     depends_on:
       - sim
-    cap_add: 
+    cap_add:
       - NET_ADMIN
     networks:
       rightnet:
@@ -118,7 +119,7 @@ services:
       - IPERF_CONGESTION=$IPERF_CONGESTION
     depends_on:
       - sim
-    cap_add: 
+    cap_add:
       - NET_ADMIN
     networks:
       leftnet:
