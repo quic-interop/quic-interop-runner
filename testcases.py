@@ -163,10 +163,8 @@ class TestCase(abc.ABC):
         """
         Inject the keylog file into the pcap file if it is available and valid.
         """
-        logging.info("Injecting keylog file into %s", trace)
         keylog = self._keylog_file()
         if keylog is None:
-            logging.info("No keylog file available.")
             return
 
         with tempfile.NamedTemporaryFile() as tmp:
