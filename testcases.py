@@ -1330,7 +1330,10 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
     @staticmethod
     def scenario() -> str:
         """Scenario for the ns3 simulator"""
-        return super(TestCaseAddressRebinding).scenario() + " --rebind-addr"
+        return (
+            super(TestCaseAddressRebinding, TestCaseAddressRebinding).scenario()
+            + " --rebind-addr"
+        )
 
     def check(self) -> TestResult:
         if not self._keylog_file():

@@ -18,7 +18,7 @@ following softwares to run the interop test:
 
 * [Docker](https://docs.docker.com/engine/install/) and [docker compose](https://docs.docker.com/compose/).
 
-* [Development version of Wireshark](https://www.wireshark.org/download.html) (version 3.4.2 or newer).
+* [Development version of Wireshark](https://www.wireshark.org/download.html) (version 3.5.0 or newer).
 
 ## Running the Interop Runner
 
