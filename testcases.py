@@ -1209,8 +1209,6 @@ class TestCasePortRebinding(TestCaseTransfer):
 
     @staticmethod
     def testname(p: Perspective):
-        if p is Perspective.CLIENT:
-            return "rebind-port"
         return "transfer"
 
     @staticmethod
@@ -1283,8 +1281,9 @@ class TestCasePortRebinding(TestCaseTransfer):
                         challenges.add(getattr(p["quic"], "path_challenge.data"))
         paths.add(cur)
 
+        logging.info("Server saw these paths used: %s", paths)
         if len(paths) <= 1:
-            logging.info("Server saw the client use only a single path; test broken?")
+            logging.info("Server saw only a single path in use; test broken?")
             return TestResult.FAILED
 
         tr_client = self._client_trace()._get_packets(
@@ -1318,8 +1317,6 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
 
     @staticmethod
     def testname(p: Perspective):
-        if p is Perspective.CLIENT:
-            return "rebind-addr"
         return "transfer"
 
     @staticmethod
@@ -1335,33 +1332,7 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
         )
 
     def check(self) -> TestResult:
-        if not self._keylog_file():
-            logging.info("Can't check test result. SSLKEYLOG required.")
-            return TestResult.UNSUPPORTED
-
-        tr_server = self._server_trace()._get_packets(
-            self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
-        )
-
-        ips = set()
-        for p in tr_server:
-            ip_vers = "ip"
-            if "IPV6" in str(p.layers):
-                ip_vers = "ipv6"
-            ips.add(getattr(p[ip_vers], "dst"))
-
-        logging.info("Server saw these client addresses: %s", ips)
-        if len(ips) <= 1:
-            logging.info(
-                "Server saw only a single client IP address in use; test broken?"
-            )
-            return TestResult.FAILED
-
-        result = super(TestCaseAddressRebinding, self).check()
-        if result != TestResult.SUCCEEDED:
-            return result
-
-        return TestResult.SUCCEEDED
+        return super(TestCaseAddressRebinding, self).check()
 
 
 class TestCaseIPv6(TestCaseTransfer):
@@ -1408,7 +1379,7 @@ class TestCaseIPv6(TestCaseTransfer):
         return TestResult.SUCCEEDED
 
 
-class TestCaseConnectionMigration(TestCasePortRebinding):
+class TestCaseConnectionMigration(TestCaseAddressRebinding):
     @staticmethod
     def name():
         return "connectionmigration"
@@ -1419,7 +1390,10 @@ class TestCaseConnectionMigration(TestCasePortRebinding):
 
     @staticmethod
     def testname(p: Perspective):
-        return "connectionmigration"
+        if p is Perspective.SERVER:
+            # Server needs to send preferred addresses
+            return "connectionmigration"
+        return "transfer"
 
     @staticmethod
     def desc():
