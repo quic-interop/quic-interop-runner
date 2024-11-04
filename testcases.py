@@ -1229,20 +1229,18 @@ class TestCasePortRebinding(TestCaseTransfer):
         return "rebind --delay=15ms --bandwidth=10Mbps --queue=25 --first-rebind=1s --rebind-freq=5s"
 
     @staticmethod
+    def _addr(p: List, which: str) -> str:
+        return (
+            getattr(p["ipv6"], which)
+            if "IPV6" in str(p.layers)
+            else getattr(p["ip"], which)
+        )
+
+    @staticmethod
     def _path(p: List) -> Tuple[str, int, str, int]:
         return (
-            (
-                getattr(p["ipv6"], "src")
-                if "IPV6" in str(p.layers)
-                else getattr(p["ip"], "src")
-            ),
-            int(getattr(p["udp"], "srcport")),
-            (
-                getattr(p["ipv6"], "dst")
-                if "IPV6" in str(p.layers)
-                else getattr(p["ip"], "dst")
-            ),
-            int(getattr(p["udp"], "dstport")),
+            (TestCasePortRebinding._addr(p, "src"), int(getattr(p["udp"], "srcport"))),
+            (TestCasePortRebinding._addr(p, "dst"), int(getattr(p["udp"], "dstport"))),
         )
 
     def check(self) -> TestResult:
@@ -1270,18 +1268,19 @@ class TestCasePortRebinding(TestCaseTransfer):
 
             if last != cur and cur not in paths:
                 paths.add(last)
+                last_dst = last[1][0]
                 last = cur
-                # packet to different IP/port, should have a PATH_CHALLENGE frame
-                if hasattr(p["quic"], "path_challenge.data") is False:
-                    logging.info(
-                        "First server packet on new path %s did not contain a PATH_CHALLENGE frame",
-                        cur,
-                    )
-                    logging.info(p["quic"])
-                    return TestResult.FAILED
-                else:
-                    challenges.add(getattr(p["quic"], "path_challenge.data"))
-
+                if last_dst != cur[1][0]:
+                    # packet to different IP, should have a PATH_CHALLENGE frame
+                    if hasattr(p["quic"], "path_challenge.data") is False:
+                        logging.info(
+                            "First server packet on new path %s did not contain a PATH_CHALLENGE frame",
+                            cur,
+                        )
+                        logging.info(p["quic"])
+                        return TestResult.FAILED
+                    else:
+                        challenges.add(getattr(p["quic"], "path_challenge.data"))
         paths.add(cur)
 
         if len(paths) <= 1:
