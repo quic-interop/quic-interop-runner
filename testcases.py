@@ -1266,19 +1266,17 @@ class TestCasePortRebinding(TestCaseTransfer):
 
             if last != cur and cur not in paths:
                 paths.add(last)
-                last_dst = last[1][0]
                 last = cur
-                if last_dst != cur[1][0]:
-                    # packet to different IP, should have a PATH_CHALLENGE frame
-                    if hasattr(p["quic"], "path_challenge.data") is False:
-                        logging.info(
-                            "First server packet on new path %s did not contain a PATH_CHALLENGE frame",
-                            cur,
-                        )
-                        logging.info(p["quic"])
-                        return TestResult.FAILED
-                    else:
-                        challenges.add(getattr(p["quic"], "path_challenge.data"))
+                # Packet on new path, should have a PATH_CHALLENGE frame
+                if hasattr(p["quic"], "path_challenge.data") is False:
+                    logging.info(
+                        "First server packet on new path %s did not contain a PATH_CHALLENGE frame",
+                        cur,
+                    )
+                    logging.info(p["quic"])
+                    return TestResult.FAILED
+                else:
+                    challenges.add(getattr(p["quic"], "path_challenge.data"))
         paths.add(cur)
 
         logging.info("Server saw these paths used: %s", paths)

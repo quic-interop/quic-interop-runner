@@ -104,7 +104,7 @@ Currently disabled due to #20.
 
 * **V2** (`v2`): In this test, client starts connecting server in QUIC v1 with `version_information` transport parameter that includes QUIC v2 (`0x6b3343cf`) in `other_versions` field.  Server should select QUIC v2 in compatible version negotiation.  Client is expected to download one small file in QUIC v2.
 
-* **Port Rebinding** (`rebind-port`): In this test case, a NAT is simulated that changes the client port (as observed by the server) after the handshake.
+* **Port Rebinding** (`rebind-port`): In this test case, a NAT is simulated that changes the client port (as observed by the server) after the handshake. Server should perform path vaildation.
 
 * **Address Rebinding** (`rebind-addr`): In this test case, a NAT is simulated that changes the client IP address (as observed by the server) after the handshake. Server should perform path vaildation.
 
