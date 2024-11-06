@@ -302,6 +302,8 @@ class TestCase(abc.ABC):
 
     @abc.abstractmethod
     def check(self) -> TestResult:
+        self._client_trace()
+        self._server_trace()
         pass
 
 
@@ -338,6 +340,7 @@ class TestCaseVersionNegotiation(TestCase):
         return [""]
 
     def check(self) -> TestResult:
+        super().check()
         tr = self._client_trace()
         initials = tr.get_initial(Direction.FROM_CLIENT)
         dcid = ""
@@ -373,6 +376,7 @@ class TestCaseHandshake(TestCase):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         if not self._check_version_and_files():
             return TestResult.FAILED
         if self._retry_sent():
@@ -408,6 +412,7 @@ class TestCaseLongRTT(TestCaseHandshake):
         return "simple-p2p --delay=750ms --bandwidth=10Mbps --queue=25"
 
     def check(self) -> TestResult:
+        super().check()
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
@@ -453,6 +458,7 @@ class TestCaseTransfer(TestCase):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
@@ -484,6 +490,7 @@ class TestCaseChaCha20(TestCase):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
@@ -528,6 +535,7 @@ class TestCaseMultiplexing(TestCase):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
             return TestResult.UNSUPPORTED
@@ -609,6 +617,7 @@ class TestCaseRetry(TestCase):
         return False
 
     def check(self) -> TestResult:
+        super().check()
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
@@ -641,6 +650,7 @@ class TestCaseResumption(TestCase):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
             return TestResult.UNSUPPORTED
@@ -702,6 +712,7 @@ class TestCaseZeroRTT(TestCase):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         num_handshakes = self._count_handshakes()
         if num_handshakes != 2:
             logging.info("Expected exactly 2 handshakes. Got: %d", num_handshakes)
@@ -744,6 +755,7 @@ class TestCaseHTTP3(TestCase):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
@@ -787,6 +799,7 @@ class TestCaseAmplificationLimit(TestCase):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
             return TestResult.UNSUPPORTED
@@ -898,6 +911,7 @@ class TestCaseBlackhole(TestCase):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
@@ -931,6 +945,7 @@ class TestCaseKeyUpdate(TestCaseHandshake):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
             return TestResult.UNSUPPORTED
@@ -1026,6 +1041,7 @@ class TestCaseHandshakeLoss(TestCase):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         num_handshakes = self._count_handshakes()
         if num_handshakes != self._num_runs:
             logging.info(
@@ -1065,6 +1081,7 @@ class TestCaseTransferLoss(TestCase):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
@@ -1144,6 +1161,7 @@ class TestCaseECN(TestCaseHandshake):
         return False
 
     def check(self) -> TestResult:
+        super().check()
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
             return TestResult.UNSUPPORTED
@@ -1227,6 +1245,7 @@ class TestCasePortRebinding(TestCaseTransfer):
         return "rebind --delay=15ms --bandwidth=10Mbps --queue=25 --first-rebind=1s --rebind-freq=5s"
 
     def check(self) -> TestResult:
+        super().check()
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
             return TestResult.UNSUPPORTED
@@ -1330,6 +1349,7 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
         )
 
     def check(self) -> TestResult:
+        super().check()
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
             return TestResult.UNSUPPORTED
@@ -1388,6 +1408,7 @@ class TestCaseIPv6(TestCaseTransfer):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         result = super(TestCaseIPv6, self).check()
         if result != TestResult.SUCCEEDED:
             return result
@@ -1433,6 +1454,7 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         # The parent check() method ensures that the client changed addresses
         # and that PATH_CHALLENGE/RESPONSE frames were sent and received
         result = super(TestCaseConnectionMigration, self).check()
@@ -1496,6 +1518,7 @@ class TestCaseV2(TestCase):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         # Client should initially send QUIC v1 packet.  It may send
         # QUIC v2 packet.
         versions = self._get_packet_versions(
@@ -1599,6 +1622,7 @@ class MeasurementGoodput(Measurement):
         return self._files
 
     def check(self) -> TestResult:
+        super().check()
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
