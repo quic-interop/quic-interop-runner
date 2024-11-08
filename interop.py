@@ -180,27 +180,29 @@ class InteropRunner:
     def _postprocess_results(self):
         clients = list(set(client for client, _ in self._client_server_pairs))
         servers = list(set(server for _, server in self._client_server_pairs))
-        # If a client failed a test against all servers, make the test unsupported for the client
         questionable = [TestResult.FAILED, TestResult.UNSUPPORTED]
-        for c in set(clients) - set(self._no_auto_unsupported):
-            for t in self._tests:
-                if all(self.test_results[s][c][t] in questionable for s in servers):
-                    print(
-                        f'Client {c} failed test "{t.name()}" against all servers, '
-                        + 'marking the entire test as "unsupported"'
-                    )
-                    for s in servers:
-                        self.test_results[s][c][t] = TestResult.UNSUPPORTED
+        # If a client failed a test against all servers, make the test unsupported for the client
+        if len(servers) > 1:
+            for c in set(clients) - set(self._no_auto_unsupported):
+                for t in self._tests:
+                    if all(self.test_results[s][c][t] in questionable for s in servers):
+                        print(
+                            f"Client {c} failed or did not support test {t.name()} "
+                            + 'against all servers, marking the entire test as "unsupported"'
+                        )
+                        for s in servers:
+                            self.test_results[s][c][t] = TestResult.UNSUPPORTED
         # If a server failed a test against all clients, make the test unsupported for the server
-        for s in set(servers) - set(self._no_auto_unsupported):
-            for t in self._tests:
-                if all(self.test_results[s][c][t] in questionable for c in clients):
-                    print(
-                        f'Server {s} failed test "{t.name()}" against all clients, '
-                        + 'marking the entire test as "unsupported"'
-                    )
-                    for c in clients:
-                        self.test_results[s][c][t] = TestResult.UNSUPPORTED
+        if len(clients) > 1:
+            for s in set(servers) - set(self._no_auto_unsupported):
+                for t in self._tests:
+                    if all(self.test_results[s][c][t] in questionable for c in clients):
+                        print(
+                            f"Server {s} failed or did not support test {t.name()} "
+                            + 'against all clients, marking the entire test as "unsupported"'
+                        )
+                        for c in clients:
+                            self.test_results[s][c][t] = TestResult.UNSUPPORTED
 
     def _print_results(self):
         """print the interop table"""

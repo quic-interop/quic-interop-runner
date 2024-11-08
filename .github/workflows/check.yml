@@ -16,3 +16,4 @@ jobs:
       - name: check that implementations.json is valid
         if: success() || failure() # run this step even if the previous one failed
         run: python implementations.py
+      - uses: ludeeus/action-shellcheck@master
