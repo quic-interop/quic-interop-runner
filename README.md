@@ -101,3 +101,11 @@ Currently disabled due to #20.
 * **Handshake Loss** (`multiconnect`): Tests resilience of the handshake to high loss. The client is expected to establish multiple connections, sequential or in parallel, and use each connection to download a single file.
 
 * **V2** (`v2`): In this test, client starts connecting server in QUIC v1 with `version_information` transport parameter that includes QUIC v2 (`0x6b3343cf`) in `other_versions` field.  Server should select QUIC v2 in compatible version negotiation.  Client is expected to download one small file in QUIC v2.
+
+* **Multipath Handshake** (`mphandshake`): Tests the successful completion of multipath handshake. The client is expected to establish a multipath QUIC connection to the server and download one or multiple small files. Servers should not send a Retry packet in this test case. Both endpoint must support multipath transmission and use `ACK_MP` frame instead after handshake is done.
+
+* **Multipath Transfer** (`mptransfer`): Tests whether each path could be used to transfer data streams. The client is exepcted to establish a multipath QUIC connection, and use multiple path to concurrently download the files.
+
+* **Multipath PATH ABANDON** (`mppathabandon`): Tests that the path could be abandoned normally. The client is expected to establish a multipath QUIC connection. One of the path should be cut off before the transmission finished. After that, the transmission should be completed without using the abandoned path.
+
+* **Multipath PATH STATUS** (`mppathstatus`): Tests that the path status could be changed. The client is expected to establish a multipath QUIC connection, and set of the path keep `standby` before the transmission finished. The transmission should be completed without sending probing packet on the standby path.
