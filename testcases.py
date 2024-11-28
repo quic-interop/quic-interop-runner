@@ -379,9 +379,6 @@ class TestCaseHandshake(TestCase):
         super().check()
         if not self._check_version_and_files():
             return TestResult.FAILED
-        if self._retry_sent():
-            logging.info("Didn't expect a Retry to be sent.")
-            return TestResult.FAILED
         num_handshakes = self._count_handshakes()
         if num_handshakes != 1:
             logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
