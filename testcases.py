@@ -19,7 +19,7 @@ from trace import (
     get_direction,
     get_packet_type,
 )
-from typing import List
+from typing import List, Tuple
 
 from Crypto.Cipher import AES
 
@@ -1244,6 +1244,21 @@ class TestCasePortRebinding(TestCaseTransfer):
         """Scenario for the ns3 simulator"""
         return "rebind --delay=15ms --bandwidth=10Mbps --queue=25 --first-rebind=1s --rebind-freq=5s"
 
+    @staticmethod
+    def _addr(p: List, which: str) -> str:
+        return (
+            getattr(p["ipv6"], which)
+            if "IPV6" in str(p.layers)
+            else getattr(p["ip"], which)
+        )
+
+    @staticmethod
+    def _path(p: List) -> Tuple[str, int, str, int]:
+        return (
+            (TestCasePortRebinding._addr(p, "src"), int(getattr(p["udp"], "srcport"))),
+            (TestCasePortRebinding._addr(p, "dst"), int(getattr(p["udp"], "dstport"))),
+        )
+
     def check(self) -> TestResult:
         super().check()
         if not self._keylog_file():
@@ -1258,58 +1273,39 @@ class TestCasePortRebinding(TestCaseTransfer):
             self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
         )
 
-        ports = list(set(getattr(p["udp"], "dstport") for p in tr_server))
-
-        logging.info("Server saw these client ports: %s", ports)
-        if len(ports) <= 1:
-            logging.info("Server saw only a single client port in use; test broken?")
-            return TestResult.FAILED
-
+        cur = None
         last = None
-        num_migrations = 0
+        paths = set()
+        challenges = set()
         for p in tr_server:
-            cur = (
-                (
-                    getattr(p["ipv6"], "dst")
-                    if "IPV6" in str(p.layers)
-                    else getattr(p["ip"], "dst")
-                ),
-                int(getattr(p["udp"], "dstport")),
-            )
+            cur = self._path(p)
             if last is None:
                 last = cur
                 continue
 
-            if last != cur:
+            if last != cur and cur not in paths:
+                paths.add(last)
                 last = cur
-                num_migrations += 1
-                # packet to different IP/port, should have a PATH_CHALLENGE frame
+                # Packet on new path, should have a PATH_CHALLENGE frame
                 if hasattr(p["quic"], "path_challenge.data") is False:
                     logging.info(
-                        "First server packet to new client destination %s did not contain a PATH_CHALLENGE frame",
+                        "First server packet on new path %s did not contain a PATH_CHALLENGE frame",
                         cur,
                     )
                     logging.info(p["quic"])
                     return TestResult.FAILED
+                else:
+                    challenges.add(getattr(p["quic"], "path_challenge.data"))
+        paths.add(cur)
+
+        logging.info("Server saw these paths used: %s", paths)
+        if len(paths) <= 1:
+            logging.info("Server saw only a single path in use; test broken?")
+            return TestResult.FAILED
 
         tr_client = self._client_trace()._get_packets(
             self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
         )
-
-        challenges = list(
-            set(
-                getattr(p["quic"], "path_challenge.data")
-                for p in tr_server
-                if hasattr(p["quic"], "path_challenge.data")
-            )
-        )
-        if len(challenges) < num_migrations:
-            logging.info(
-                "Saw %d migrations, but only %d unique PATH_CHALLENGE frames",
-                len(challenges),
-                num_migrations,
-            )
-            return TestResult.FAILED
 
         responses = list(
             set(
@@ -1335,6 +1331,10 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
     @staticmethod
     def abbreviation():
         return "BA"
+
+    @staticmethod
+    def testname(p: Perspective):
+        return "transfer"
 
     @staticmethod
     def desc():
@@ -1435,7 +1435,8 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
 
     @staticmethod
     def testname(p: Perspective):
-        if p is Perspective.CLIENT:
+        if p is Perspective.SERVER:
+            # Server needs to send preferred addresses
             return "connectionmigration"
         return "transfer"
 
@@ -1446,6 +1447,11 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
     @staticmethod
     def scenario() -> str:
         return super(TestCaseTransfer, TestCaseTransfer).scenario()
+
+    @staticmethod
+    def urlprefix() -> str:
+        """URL prefix"""
+        return "https://server46:443/"
 
     def get_paths(self):
         self._files = [
@@ -1466,22 +1472,17 @@ class TestCaseConnectionMigration(TestCaseAddressRebinding):
         )
 
         last = None
+        paths = set()
         dcid = None
         for p in tr_client:
-            cur = (
-                (
-                    getattr(p["ipv6"], "src")
-                    if "IPV6" in str(p.layers)
-                    else getattr(p["ip"], "src")
-                ),
-                int(getattr(p["udp"], "srcport")),
-            )
+            cur = self._path(p)
             if last is None:
                 last = cur
                 dcid = getattr(p["quic"], "dcid")
                 continue
 
-            if last != cur:
+            if last != cur and cur not in paths:
+                paths.add(last)
                 last = cur
                 # packet to different IP/port, should have a new DCID
                 if dcid == getattr(p["quic"], "dcid"):
@@ -1699,11 +1700,9 @@ TESTCASES = [
     TestCaseTransferCorruption,
     TestCaseIPv6,
     TestCaseV2,
-    # The next three tests are disabled due to Wireshark not being able
-    # to decrypt packets sent on the new path.
-    # TestCasePortRebinding,
-    # TestCaseAddressRebinding,
-    # TestCaseConnectionMigration,
+    TestCasePortRebinding,
+    TestCaseAddressRebinding,
+    TestCaseConnectionMigration,
 ]
 
 MEASUREMENTS = [

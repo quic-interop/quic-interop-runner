@@ -10,19 +10,20 @@ The Interop Test Runner aims to automatically generate an interop matrix by runn
 The Interop Runner is written in Python 3. You'll need to install the
 following softwares to run the interop test:
 
-- Python3 modules. Run the following command:
+* Python3 modules. Run the following command:
 
-```bash
-pip3 install -r requirements.txt
-```
+   ```bash
+   pip3 install -r requirements.txt
+   ```
 
-- [Docker](https://docs.docker.com/engine/install/) and [docker compose](https://docs.docker.com/compose/). 
+* [Docker](https://docs.docker.com/engine/install/) and [docker compose](https://docs.docker.com/compose/).
 
-- [Development version of Wireshark](https://www.wireshark.org/download.html) (version 3.4.2 or newer).
+* [Development version of Wireshark](https://www.wireshark.org/download.html) (version 4.5.0 or newer).
 
 ## Running the Interop Runner
 
 Run the interop tests:
+
 ```bash
 python3 run.py
 ```
@@ -58,9 +59,10 @@ If you're not familiar with Docker, it might be helpful to have a look at the Do
 
 Implementers: Please feel free to add links to your implementation here!
 
-Note that the [online interop](https://interop.seemann.io/) runner requires `linux/amd64` architecture, so if you build on a different architecture (e.g. "Apple silicon"), you would need to use `--platform linux/amd64` with `docker build` to create a compatible image. 
+Note that the [online interop](https://interop.seemann.io/) runner requires `linux/amd64` architecture, so if you build on a different architecture (e.g. "Apple silicon"), you would need to use `--platform linux/amd64` with `docker build` to create a compatible image.
 Even better, and the recommended approach, is to use a multi-platform build to provide both `amd64` and `arm64` images, so everybody can run the interop locally with your implementation. To build the multi-platform image, you can use the `docker buildx` command:
-```
+
+```bash
 docker buildx create --use
 docker buildx build --pull --push --platform linux/amd64,linux/arm64 -t <name:tag> .
 ```
@@ -101,3 +103,9 @@ Currently disabled due to #20.
 * **Handshake Loss** (`multiconnect`): Tests resilience of the handshake to high loss. The client is expected to establish multiple connections, sequential or in parallel, and use each connection to download a single file.
 
 * **V2** (`v2`): In this test, client starts connecting server in QUIC v1 with `version_information` transport parameter that includes QUIC v2 (`0x6b3343cf`) in `other_versions` field.  Server should select QUIC v2 in compatible version negotiation.  Client is expected to download one small file in QUIC v2.
+
+* **Port Rebinding** (`rebind-port`): In this test case, a NAT is simulated that changes the client port (as observed by the server) after the handshake. Server should perform path vaildation.
+
+* **Address Rebinding** (`rebind-addr`): In this test case, a NAT is simulated that changes the client IP address (as observed by the server) after the handshake. Server should perform path vaildation.
+
+* **Connection Migratioon** (`connectionmigration`): In this test case, the server is expected to provide its preferred addresses to the client during the handshake. The client is expected to perform active migration to one of those addresses.
