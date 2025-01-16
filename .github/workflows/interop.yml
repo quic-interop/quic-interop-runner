@@ -68,6 +68,7 @@ jobs:
             -DENABLE_BROTLI=0 \
             -DUSE_STATIC=1 \
             -DENABLE_GNUTLS=1 \
+            -DENABLE_PCRE=OFF \
             --debug-find \
             .
           ninja
