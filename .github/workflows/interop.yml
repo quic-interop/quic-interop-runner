@@ -47,7 +47,7 @@ jobs:
           repository: wireshark/wireshark
       - name: Install dependencies
         if: steps.restore-cache.outputs.cache-hit != 'true'
-        run: sudo apt-get install -y cmake libglib2.0-dev libc-ares-dev libgcrypt20-dev flex bison byacc ninja-build
+        run: sudo apt-get install -y cmake libglib2.0-dev libc-ares-dev libgcrypt20-dev flex bison byacc ninja-build libpcre3-dev
       - name: Build Wireshark
         if: steps.restore-cache.outputs.cache-hit != 'true'
         run: |
