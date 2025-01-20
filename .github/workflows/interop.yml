@@ -230,7 +230,7 @@ jobs:
           find logs_measurement -depth -name "server" -type d -exec rm -r "{}" \;
           mv logs_measurement/${{ matrix.server }}_${{ matrix.client }}/* logs/${{ matrix.server }}_${{ matrix.client }}/
       - name: Upload logs to interop.seemann.io
-        uses: burnett01/rsync-deployments@796cf0d5e4b535745ce49d7429f77cf39e25ef39 # v7.0.1
+        uses: burnett01/rsync-deployments@3cccb6851148e6198ed9ed89eb0d1c17b5e58cc7 # v7.0.2
         if: ${{ github.event_name == 'schedule' }}
         with:
           switches: -avzr --relative
@@ -278,7 +278,7 @@ jobs:
           name: result-aggregated
           path: result.json
       - name: Upload logs to interop.seemann.io
-        uses: burnett01/rsync-deployments@796cf0d5e4b535745ce49d7429f77cf39e25ef39 # v7.0.1
+        uses: burnett01/rsync-deployments@3cccb6851148e6198ed9ed89eb0d1c17b5e58cc7 # v7.0.2
         if: ${{ github.event_name == 'schedule' }}
         with:
           switches: -avzr
