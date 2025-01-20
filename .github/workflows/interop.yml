@@ -62,7 +62,6 @@ jobs:
             -DBUILD_sshdump=0 \
             -DBUILD_ciscodump=0 \
             -DBUILD_sharkd=0 \
-            -DENABLE_STATIC=1 \
             -DENABLE_PLUGINS=0 \
             -DENABLE_LIBXML2=0 \
             -DENABLE_BROTLI=0 \
