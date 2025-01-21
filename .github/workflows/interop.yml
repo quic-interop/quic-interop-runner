@@ -45,9 +45,11 @@ jobs:
         if: steps.restore-cache.outputs.cache-hit != 'true'
         with:
           repository: wireshark/wireshark
-      - name: Install dependencies
-        if: steps.restore-cache.outputs.cache-hit != 'true'
-        run: sudo apt-get install -y cmake libgcrypt20-dev libgpg-error-dev libglib2.0-dev libc-ares-dev libgcrypt20-dev flex bison byacc ninja-build libpcre3-dev libpcre2-dev
+      # - name: Install dependencies
+      #   if: steps.restore-cache.outputs.cache-hit != 'true'
+      #   run: sudo apt-get install -y cmake libgcrypt20-dev libgpg-error-dev libglib2.0-dev libc-ares-dev libgcrypt20-dev flex bison byacc ninja-build libpcre3-dev libpcre2-dev
+      - name: Prepare build
+        run: sudo ./tools/debian-setup.sh --install-all
       - name: Build Wireshark
         if: steps.restore-cache.outputs.cache-hit != 'true'
         run: |
