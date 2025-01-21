@@ -70,6 +70,7 @@ jobs:
             -DUSE_STATIC=1 \
             -DENABLE_GNUTLS=1 \
             -DENABLE_PCRE=OFF \
+            -DENABLE_KERBEROS=OFF \
             --debug-find \
             .
           ninja
