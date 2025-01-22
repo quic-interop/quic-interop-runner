@@ -5,61 +5,7 @@ on:
    # This makes sure that the cleanup cron job can run first.
   - cron: "15 */8 * * *"
 
-# Cache key for caching the Wireshark build.
-# To trigger a rebuild of Wireshark increment this value.
-# The rebuild will then build the current master of Wireshark and save it under the new key.
-env:
-  WIRESHARK_CACHEKEY: 8
-
 jobs:
-  wireshark:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Restore from cache
-        id: restore-cache
-        uses: actions/cache@v4
-        env:
-          VERSION: ${{ env.WIRESHARK_CACHEKEY }}
-        with:
-          key: wireshark-${{ env.VERSION }}
-          path: tshark.tar.gz
-      - name: Show tshark version information
-        if: steps.restore-cache.outputs.cache-hit == 'true'
-        run: |
-          tar xfz tshark.tar.gz
-          ./tshark -v
-      - uses: actions/checkout@v4
-        if: steps.restore-cache.outputs.cache-hit != 'true'
-        with:
-          repository: the-tcpdump-group/libpcap
-      - name: Build libpcap
-        if: steps.restore-cache.outputs.cache-hit != 'true'
-        run: |
-          ./autogen.sh
-          ./configure --disable-dbus --disable-rdma
-          sudo make install
-      - uses: actions/checkout@v4
-        if: steps.restore-cache.outputs.cache-hit != 'true'
-        with:
-          repository: wireshark/wireshark
-      - name: Install dependencies
-        if: steps.restore-cache.outputs.cache-hit != 'true'
-        run: sudo apt-get install -y cmake libglib2.0-dev libc-ares-dev libgcrypt20-dev flex bison byacc ninja-build
-      - name: Build Wireshark
-        if: steps.restore-cache.outputs.cache-hit != 'true'
-        run: |
-          cmake -GNinja -DBUILD_wireshark=0 -DBUILD_qtshark=0 -DBUILD_editcap=1 -DBUILD_capinfos=0 -DBUILD_text2pcap=0 -DBUILD_rawshark=0 -DBUILD_sdjournal=0 -DBUILD_sshdump=0 -DBUILD_ciscodump=0 -DBUILD_sharkd=0 -DENABLE_STATIC=1 -DENABLE_PLUGINS=0 -DENABLE_LIBXML2=0 -DENABLE_BROTLI=0 -DUSE_STATIC=1 -DENABLE_GNUTLS=1 .
-          ninja
-      - run: run/tshark -v
-        if: steps.restore-cache.outputs.cache-hit != 'true'
-      - name: Compress
-        if: steps.restore-cache.outputs.cache-hit != 'true'
-        run: tar -czvf tshark.tar.gz -C run/ tshark
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: wireshark
-          path: tshark.tar.gz
   config:
     runs-on: ubuntu-latest
     outputs:
@@ -155,7 +101,7 @@ jobs:
           path: ${{ matrix.image }}.tar.gz
           if-no-files-found: error
   tests:
-    needs: [ wireshark, config, docker-pull-tools, docker-pull-images ]
+    needs: [ config, docker-pull-tools, docker-pull-images ]
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 45
@@ -197,17 +143,11 @@ jobs:
           docker load --input ${{ matrix.server }}.tar.gz
           docker load --input ${{ matrix.client }}.tar.gz
       - run: docker image ls
-      - name: Download Wireshark
-        uses: actions/download-artifact@v4
-        with:
-          name: wireshark
-          path: wireshark
       - name: Install Wireshark
         run: |
-          cd wireshark
-          tar xfz tshark.tar.gz
-          sudo mv tshark /usr/local/bin
-          cd .. && rm -r wireshark
+          sudo add-apt-repository ppa:wireshark-dev/nightly
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends tshark
       - name: Install Python packages
         run: |
           pip install -U pip
