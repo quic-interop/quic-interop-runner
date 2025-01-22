@@ -12,7 +12,7 @@ on:
 # To trigger a rebuild of Wireshark increment this value.
 # The rebuild will then build the current master of Wireshark and save it under the new key.
 env:
-  WIRESHARK_CACHEKEY: 1736944975
+  WIRESHARK_CACHEKEY: 1736944976
 
 jobs:
   wireshark:
