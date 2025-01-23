@@ -1424,7 +1424,7 @@ class TestCaseIPv6(TestCaseTransfer):
         return TestResult.SUCCEEDED
 
 
-class TestCaseConnectionMigration(TestCaseAddressRebinding):
+class TestCaseConnectionMigration(TestCasePortRebinding):
     @staticmethod
     def name():
         return "connectionmigration"
