@@ -120,6 +120,9 @@ class TraceAnalyzer:
 
         if self._keylog_file is not None:
             for p in packets:
+                if "quic" not in p:
+                    logging.info("Captured packet without quic layer: %r", p)
+                    continue
                 if hasattr(p["quic"], "decryption_failed"):
                     logging.info("At least one QUIC packet could not be decrypted")
                     logging.debug(p)
