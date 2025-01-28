@@ -113,7 +113,8 @@ class TraceAnalyzer:
         # See https://github.com/KimiNewt/pyshark/issues/390.
         try:
             for p in cap:
-                packets.append(p)
+                if hasattr(p, "quic"):
+                    packets.append(p)
             cap.close()
         except Exception as e:
             logging.debug(e)
