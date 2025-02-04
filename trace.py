@@ -113,6 +113,9 @@ class TraceAnalyzer:
         # See https://github.com/KimiNewt/pyshark/issues/390.
         try:
             for p in cap:
+                if "quic" not in p:
+                    logging.info("Captured packet without quic layer: %r", p)
+                    continue
                 packets.append(p)
             cap.close()
         except Exception as e:
