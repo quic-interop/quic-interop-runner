@@ -190,6 +190,7 @@ jobs:
   aggregate:
     needs: [ config, tests ]
     runs-on: ubuntu-latest
+    if: always()
     env:
       LOGNAME: ${{ needs.config.outputs.logname }}
     steps:
