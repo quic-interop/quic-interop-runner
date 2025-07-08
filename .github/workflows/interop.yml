@@ -113,6 +113,10 @@ jobs:
     name: (${{ matrix.server }} - ${{ matrix.client }})
     steps:
       - uses: actions/checkout@v4
+      # Remove this when GitHub runner gets docker engine >= v28.1.0.
+      - uses: docker/setup-docker-action@v4
+        with:
+          version: version=v28.3.0
       - uses: actions/setup-python@v5
         with:
           python-version: 3.8
