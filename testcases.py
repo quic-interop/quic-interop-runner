@@ -1272,6 +1272,19 @@ class TestCasePortRebinding(TestCaseTransfer):
 
         return True
 
+    @staticmethod
+    def _is_ack_only_packet(p: List) -> bool:
+        q = p["quic"]
+
+        if not hasattr(q, "frame_type"):
+            return False
+
+        for f in getattr(q, "frame_type").all_fields:
+            if f.hex_value not in [0x02, 0x03]:
+                return False
+
+        return True
+
     def check(self) -> TestResult:
         super().check()
         if not self._keylog_file():
@@ -1301,7 +1314,11 @@ class TestCasePortRebinding(TestCaseTransfer):
                 challenges.add(getattr(p["quic"], "path_challenge.data"))
                 path_challenges.add(cur)
 
-            if not self._is_probing_packet(p) and cur not in path_challenges:
+            if (
+                not self._is_ack_only_packet(p)
+                and not self._is_probing_packet(p)
+                and cur not in path_challenges
+            ):
                 logging.info(
                     "First server non-probing packet on new path %s before observing a PATH_CHALLENGE frame",
                     cur,
