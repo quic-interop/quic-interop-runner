@@ -27,7 +27,7 @@ jobs:
           STARTTIME=$(date +%s)
           echo $STARTTIME
           echo "starttime=$STARTTIME" >> $GITHUB_OUTPUT
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: 3.8
@@ -55,7 +55,7 @@ jobs:
       matrix:
         image: [ 'quic-network-simulator', 'quic-interop-iperf-endpoint' ]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Pull
       run: |
         URL="martenseemann/${{ matrix.image }}"
@@ -81,7 +81,7 @@ jobs:
         image: ${{ fromJson(needs.config.outputs.images) }}
     name: Pull ${{ matrix.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Run docker pull
         run: |
           URL=$(jq -r '.["${{ matrix.image }}"].image' implementations.json)
@@ -112,7 +112,7 @@ jobs:
         client: ${{ fromJson(needs.config.outputs.clients) }}
     name: (${{ matrix.server }} - ${{ matrix.client }})
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # Remove this when GitHub runner gets docker engine >= v28.1.0.
       - uses: docker/setup-docker-action@v4
         with:
@@ -198,7 +198,7 @@ jobs:
     env:
       LOGNAME: ${{ needs.config.outputs.logname }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: 3.8
