@@ -124,20 +124,20 @@ jobs:
         run: sudo modprobe ip6table_filter
       - run: docker image ls
       - name: Download quic-network-simulator image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: images-quic-network-simulator
       - name: Download quic-interop-iperf-endpoint image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: images-quic-interop-iperf-endpoint
       - name: Download ${{ matrix.server }} Docker image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: image-${{ matrix.server }}
       - name: Download ${{ matrix.client }} Docker image
         if: ${{ matrix.server != matrix.client }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: image-${{ matrix.client }}
       - name: Load docker images
@@ -203,7 +203,7 @@ jobs:
         with:
           python-version: 3.8
       - name: Download results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: results-*
       - name: Aggregate results
