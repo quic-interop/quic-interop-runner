@@ -68,7 +68,7 @@ jobs:
         docker save $URL | gzip --best > ${{ matrix.image }}.tar.gz
         du -sh ${{ matrix.image }}.tar.gz
     - name: Upload result
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: images-${{ matrix.image }}
         path: ${{ matrix.image }}.tar.gz
@@ -95,7 +95,7 @@ jobs:
           docker save $URL | gzip --best > ${{ matrix.image }}.tar.gz
           du -sh ${{ matrix.image }}.tar.gz
       - name: Upload result
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: image-${{ matrix.image }}
           path: ${{ matrix.image }}.tar.gz
@@ -184,7 +184,7 @@ jobs:
           remote_user: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
           remote_key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
       - name: Upload result
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: results-${{ matrix.server }}-${{ matrix.client }}
           if-no-files-found: error
@@ -218,7 +218,7 @@ jobs:
       - name: Print result
         run: jq '.' result.json
       - name: Upload result to artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: result-aggregated
           path: result.json
