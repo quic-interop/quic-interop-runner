@@ -1138,6 +1138,12 @@ class TestCaseECN(TestCaseHandshake):
     def abbreviation():
         return "E"
 
+    def get_paths(self):
+        # Transfer a bit more data, so that QUIC implementations that do ECN validation after the
+        # handshake have a chance to ACK some ECN marked packets.
+        self._files = [self._generate_random_file(100 * KB)]
+        return self._files
+
     def _count_ecn(self, tr):
         ecn = [0] * (max(ECN) + 1)
         for p in tr:
