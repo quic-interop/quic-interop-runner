@@ -827,6 +827,19 @@ class TestCaseAmplificationLimit(TestCase):
             "Server sent %d bytes in Handshake CRYPTO frames.", max_handshake_offset
         )
 
+        # Track server-chosen connection IDs with at least 64 bits of entropy (8 bytes).
+        # Per RFC 9000 Section 8.1, the server can consider the address validated
+        # when the client uses such a connection ID.
+        server_cids = set()
+        for p in self._server_trace().get_initial(Direction.FROM_SERVER):
+            if hasattr(p, "scid"):
+                # Connection IDs are hex strings with colons (e.g., "01:02:03:04:05:06:07:08").
+                # Remove colons and check if at least 8 bytes (16 hex chars).
+                cid = p.scid.replace(":", "")
+                if len(cid) >= 16:  # 8 bytes = 16 hex characters
+                    server_cids.add(p.scid)
+                    logging.debug("Server offered connection ID with sufficient entropy: %s", p.scid)
+
         # Check that the server didn't send more than 3-4x what the client sent.
         allowed = 0
         allowed_with_tolerance = 0
@@ -848,6 +861,20 @@ class TestCaseAmplificationLimit(TestCase):
                     res = TestResult.SUCCEEDED
                     break
                 if packet_type is PacketType.INITIAL:
+                    # Check if client is using a server-chosen connection ID.
+                    # Per RFC 9000 Section 8.1: "an endpoint MAY consider the peer address
+                    # validated if the peer uses a connection ID chosen by the endpoint and
+                    # the connection ID contains at least 64 bits of entropy."
+                    if hasattr(p.quic, "dcid"):
+                        client_dcid = p.quic.dcid
+                        if client_dcid in server_cids:
+                            logging.debug(
+                                "Client used server-chosen connection ID %s with sufficient entropy. Address validated.",
+                                client_dcid
+                            )
+                            res = TestResult.SUCCEEDED
+                            break
+
                     client_sent += packet_size
                     allowed += 3 * packet_size
                     allowed_with_tolerance += 4 * packet_size
