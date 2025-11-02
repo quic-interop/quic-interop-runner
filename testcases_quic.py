@@ -566,7 +566,10 @@ class TestCaseAmplificationLimit(TestCaseQuic):
                 cid = p.scid.replace(":", "")
                 if len(cid) >= 16:  # 8 bytes = 16 hex characters
                     server_cids.add(p.scid)
-                    logging.debug("Server offered connection ID with sufficient entropy: %s", p.scid)
+                    logging.debug(
+                        "Server offered connection ID with sufficient entropy: %s",
+                        p.scid,
+                    )
 
         # Check that the server didn't send more than 3-4x what the client sent.
         allowed = 0
@@ -598,7 +601,7 @@ class TestCaseAmplificationLimit(TestCaseQuic):
                         if client_dcid in server_cids:
                             logging.debug(
                                 "Client used server-chosen connection ID %s with sufficient entropy. Address validated.",
-                                client_dcid
+                                client_dcid,
                             )
                             res = TestResult.SUCCEEDED
                             break
