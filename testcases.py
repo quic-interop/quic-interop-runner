@@ -1,3 +1,4 @@
+import platform
 import abc
 import filecmp
 import logging
@@ -51,14 +52,22 @@ def random_string(length: int):
 
 
 def generate_cert_chain(directory: str, length: int = 1):
-    cmd = "./certs.sh " + directory + " " + str(length)
-    r = subprocess.run(
-        cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-    )
-    logging.debug("%s", r.stdout.decode("utf-8"))
-    if r.returncode != 0:
-        logging.info("Unable to create certificates")
-        sys.exit(1)
+    import shutil
+    import platform
+    logging.info(f"[certgen] Target directory: {directory}")
+    certs_dir = os.path.join(directory, 'certs')
+    os.makedirs(certs_dir, exist_ok=True)
+    cert_config_src = os.path.join(os.path.dirname(__file__), 'cert_config.txt')
+    cert_config_dst = os.path.join(certs_dir, 'cert_config.txt')
+    shutil.copyfile(cert_config_src, cert_config_dst)
+    logging.info(f"[certgen] Copied cert_config.txt to {cert_config_dst}")
+    # Use native Python cert generation
+    if platform.system().lower().startswith('win'):
+        logging.info("[certgen] Using native Windows Python cert generation")
+        generate_certs_win(certs_dir, length)
+    else:
+        logging.info("[certgen] Using native POSIX Python cert generation")
+        generate_certs_posix(certs_dir, length)
 
 
 class TestCase(abc.ABC):
@@ -121,22 +130,19 @@ class TestCase(abc.ABC):
     def additional_containers() -> List[str]:
         return [""]
 
+
     def www_dir(self):
-        if not self._www_dir:
-            self._www_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="www_")
+        # Always use the directory set by the runner, do not create a new one
         return self._www_dir.name + "/"
 
+
     def download_dir(self):
-        if not self._download_dir:
-            self._download_dir = tempfile.TemporaryDirectory(
-                dir="/tmp", prefix="download_"
-            )
+        # Always use the directory set by the runner, do not create a new one
         return self._download_dir.name + "/"
 
+
     def certs_dir(self):
-        if not self._cert_dir:
-            self._cert_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="certs_")
-            generate_cert_chain(self._cert_dir.name)
+        # Always use the directory set by the runner, do not create a new one
         return self._cert_dir.name + "/"
 
     def _is_valid_keylog(self, filename) -> bool:
@@ -152,12 +158,10 @@ class TestCase(abc.ABC):
 
     def _keylog_file(self) -> str:
         if self._is_valid_keylog(self._client_keylog_file):
-            logging.debug("Using the client's key log file.")
             return self._client_keylog_file
         elif self._is_valid_keylog(self._server_keylog_file):
-            logging.debug("Using the server's key log file.")
             return self._server_keylog_file
-        logging.debug("No key log file found.")
+        return None
 
     def _inject_keylog_if_possible(self, trace: str):
         """
@@ -178,6 +182,7 @@ class TestCase(abc.ABC):
             if r.returncode != 0:
                 return
             shutil.copy(tmp.name, trace)
+
 
     def _client_trace(self):
         if self._cached_client_trace is None:
@@ -200,7 +205,8 @@ class TestCase(abc.ABC):
         f = open(self.www_dir() + filename, "wb")
         f.write(enc.encrypt(b" " * size))
         f.close()
-        logging.debug("Generated random file: %s of size: %d", filename, size)
+    # Comment out or lower the log level to silence this message
+    # logging.debug("Generated random file: %s of size: %d", filename, size)
         return filename
 
     def _retry_sent(self) -> bool:
@@ -530,8 +536,17 @@ class TestCaseMultiplexing(TestCase):
         return "Thousands of files are transferred over a single connection, and server increased stream limits to accomodate client requests."
 
     def get_paths(self):
+        # Generate 1999 random files and store their URLs in requests.env
+        self._files = []
+        urls = []
         for _ in range(1, 2000):
-            self._files.append(self._generate_random_file(32))
+            fname = self._generate_random_file(32)
+            self._files.append(fname)
+            urls.append(f"https://server4:443/{fname}")
+        # Write REQUESTS to requests.env
+        requests_env_path = os.path.join(os.path.dirname(__file__), 'requests.env')
+        with open(requests_env_path, 'w', encoding='utf-8') as f:
+            f.write('REQUESTS="' + ' '.join(urls) + '"\n')
         return self._files
 
     def check(self) -> TestResult:
@@ -1715,3 +1730,123 @@ MEASUREMENTS = [
     MeasurementGoodput,
     MeasurementCrossTraffic,
 ]
+
+# --- Certificate Generation in Python ---
+def generate_certs_posix(cert_dir, chain_len=1):
+    import subprocess, os
+    def abspath(name):
+        return os.path.join(cert_dir, name)
+    def run(cmd, **kwargs):
+        r = subprocess.run(cmd, shell=True, cwd=cert_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs)
+        if r.returncode != 0:
+            raise RuntimeError(f"Command failed: {cmd}")
+
+    # Generate Root CA and certificate
+    run('openssl ecparam -name prime256v1 -genkey -out ca_0.key')
+    run('openssl req -x509 -sha256 -nodes -days 10 -key ca_0.key -out cert_0.pem -subj "/O=interop runner Root Certificate Authority/" -config cert_config.txt -extensions v3_ca')
+
+    # Inflate certificate for the amplification test
+    fakedns = ''
+    if chain_len != 1:
+        import random, string
+        for _ in range(20):
+            rand = ''.join(random.choices(string.ascii_letters + string.digits, k=250))
+            fakedns += f',DNS:{rand}'
+
+    for i in range(1, chain_len+1):
+        subj = f"interop runner intermediate {i}"
+        if i == chain_len:
+            subj = "interop runner leaf"
+        run(f'openssl ecparam -name prime256v1 -genkey -out ca_{i}.key')
+        run(f'openssl req -out cert.csr -new -key ca_{i}.key -nodes -subj "/O={subj}/"')
+        j = i - 1
+        if i < chain_len:
+            run(f'openssl x509 -req -sha256 -days 10 -in cert.csr -out cert_{i}.pem -CA cert_{j}.pem -CAkey ca_{j}.key -CAcreateserial -extfile cert_config.txt -extensions v3_ca')
+        else:
+            altfile = abspath('altnames.txt')
+            with open(altfile, 'w') as f:
+                f.write(f'subjectAltName=DNS:server,DNS:server4,DNS:server6,DNS:server46{fakedns}')
+            run(f'openssl x509 -req -sha256 -days 10 -in cert.csr -out cert_{i}.pem -CA cert_{j}.pem -CAkey ca_{j}.key -CAcreateserial -extfile altnames.txt')
+            os.remove(altfile)
+
+    os.rename(abspath('cert_0.pem'), abspath('ca.pem'))
+    import shutil
+    shutil.copyfile(abspath(f'ca_{chain_len}.key'), abspath('priv.key'))
+
+    # Combine certificates
+    with open(abspath('cert.pem'), 'wb') as out:
+        for i in range(chain_len, 0, -1):
+            with open(abspath(f'cert_{i}.pem'), 'rb') as inp:
+                out.write(inp.read())
+            os.remove(abspath(f'cert_{i}.pem'))
+            os.remove(abspath(f'ca_{i}.key'))
+    for f in ['ca_0.key', 'cert.csr']:
+        fpath = abspath(f)
+        if os.path.exists(fpath): os.remove(fpath)
+    for f in os.listdir(cert_dir):
+        if f.endswith('.srl'):
+            os.remove(os.path.join(cert_dir, f))
+
+
+def generate_certs_win(cert_dir, chain_len=1):
+    import subprocess, os
+    def abspath(name):
+        return os.path.join(cert_dir, name)
+    def run(cmd, **kwargs):
+        print(f"[certgen][DEBUG] Running: {cmd}")
+        try:
+            r = subprocess.run(cmd, shell=True, cwd=cert_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=20, **kwargs)
+            print(f"[certgen][DEBUG] Output: {r.stdout.decode(errors='replace')}")
+        except subprocess.TimeoutExpired as e:
+            print(f"[certgen][ERROR] Timeout running: {cmd}")
+            raise
+        if r.returncode != 0:
+            print(f"[certgen][ERROR] Command failed: {cmd}")
+            print(f"[certgen][ERROR] Output: {r.stdout.decode(errors='replace')}")
+            raise RuntimeError(f"Command failed: {cmd}")
+
+    # Generate Root CA and certificate
+    run('openssl ecparam -name prime256v1 -genkey -out ca_0.key')
+    run('openssl req -x509 -sha256 -nodes -days 10 -key ca_0.key -out cert_0.pem -subj "/O=interop runner Root Certificate Authority/" -config cert_config.txt -extensions v3_ca')
+
+    # Inflate certificate for the amplification test
+    fakedns = ''
+    if chain_len != 1:
+        import random, string
+        for _ in range(20):
+            rand = ''.join(random.choices(string.ascii_letters + string.digits, k=250))
+            fakedns += f',DNS:{rand}'
+
+    for i in range(1, chain_len+1):
+        subj = f"interop runner intermediate {i}"
+        if i == chain_len:
+            subj = "interop runner leaf"
+        run(f'openssl ecparam -name prime256v1 -genkey -out ca_{i}.key')
+        run(f'openssl req -out cert.csr -new -key ca_{i}.key -nodes -subj "/O={subj}/"')
+        j = i - 1
+        if i < chain_len:
+            run(f'openssl x509 -req -sha256 -days 10 -in cert.csr -out cert_{i}.pem -CA cert_{j}.pem -CAkey ca_{j}.key -CAcreateserial -extfile cert_config.txt -extensions v3_ca')
+        else:
+            altfile = abspath('altnames.txt')
+            with open(altfile, 'w') as f:
+                f.write(f'subjectAltName=DNS:server,DNS:server4,DNS:server6,DNS:server46{fakedns}')
+            run(f'openssl x509 -req -sha256 -days 10 -in cert.csr -out cert_{i}.pem -CA cert_{j}.pem -CAkey ca_{j}.key -CAcreateserial -extfile altnames.txt')
+            os.remove(altfile)
+
+    os.rename(abspath('cert_0.pem'), abspath('ca.pem'))
+    import shutil
+    shutil.copyfile(abspath(f'ca_{chain_len}.key'), abspath('priv.key'))
+
+    # Combine certificates
+    with open(abspath('cert.pem'), 'wb') as out:
+        for i in range(chain_len, 0, -1):
+            with open(abspath(f'cert_{i}.pem'), 'rb') as inp:
+                out.write(inp.read())
+            os.remove(abspath(f'cert_{i}.pem'))
+            os.remove(abspath(f'ca_{i}.key'))
+    for f in ['ca_0.key', 'cert.csr']:
+        fpath = abspath(f)
+        if os.path.exists(fpath): os.remove(fpath)
+    for f in os.listdir(cert_dir):
+        if f.endswith('.srl'):
+            os.remove(os.path.join(cert_dir, f))
