@@ -83,6 +83,13 @@ def main():
             "--no-auto-unsupported",
             help="implementations for which auto-marking as unsupported when all tests fail should be skipped",
         )
+        parser.add_argument(
+            "--parallel",
+            type=int,
+            default=None,
+            help="Number of tests to run in parallel. Use -1 for all CPU cores, "
+            "or specify a number. Default: half of available cores",
+        )
         return parser.parse_args()
 
     replace_arg = get_args().replace
@@ -169,6 +176,7 @@ def main():
         debug=get_args().debug,
         log_dir=get_args().log_dir,
         save_files=get_args().save_files,
+        parallel=get_args().parallel,
         no_auto_unsupported=(
             no_auto_unsupported
             if get_args().no_auto_unsupported is None

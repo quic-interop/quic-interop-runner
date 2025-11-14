@@ -5,11 +5,6 @@ from typing import List, Optional, Tuple
 
 import pyshark
 
-IP4_CLIENT = "193.167.0.100"
-IP4_SERVER = "193.167.100.100"
-IP6_CLIENT = "fd00:cafe:cafe:0::100"
-IP6_SERVER = "fd00:cafe:cafe:100::100"
-
 
 QUIC_V2 = hex(0x6B3343CF)
 
@@ -47,20 +42,6 @@ WIRESHARK_PACKET_TYPES_V2 = {
 }
 
 
-def get_direction(p) -> Direction:
-    if (hasattr(p, "ip") and p.ip.src == IP4_CLIENT) or (
-        hasattr(p, "ipv6") and p.ipv6.src == IP6_CLIENT
-    ):
-        return Direction.FROM_CLIENT
-
-    if (hasattr(p, "ip") and p.ip.src == IP4_SERVER) or (
-        hasattr(p, "ipv6") and p.ipv6.src == IP6_SERVER
-    ):
-        return Direction.FROM_SERVER
-
-    return Direction.INVALID
-
-
 def get_packet_type(p) -> PacketType:
     if p.quic.header_form == "0":
         return PacketType.ONERTT
@@ -79,20 +60,59 @@ def get_packet_type(p) -> PacketType:
 
 class TraceAnalyzer:
     _filename = ""
+    _client_v4 = ""
+    _client_v6 = ""
+    _server_v4 = ""
+    _server_v6 = ""
 
-    def __init__(self, filename: str, keylog_file: Optional[str] = None):
+    def __init__(
+        self,
+        filename: str,
+        client_v4: str,
+        client_v6: str,
+        server_v4: str,
+        server_v6: str,
+        keylog_file: Optional[str] = None,
+    ):
         self._filename = filename
+        self._client_v4 = client_v4
+        self._client_v6 = client_v6
+        self._server_v4 = server_v4
+        self._server_v6 = server_v6
         self._keylog_file = keylog_file
+
+    def get_direction(self, p) -> Direction:
+        if (hasattr(p, "ip") and p.ip.src == self._client_v4) or (
+            hasattr(p, "ipv6") and p.ipv6.src == self._client_v6
+        ):
+            return Direction.FROM_CLIENT
+
+        if (hasattr(p, "ip") and p.ip.src == self._server_v4) or (
+            hasattr(p, "ipv6") and p.ipv6.src == self._server_v6
+        ):
+            return Direction.FROM_SERVER
+
+        return Direction.INVALID
 
     def _get_direction_filter(self, d: Direction) -> str:
         f = "(quic && !icmp) && "
         if d == Direction.FROM_CLIENT:
             return (
-                f + "(ip.src==" + IP4_CLIENT + " || ipv6.src==" + IP6_CLIENT + ") && "
+                f
+                + "(ip.src=="
+                + self._client_v4
+                + " || ipv6.src=="
+                + self._client_v6
+                + ") && "
             )
         elif d == Direction.FROM_SERVER:
             return (
-                f + "(ip.src==" + IP4_SERVER + " || ipv6.src==" + IP6_SERVER + ") && "
+                f
+                + "(ip.src=="
+                + self._server_v4
+                + " || ipv6.src=="
+                + self._server_v6
+                + ") && "
             )
         else:
             return f
@@ -145,7 +165,7 @@ class TraceAnalyzer:
     ) -> Tuple[List, datetime.datetime, datetime.datetime]:
         """Get all QUIC packets, one or both directions, and first and last sniff times."""
         packets = []
-        first, last = 0, 0
+        first, last = datetime.datetime.min, datetime.datetime.min
         for packet in self._get_packets(
             self._get_direction_filter(direction) + "quic.header_form==0"
         ):
@@ -155,7 +175,7 @@ class TraceAnalyzer:
                     and not hasattr(layer, "long_packet_type")
                     and not hasattr(layer, "long_packet_type_v2")
                 ):
-                    if first == 0:
+                    if first == datetime.datetime.min:
                         first = packet.sniff_time
                     last = packet.sniff_time
                     packets.append(layer)
