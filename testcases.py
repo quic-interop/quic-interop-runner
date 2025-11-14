@@ -16,10 +16,9 @@ from trace import (
     Direction,
     PacketType,
     TraceAnalyzer,
-    get_direction,
     get_packet_type,
 )
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 from Crypto.Cipher import AES
 
@@ -62,7 +61,7 @@ def generate_cert_chain(directory: str, length: int = 1):
 
 
 class TestCase(abc.ABC):
-    _files = []
+    _files: List[str] = []
     _www_dir = None
     _client_keylog_file = None
     _server_keylog_file = None
@@ -71,17 +70,29 @@ class TestCase(abc.ABC):
     _cert_dir = None
     _cached_server_trace = None
     _cached_client_trace = None
+    _client_v4 = None
+    _client_v6 = None
+    _server_v4 = None
+    _server_v6 = None
 
     def __init__(
         self,
         sim_log_dir: tempfile.TemporaryDirectory,
         client_keylog_file: str,
         server_keylog_file: str,
+        client_v4: str,
+        client_v6: str,
+        server_v4: str,
+        server_v6: str,
     ):
         self._server_keylog_file = server_keylog_file
         self._client_keylog_file = client_keylog_file
         self._files = []
         self._sim_log_dir = sim_log_dir
+        self._client_v4 = client_v4
+        self._client_v6 = client_v6
+        self._server_v4 = server_v4
+        self._server_v6 = server_v6
 
     @abc.abstractmethod
     def name(self):
@@ -150,7 +161,7 @@ class TestCase(abc.ABC):
                 return False
         return True
 
-    def _keylog_file(self) -> str:
+    def _keylog_file(self) -> Optional[str]:
         if self._is_valid_keylog(self._client_keylog_file):
             logging.debug("Using the client's key log file.")
             return self._client_keylog_file
@@ -158,6 +169,7 @@ class TestCase(abc.ABC):
             logging.debug("Using the server's key log file.")
             return self._server_keylog_file
         logging.debug("No key log file found.")
+        return None
 
     def _inject_keylog_if_possible(self, trace: str):
         """
@@ -183,14 +195,28 @@ class TestCase(abc.ABC):
         if self._cached_client_trace is None:
             trace = self._sim_log_dir.name + "/trace_node_left.pcap"
             self._inject_keylog_if_possible(trace)
-            self._cached_client_trace = TraceAnalyzer(trace, self._keylog_file())
+            self._cached_client_trace = TraceAnalyzer(
+                trace,
+                self._client_v4,
+                self._client_v6,
+                self._server_v4,
+                self._server_v6,
+                self._keylog_file(),
+            )
         return self._cached_client_trace
 
     def _server_trace(self):
         if self._cached_server_trace is None:
             trace = self._sim_log_dir.name + "/trace_node_right.pcap"
             self._inject_keylog_if_possible(trace)
-            self._cached_server_trace = TraceAnalyzer(trace, self._keylog_file())
+            self._cached_server_trace = TraceAnalyzer(
+                trace,
+                self._client_v4,
+                self._client_v6,
+                self._server_v4,
+                self._server_v6,
+                self._keylog_file(),
+            )
         return self._cached_server_trace
 
     # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
@@ -301,10 +327,9 @@ class TestCase(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def check(self) -> TestResult:
+    def check(self):
         self._client_trace()
         self._server_trace()
-        pass
 
 
 class Measurement(TestCase):
@@ -834,7 +859,7 @@ class TestCaseAmplificationLimit(TestCase):
         res = TestResult.FAILED
         log_output = []
         for p in self._server_trace().get_raw_packets():
-            direction = get_direction(p)
+            direction = self._server_trace().get_direction(p)
             packet_type = get_packet_type(p)
             if packet_type == PacketType.VERSIONNEGOTIATION:
                 logging.info("Didn't expect a Version Negotiation packet.")
@@ -1302,7 +1327,8 @@ class TestCasePortRebinding(TestCaseTransfer):
                     return TestResult.FAILED
                 else:
                     challenges.add(getattr(p["quic"], "path_challenge.data"))
-        paths.add(cur)
+        if cur is not None:
+            paths.add(cur)
 
         logging.info("Server saw these paths used: %s", paths)
         if len(paths) <= 1:
