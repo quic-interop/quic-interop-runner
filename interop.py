@@ -110,10 +110,19 @@ class InteropRunner:
         self.compliant.setdefault(name, {})
 
         client_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_client_")
-        www_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="compliance_www_")
         certs_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="compliance_certs_")
-        downloads_dir = tempfile.TemporaryDirectory(
-            dir="/tmp", prefix="compliance_downloads_"
+
+        client_www_dir = tempfile.TemporaryDirectory(
+            dir="/tmp", prefix="compliance_client_www_"
+        )
+        client_downloads_dir = tempfile.TemporaryDirectory(
+            dir="/tmp", prefix="compliance_client_downloads_"
+        )
+        server_www_dir = tempfile.TemporaryDirectory(
+            dir="/tmp", prefix="compliance_server_www_"
+        )
+        server_downloads_dir = tempfile.TemporaryDirectory(
+            dir="/tmp", prefix="compliance_server_downloads_"
         )
 
         testcases_quic.generate_cert_chain(certs_dir.name)
@@ -126,8 +135,10 @@ class InteropRunner:
                 "TESTCASE_CLIENT=" + generate_slug() + " "
                 "SERVER_LOGS=/dev/null "
                 "CLIENT_LOGS=" + client_log_dir.name + " "
-                "WWW=" + www_dir.name + " "
-                "DOWNLOADS=" + downloads_dir.name + " "
+                "CLIENT_WWW=" + client_www_dir.name + " "
+                "CLIENT_DOWNLOADS=" + client_downloads_dir.name + " "
+                "SERVER_WWW=" + server_www_dir.name + " "
+                "SERVER_DOWNLOADS=" + server_downloads_dir.name + " "
                 'SCENARIO="simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25" '
                 "CLIENT=" + self._implementations[name]["image"] + " "
                 "SERVER="
@@ -155,8 +166,10 @@ class InteropRunner:
                 "TESTCASE_SERVER=" + generate_slug() + " "
                 "SERVER_LOGS=" + server_log_dir.name + " "
                 "CLIENT_LOGS=/dev/null "
-                "WWW=" + www_dir.name + " "
-                "DOWNLOADS=" + downloads_dir.name + " "
+                "CLIENT_WWW=" + client_www_dir.name + " "
+                "CLIENT_DOWNLOADS=" + client_downloads_dir.name + " "
+                "SERVER_WWW=" + server_www_dir.name + " "
+                "SERVER_DOWNLOADS=" + server_downloads_dir.name + " "
                 "CLIENT="
                 + self._implementations[name]["image"]
                 + " "  # only needed so docker compose doesn't complain
@@ -172,8 +185,6 @@ class InteropRunner:
                 self.compliant[name][role] = False
                 return False
             logging.debug("%s server compliant.", name)
-        else:
-            raise ValueError(f"Unknown perspective for compliance check: {role}")
 
         # remember compliance test outcome for this role
         self.compliant[name][role] = True
@@ -409,8 +420,10 @@ class InteropRunner:
             "CERTS=" + test.certs_dir() + " "
             "TESTCASE_SERVER=" + test.testname(Perspective.SERVER) + " "
             "TESTCASE_CLIENT=" + test.testname(Perspective.CLIENT) + " "
-            "WWW=" + test.www_dir() + " "
-            "DOWNLOADS=" + test.download_dir() + " "
+            "CLIENT_WWW=" + test.client_www_dir() + " "
+            "CLIENT_DOWNLOADS=" + test.client_download_dir() + " "
+            "SERVER_WWW=" + test.server_www_dir() + " "
+            "SERVER_DOWNLOADS=" + test.server_download_dir() + " "
             "SERVER_LOGS=" + server_log_dir.name + " "
             "CLIENT_LOGS=" + client_log_dir.name + " "
             'SCENARIO="{}" '
@@ -422,7 +435,7 @@ class InteropRunner:
         containers = "sim client server " + " ".join(test.additional_containers())
         cmd = (
             params
-            + " docker compose --env-file empty.env up --abort-on-container-exit --timeout 1 "
+            + " docker compose --env-file empty.env up --abort-on-container-exit --timeout 10 "
             + containers
         )
         logging.debug("Command: %s", cmd)
@@ -484,11 +497,30 @@ class InteropRunner:
             shutil.copytree(sim_log_dir.name, log_dir + "/sim")
             shutil.copyfile(log_file.name, log_dir + "/output.txt")
             if self._save_files and status == TestResult.FAILED:
-                shutil.copytree(test.www_dir(), log_dir + "/www")
                 try:
-                    shutil.copytree(test.download_dir(), log_dir + "/downloads")
+                    shutil.copytree(test.server_www_dir(), log_dir + "/server_www")
                 except Exception as exception:
-                    logging.info("Could not copy downloaded files: %s", exception)
+                    logging.info("Could not copy server www files: %s", exception)
+                try:
+                    shutil.copytree(
+                        test.client_download_dir(), log_dir + "/client_downloads"
+                    )
+                except Exception as exception:
+                    logging.info(
+                        "Could not copy client downloaded files: %s", exception
+                    )
+                try:
+                    shutil.copytree(test.client_www_dir(), log_dir + "/client_www")
+                except Exception as exception:
+                    logging.info("Could not copy client www files: %s", exception)
+                try:
+                    shutil.copytree(
+                        test.server_download_dir(), log_dir + "/server_downloads"
+                    )
+                except Exception as exception:
+                    logging.info(
+                        "Could not copy server downloaded files: %s", exception
+                    )
 
         test.cleanup()
         server_log_dir.cleanup()

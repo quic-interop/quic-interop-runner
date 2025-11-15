@@ -32,7 +32,8 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - $WWW:/www:ro
+      - $SERVER_WWW:/www:ro
+      - $SERVER_DOWNLOADS:/downloads:delegated
       - $CERTS:/certs:ro
     environment:
       - CRON=$CRON
@@ -63,7 +64,8 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - $DOWNLOADS:/downloads:delegated
+      - $CLIENT_WWW:/www:ro
+      - $CLIENT_DOWNLOADS:/downloads:delegated
       - $CERTS:/certs:ro
     environment:
       - CRON=$CRON
