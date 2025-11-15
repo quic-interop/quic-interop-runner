@@ -47,14 +47,16 @@ def generate_cert_chain(directory: str, length: int = 1):
 
 class TestCase(abc.ABC):
     _files = []
-    _www_dir = None
     _client_keylog_file = None
     _server_keylog_file = None
-    _download_dir = None
     _sim_log_dir = None
     _cert_dir = None
     _cached_server_trace = None
     _cached_client_trace = None
+    _client_www_dir = None
+    _client_download_dir = None
+    _server_www_dir = None
+    _server_download_dir = None
 
     def __init__(
         self,
@@ -105,17 +107,25 @@ class TestCase(abc.ABC):
     def additional_containers() -> List[str]:
         return [""]
 
-    def www_dir(self):
-        if not self._www_dir:
-            self._www_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="www_")
-        return self._www_dir.name + "/"
+    def client_www_dir(self):
+        if not self._client_www_dir:
+            self._client_www_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="client_www_")
+        return self._client_www_dir.name + "/"
 
-    def download_dir(self):
-        if not self._download_dir:
-            self._download_dir = tempfile.TemporaryDirectory(
-                dir="/tmp", prefix="download_"
-            )
-        return self._download_dir.name + "/"
+    def client_download_dir(self):
+        if not self._client_download_dir:
+            self._client_download_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="client_download_")
+        return self._client_download_dir.name + "/"
+
+    def server_www_dir(self):
+        if not self._server_www_dir:
+            self._server_www_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="server_www_")
+        return self._server_www_dir.name + "/"
+
+    def server_download_dir(self):
+        if not self._server_download_dir:
+            self._server_download_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="server_download_")
+        return self._server_download_dir.name + "/"
 
     def certs_dir(self):
         if not self._cert_dir:
@@ -181,7 +191,7 @@ class TestCase(abc.ABC):
     def _generate_random_file(self, size: int, filename_len=10) -> str:
         filename = random_string(filename_len)
         enc = AES.new(os.urandom(32), AES.MODE_OFB, b"a" * 16)
-        f = open(self.www_dir() + filename, "wb")
+        f = open(self.server_www_dir() + filename, "wb")
         f.write(enc.encrypt(b" " * size))
         f.close()
         logging.debug("Generated random file: %s of size: %d", filename, size)
@@ -205,8 +215,8 @@ class TestCase(abc.ABC):
             raise Exception("No test files generated.")
         files = [
             n
-            for n in os.listdir(self.download_dir())
-            if os.path.isfile(os.path.join(self.download_dir(), n))
+            for n in os.listdir(self.client_download_dir())
+            if os.path.isfile(os.path.join(self.client_download_dir(), n))
         ]
         too_many = [f for f in files if f not in self._files]
         if len(too_many) != 0:
@@ -217,12 +227,12 @@ class TestCase(abc.ABC):
         if len(too_many) != 0 or len(too_few) != 0:
             return False
         for f in self._files:
-            fp = self.download_dir() + f
+            fp = self.client_download_dir() + f
             if not os.path.isfile(fp):
                 logging.info("File %s does not exist.", fp)
                 return False
             try:
-                size = os.path.getsize(self.www_dir() + f)
+                size = os.path.getsize(self.server_www_dir() + f)
                 downloaded_size = os.path.getsize(fp)
                 if size != downloaded_size:
                     logging.info(
@@ -232,13 +242,13 @@ class TestCase(abc.ABC):
                         downloaded_size,
                     )
                     return False
-                if not filecmp.cmp(self.www_dir() + f, fp, shallow=False):
+                if not filecmp.cmp(self.server_www_dir() + f, fp, shallow=False):
                     logging.info("File contents of %s do not match.", fp)
                     return False
             except Exception as exception:
                 logging.info(
                     "Could not compare files %s and %s: %s",
-                    self.www_dir() + f,
+                    self.server_www_dir() + f,
                     fp,
                     exception,
                 )
@@ -273,12 +283,18 @@ class TestCase(abc.ABC):
         return size
 
     def cleanup(self):
-        if self._www_dir:
-            self._www_dir.cleanup()
-            self._www_dir = None
-        if self._download_dir:
-            self._download_dir.cleanup()
-            self._download_dir = None
+        if self._client_www_dir:
+            self._client_www_dir.cleanup()
+            self._client_www_dir = None
+        if self._client_download_dir:
+            self._client_download_dir.cleanup()
+            self._client_download_dir = None
+        if self._server_www_dir:
+            self._server_www_dir.cleanup()
+            self._server_www_dir = None
+        if self._server_download_dir:
+            self._server_download_dir.cleanup()
+            self._server_download_dir = None
 
     @abc.abstractmethod
     def get_paths(self):
