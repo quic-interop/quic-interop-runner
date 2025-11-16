@@ -194,8 +194,8 @@ class TestCase(abc.ABC):
             self._cached_server_trace = TraceAnalyzer(trace, self._keylog_file())
         return self._cached_server_trace
 
-    def _generate_random_file(self, size: int, filename: str = "") -> str:
-        if filename == "":
+    def _generate_random_file(self, size: int, filename: str = None) -> str:
+        if filename is None:
             filename = generate_slug()
         # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
         enc = AES.new(os.urandom(32), AES.MODE_OFB, b"a" * 16)
