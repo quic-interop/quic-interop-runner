@@ -1,11 +1,10 @@
 import json
 import logging
 import os
-import random
+from random_slugs import generate_slug
 import re
 import shutil
 import statistics
-import string
 import subprocess
 import sys
 import tempfile
@@ -18,12 +17,6 @@ from termcolor import colored
 import testcases
 from result import TestResult
 from testcases import Perspective
-
-
-def random_string(length: int):
-    """Generate a random string of fixed length"""
-    letters = string.ascii_lowercase
-    return "".join(random.choice(letters) for i in range(length))
 
 
 class MeasurementResult:
@@ -125,7 +118,7 @@ class InteropRunner:
         logging.debug("Checking compliance of %s client", name)
         cmd = (
             "CERTS=" + certs_dir.name + " "
-            "TESTCASE_CLIENT=" + random_string(6) + " "
+            "TESTCASE_CLIENT=" + generate_slug() + " "
             "SERVER_LOGS=/dev/null "
             "CLIENT_LOGS=" + client_log_dir.name + " "
             "WWW=" + www_dir.name + " "
@@ -152,7 +145,7 @@ class InteropRunner:
         server_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_server_")
         cmd = (
             "CERTS=" + certs_dir.name + " "
-            "TESTCASE_SERVER=" + random_string(6) + " "
+            "TESTCASE_SERVER=" + generate_slug() + " "
             "SERVER_LOGS=" + server_log_dir.name + " "
             "CLIENT_LOGS=/dev/null "
             "WWW=" + www_dir.name + " "
