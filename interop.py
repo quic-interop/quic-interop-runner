@@ -683,8 +683,6 @@ class InteropRunner:
                         self.test_results[server][client][testcase] = TestResult.FAILED
                         nr_failed += 1
                         print(f"Test {testcase.name()} failed with exception: {e}")
-                        import traceback
-                        print(traceback.format_exc())
 
             # run the measurements
             for measurement in self._measurements:
