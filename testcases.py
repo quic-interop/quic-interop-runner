@@ -3,6 +3,7 @@ import filecmp
 import logging
 import os
 import random
+from random_slugs import generate_slug
 import re
 import shutil
 import string
@@ -219,9 +220,10 @@ class TestCase(abc.ABC):
             )
         return self._cached_server_trace
 
-    # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
-    def _generate_random_file(self, size: int, filename_len=10) -> str:
-        filename = random_string(filename_len)
+    def _generate_random_file(self, size: int, filename: str = None) -> str:
+        if filename is None:
+            filename = generate_slug()
+        # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
         enc = AES.new(os.urandom(32), AES.MODE_OFB, b"a" * 16)
         f = open(self.www_dir() + filename, "wb")
         f.write(enc.encrypt(b" " * size))
@@ -731,9 +733,8 @@ class TestCaseZeroRTT(TestCase):
 
     def get_paths(self):
         for _ in range(self.NUM_FILES):
-            self._files.append(
-                self._generate_random_file(self.FILESIZE, self.FILENAMELEN)
-            )
+            filename = random_string(self.FILENAMELEN)
+            self._files.append(self._generate_random_file(self.FILESIZE, filename))
         return self._files
 
     def check(self) -> TestResult:

@@ -137,9 +137,9 @@ class TraceAnalyzer:
                     logging.info("Captured packet without quic layer: %r", p)
                     continue
                 packets.append(p)
-            cap.close()
         except Exception as e:
             logging.debug(e)
+        cap.close()
 
         if self._keylog_file is not None:
             for p in packets:

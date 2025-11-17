@@ -3,11 +3,10 @@ import json
 import logging
 import multiprocessing
 import os
-import random
+from random_slugs import generate_slug
 import re
 import shutil
 import statistics
-import string
 import subprocess
 import sys
 import tempfile
@@ -23,12 +22,6 @@ from termcolor import colored
 import testcases
 from result import TestResult
 from testcases import Perspective
-
-
-def random_string(length: int):
-    """Generate a random string of fixed length"""
-    letters = string.ascii_lowercase
-    return "".join(random.choice(letters) for i in range(length))
 
 
 class MeasurementResult:
@@ -187,8 +180,8 @@ class InteropRunner:
         )
         params = {
             "CERTS": certs_dir.name,
-            "TESTCASE_CLIENT": random_string(6),
-            "TESTCASE_SERVER": random_string(6),
+            "TESTCASE_CLIENT": generate_slug(),
+            "TESTCASE_SERVER": generate_slug(),
             "CLIENT_LOGS": client_log_dir.name,
             "SERVER_LOGS": server_log_dir.name,
             "WWW": www_dir.name,
