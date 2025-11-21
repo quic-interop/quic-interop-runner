@@ -175,7 +175,7 @@ jobs:
           mv logs_measurement/${{ matrix.server }}_${{ matrix.client }}/* logs/${{ matrix.server }}_${{ matrix.client }}/
       - name: Upload logs to interop.seemann.io
         uses: burnett01/rsync-deployments@33214bd98ba4ac2be90f5976672b3f030fce9ce4 # v7.1.0
-        if: ${{ github.event_name == 'schedule' }}
+        if: ${{ always() && github.event_name == 'schedule' }}
         with:
           switches: -avzr --relative
           path: logs/./${{ matrix.server }}_${{ matrix.client }}/
