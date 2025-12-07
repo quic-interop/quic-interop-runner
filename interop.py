@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from random_slugs import generate_slug
+from unique_random_slugs import generate_slug
 import re
 import shutil
 import statistics
