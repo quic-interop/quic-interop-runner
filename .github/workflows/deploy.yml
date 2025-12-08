@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Upload website to interop.seemann.io
-        uses: burnett01/rsync-deployments@33214bd98ba4ac2be90f5976672b3f030fce9ce4 # v7.1.0
+        uses: burnett01/rsync-deployments@0c902521b8b9135f0dae7841a01d7d3b19629cb2 # v8.0.2
         with:
           switches: -avzr --delete
           path: web/
