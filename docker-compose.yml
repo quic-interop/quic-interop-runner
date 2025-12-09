@@ -1,13 +1,26 @@
 services:
   sim:
     image: martenseemann/quic-network-simulator
-    container_name: sim
     hostname: sim
     stdin_open: true
     tty: true
     environment:
       - WAITFORSERVER=$WAITFORSERVER
       - SCENARIO=$SCENARIO
+      - CLIENT_V4_ADDR=${CLIENT_V4_ADDR}
+      - CLIENT_V4_GATEWAY=${CLIENT_V4_NET}.2
+      - CLIENT_V6_ADDR=${CLIENT_V6_ADDR}
+      - CLIENT_V6_GATEWAY=${CLIENT_V6_NET}::2
+      - SERVER_V4_ADDR=${SERVER_V4_ADDR}
+      - SERVER_V4_GATEWAY=${SERVER_V4_NET}.2
+      - SERVER_V6_ADDR=${SERVER_V6_ADDR}
+      - SERVER_V6_GATEWAY=${SERVER_V6_NET}::2
+      - SUBNET_V4=${SUBNET_V4}
+      - SUBNET_V6=${SUBNET_V6}
+      - V4_PREFIX=${V4_PREFIX}
+      - V6_PREFIX=${V6_PREFIX}
+      - LEFTNET_NAME=eth0
+      - RIGHTNET_NAME=eth1
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -15,19 +28,18 @@ services:
       - "57832"
     networks:
       leftnet:
-        ipv4_address: 193.167.0.2
-        ipv6_address: fd00:cafe:cafe:0::2
+        ipv4_address: ${CLIENT_V4_NET}.2
+        ipv6_address: ${CLIENT_V6_NET}::2
         interface_name: eth0
       rightnet:
-        ipv4_address: 193.167.100.2
-        ipv6_address: fd00:cafe:cafe:100::2
+        ipv4_address: ${SERVER_V4_NET}.2
+        ipv6_address: ${SERVER_V6_NET}::2
         interface_name: eth1
     extra_hosts:
-      - "server:193.167.100.100"
+      - "server:${SERVER_V4_ADDR}"
 
   server:
     image: $SERVER
-    container_name: server
     hostname: server
     stdin_open: true
     tty: true
@@ -41,6 +53,11 @@ services:
       - SSLKEYLOGFILE=/logs/keys.log
       - QLOGDIR=/logs/qlog/
       - TESTCASE=$TESTCASE_SERVER
+      - SUBNET_V4_PREFIX=${SUBNET_V4_PREFIX}
+      - SUBNET_V4_SUBNET=${SUBNET_V4_SUBNET}
+      - SUBNET_V4=${SUBNET_V4}
+      - SUBNET_V6_PREFIX=${SUBNET_V6_PREFIX}
+      - SUBNET_V6=${SUBNET_V6}
     depends_on:
       - sim
     cap_add:
@@ -49,16 +66,15 @@ services:
       memlock: 67108864
     networks:
       rightnet:
-        ipv4_address: 193.167.100.100
-        ipv6_address: fd00:cafe:cafe:100::100
+        ipv4_address: ${SERVER_V4_ADDR}
+        ipv6_address: ${SERVER_V6_ADDR}
         interface_name: eth0
     extra_hosts:
-      - "server4:193.167.100.100"
-      - "server6:fd00:cafe:cafe:100::100"
+      - "server4:${SERVER_V4_ADDR}"
+      - "server6:${SERVER_V6_ADDR}"
 
   client:
     image: $CLIENT
-    container_name: client
     hostname: client
     stdin_open: true
     tty: true
@@ -73,6 +89,11 @@ services:
       - QLOGDIR=/logs/qlog/
       - TESTCASE=$TESTCASE_CLIENT
       - REQUESTS=$REQUESTS
+      - SUBNET_V4_PREFIX=${SUBNET_V4_PREFIX}
+      - SUBNET_V4_SUBNET=${SUBNET_V4_SUBNET}
+      - SUBNET_V4=${SUBNET_V4}
+      - SUBNET_V6_PREFIX=${SUBNET_V6_PREFIX}
+      - SUBNET_V6=${SUBNET_V6}
     depends_on:
       - sim
     cap_add:
@@ -81,18 +102,17 @@ services:
       memlock: 67108864
     networks:
       leftnet:
-        ipv4_address: 193.167.0.100
-        ipv6_address: fd00:cafe:cafe:0::100
+        ipv4_address: ${CLIENT_V4_ADDR}
+        ipv6_address: ${CLIENT_V6_ADDR}
         interface_name: eth0
     extra_hosts:
-      - "server4:193.167.100.100"
-      - "server6:fd00:cafe:cafe:100::100"
-      - "server46:193.167.100.100"
-      - "server46:fd00:cafe:cafe:100::100"
+      - "server4:${SERVER_V4_ADDR}"
+      - "server6:${SERVER_V6_ADDR}"
+      - "server46:${SERVER_V4_ADDR}"
+      - "server46:${SERVER_V6_ADDR}"
 
   iperf_server:
     image: martenseemann/quic-interop-iperf-endpoint
-    container_name: iperf_server
     stdin_open: true
     tty: true
     environment:
@@ -105,17 +125,16 @@ services:
       - NET_ADMIN
     networks:
       rightnet:
-        ipv4_address: 193.167.100.110
-        ipv6_address: fd00:cafe:cafe:100::110
+        ipv4_address: ${SERVER_V4_NET}.110
+        ipv6_address: ${SERVER_V6_NET}::110
     extra_hosts:
-      - "client4:193.167.0.90"
-      - "client6:fd00:cafe:cafe:0::100"
-      - "client46:193.167.0.90"
-      - "client46:fd00:cafe:cafe:0::100"
+      - "client4:${CLIENT_V4_NET}.90"
+      - "client6:${CLIENT_V6_NET}::100"
+      - "client46:${CLIENT_V4_NET}.90"
+      - "client46:${CLIENT_V6_NET}::100"
 
   iperf_client:
     image: martenseemann/quic-interop-iperf-endpoint
-    container_name: iperf_client
     stdin_open: true
     tty: true
     environment:
@@ -127,13 +146,13 @@ services:
       - NET_ADMIN
     networks:
       leftnet:
-        ipv4_address: 193.167.0.90
-        ipv6_address: fd00:cafe:cafe:0::90
+        ipv4_address: ${CLIENT_V4_NET}.90
+        ipv6_address: ${CLIENT_V6_NET}::90
     extra_hosts:
-      - "server4:193.167.100.110"
-      - "server6:fd00:cafe:cafe:100::110"
-      - "server46:193.167.100.110"
-      - "server46:fd00:cafe:cafe:100::110"
+      - "server4:${SERVER_V4_NET}.110"
+      - "server6:${SERVER_V6_NET}::110"
+      - "server46:${SERVER_V4_NET}.110"
+      - "server46:${SERVER_V6_NET}::110"
 
 networks:
   leftnet:
@@ -143,8 +162,8 @@ networks:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 193.167.0.0/24
-        - subnet: fd00:cafe:cafe:0::/64
+        - subnet: ${CLIENT_V4_NET}.0/${V4_PREFIX}
+        - subnet: ${CLIENT_V6_NET}::/${V6_PREFIX}
   rightnet:
     driver: bridge
     driver_opts:
@@ -152,6 +171,5 @@ networks:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 193.167.100.0/24
-        - subnet: fd00:cafe:cafe:100::/64
-
+        - subnet: ${SERVER_V4_NET}.0/${V4_PREFIX}
+        - subnet: ${SERVER_V6_NET}::/${V6_PREFIX}
