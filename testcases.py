@@ -1283,7 +1283,8 @@ class TestCasePortRebinding(TestCaseTransfer):
         cur = None
         last = None
         paths = set()
-        challenges = set()
+        # Track PATH_CHALLENGE data per path that needs validation.
+        path_challenges = {}
         for p in tr_server:
             cur = self._path(p)
             if last is None:
@@ -1293,7 +1294,9 @@ class TestCasePortRebinding(TestCaseTransfer):
             if last != cur and cur not in paths:
                 paths.add(last)
                 last = cur
-                # Packet on new path, should have a PATH_CHALLENGE frame
+                # Initialize challenge tracking for this new path.
+                path_challenges[cur] = set()
+                # First packet on new path should have a PATH_CHALLENGE frame.
                 if hasattr(p["quic"], "path_challenge.data") is False:
                     logging.info(
                         "First server packet on new path %s did not contain a PATH_CHALLENGE frame",
@@ -1301,9 +1304,13 @@ class TestCasePortRebinding(TestCaseTransfer):
                     )
                     logging.info(p["quic"])
                     return TestResult.FAILED
-                else:
-                    challenges.add(getattr(p["quic"], "path_challenge.data"))
+
+            # Capture all PATH_CHALLENGE frames for paths needing validation.
+            if cur in path_challenges and hasattr(p["quic"], "path_challenge.data"):
+                path_challenges[cur].add(getattr(p["quic"], "path_challenge.data"))
+
         paths.add(cur)
+        final_path = cur
 
         logging.info("Server saw these paths used: %s", paths)
         if len(paths) <= 1:
@@ -1314,18 +1321,27 @@ class TestCasePortRebinding(TestCaseTransfer):
             self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
         )
 
-        responses = list(
-            set(
-                getattr(p["quic"], "path_response.data")
-                for p in tr_client
-                if hasattr(p["quic"], "path_response.data")
-            )
+        responses = set(
+            getattr(p["quic"], "path_response.data")
+            for p in tr_client
+            if hasattr(p["quic"], "path_response.data")
         )
 
-        unresponded = [c for c in challenges if c not in responses]
-        if unresponded != []:
-            logging.info("PATH_CHALLENGE without a PATH_RESPONSE: %s", unresponded)
-            return TestResult.FAILED
+        # Verify each new path has at least one PATH_CHALLENGE that was responded to.
+        # This tolerates packet loss while still proving path validation succeeded.
+        # Exclude the final path, since the peer may close the connection successfully
+        # without responding to a late-arriving PATH_CHALLENGE.
+        for path, challenges in path_challenges.items():
+            if path == final_path:
+                continue
+            if not any(c in responses for c in challenges):
+                logging.info(
+                    "No PATH_RESPONSE received for any PATH_CHALLENGE on path %s "
+                    "(challenges sent: %s)",
+                    path,
+                    challenges,
+                )
+                return TestResult.FAILED
 
         return TestResult.SUCCEEDED
 
