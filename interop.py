@@ -97,13 +97,18 @@ class InteropRunner:
             "exit status 127" in str(line) for line in lines
         )
 
-    def _check_impl_is_compliant(self, name: str) -> bool:
-        """check if an implementation return UNSUPPORTED for unknown test cases"""
-        if name in self.compliant:
+    def _check_impl_is_compliant(self, name: str, role: Perspective) -> bool:
+        """Check if an implementation returns UNSUPPORTED for unknown test cases."""
+        if name in self.compliant and role in self.compliant[name]:
             logging.debug(
-                "%s already tested for compliance: %s", name, str(self.compliant)
+                "%s already tested for %s compliance: %s",
+                name,
+                role.name.lower(),
+                str(self.compliant[name][role]),
             )
-            return self.compliant[name]
+            return self.compliant[name][role]
+
+        self.compliant.setdefault(name, {})
 
         client_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_client_")
         www_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="compliance_www_")
@@ -114,60 +119,65 @@ class InteropRunner:
 
         testcases.generate_cert_chain(certs_dir.name)
 
-        # check that the client is capable of returning UNSUPPORTED
-        logging.debug("Checking compliance of %s client", name)
-        cmd = (
-            "CERTS=" + certs_dir.name + " "
-            "TESTCASE_CLIENT=" + generate_slug() + " "
-            "SERVER_LOGS=/dev/null "
-            "CLIENT_LOGS=" + client_log_dir.name + " "
-            "WWW=" + www_dir.name + " "
-            "DOWNLOADS=" + downloads_dir.name + " "
-            'SCENARIO="simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25" '
-            "CLIENT=" + self._implementations[name]["image"] + " "
-            "SERVER="
-            + self._implementations[name]["image"]
-            + " "  # only needed so docker compose doesn't complain
-            "docker compose --env-file empty.env up --timeout 0 --abort-on-container-exit -V sim client"
-        )
-        output = subprocess.run(
-            cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-        )
-        if not self._is_unsupported(output.stdout.splitlines()):
-            logging.error("%s client not compliant.", name)
-            logging.debug("%s", output.stdout.decode("utf-8", errors="replace"))
-            self.compliant[name] = False
-            return False
-        logging.debug("%s client compliant.", name)
+        if role == Perspective.CLIENT:
+            # check that the client is capable of returning UNSUPPORTED
+            logging.debug("Checking compliance of %s client", name)
+            cmd = (
+                "CERTS=" + certs_dir.name + " "
+                "TESTCASE_CLIENT=" + generate_slug() + " "
+                "SERVER_LOGS=/dev/null "
+                "CLIENT_LOGS=" + client_log_dir.name + " "
+                "WWW=" + www_dir.name + " "
+                "DOWNLOADS=" + downloads_dir.name + " "
+                'SCENARIO="simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25" '
+                "CLIENT=" + self._implementations[name]["image"] + " "
+                "SERVER="
+                + self._implementations[name]["image"]
+                + " "  # only needed so docker compose doesn't complain
+                "docker compose --env-file empty.env up --timeout 0 --abort-on-container-exit -V sim client"
+            )
+            output = subprocess.run(
+                cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            )
+            if not self._is_unsupported(output.stdout.splitlines()):
+                logging.error("%s client not compliant.", name)
+                logging.debug("%s", output.stdout.decode("utf-8", errors="replace"))
+                self.compliant[name][role] = False
+                return False
+            logging.debug("%s client compliant.", name)
+        elif role == Perspective.SERVER:
+            # check that the server is capable of returning UNSUPPORTED
+            logging.debug("Checking compliance of %s server", name)
+            server_log_dir = tempfile.TemporaryDirectory(
+                dir="/tmp", prefix="logs_server_"
+            )
+            cmd = (
+                "CERTS=" + certs_dir.name + " "
+                "TESTCASE_SERVER=" + generate_slug() + " "
+                "SERVER_LOGS=" + server_log_dir.name + " "
+                "CLIENT_LOGS=/dev/null "
+                "WWW=" + www_dir.name + " "
+                "DOWNLOADS=" + downloads_dir.name + " "
+                "CLIENT="
+                + self._implementations[name]["image"]
+                + " "  # only needed so docker compose doesn't complain
+                "SERVER=" + self._implementations[name]["image"] + " "
+                "docker compose --env-file empty.env up -V server"
+            )
+            output = subprocess.run(
+                cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            )
+            if not self._is_unsupported(output.stdout.splitlines()):
+                logging.error("%s server not compliant.", name)
+                logging.debug("%s", output.stdout.decode("utf-8", errors="replace"))
+                self.compliant[name][role] = False
+                return False
+            logging.debug("%s server compliant.", name)
+        else:
+            raise ValueError(f"Unknown perspective for compliance check: {role}")
 
-        # check that the server is capable of returning UNSUPPORTED
-        logging.debug("Checking compliance of %s server", name)
-        server_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_server_")
-        cmd = (
-            "CERTS=" + certs_dir.name + " "
-            "TESTCASE_SERVER=" + generate_slug() + " "
-            "SERVER_LOGS=" + server_log_dir.name + " "
-            "CLIENT_LOGS=/dev/null "
-            "WWW=" + www_dir.name + " "
-            "DOWNLOADS=" + downloads_dir.name + " "
-            "CLIENT="
-            + self._implementations[name]["image"]
-            + " "  # only needed so docker compose doesn't complain
-            "SERVER=" + self._implementations[name]["image"] + " "
-            "docker compose --env-file empty.env up -V server"
-        )
-        output = subprocess.run(
-            cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-        )
-        if not self._is_unsupported(output.stdout.splitlines()):
-            logging.error("%s server not compliant.", name)
-            logging.debug("%s", output.stdout.decode("utf-8", errors="replace"))
-            self.compliant[name] = False
-            return False
-        logging.debug("%s server compliant.", name)
-
-        # remember compliance test outcome
-        self.compliant[name] = True
+        # remember compliance test outcome for this role
+        self.compliant[name][role] = True
         return True
 
     def _postprocess_results(self):
@@ -535,8 +545,8 @@ class InteropRunner:
                 self._implementations[client]["image"],
             )
             if not (
-                self._check_impl_is_compliant(server)
-                and self._check_impl_is_compliant(client)
+                self._check_impl_is_compliant(server, Perspective.SERVER)
+                and self._check_impl_is_compliant(client, Perspective.CLIENT)
             ):
                 logging.info("Not compliant, skipping")
                 continue
