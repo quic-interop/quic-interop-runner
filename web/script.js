@@ -278,7 +278,7 @@
       if(xhr.readyState !== XMLHttpRequest.DONE) return;
       if(xhr.status !== 200) {
         console.log("Received status: ", xhr.status);
-        var run = dir.replace("logs_", "");
+        var run = dir;
         var errMsg = '<strong>Error: could not locate result for "' + run + '" run</strong>';
         document.getElementById("run-selection-msg").innerHTML = errMsg;
         var refresh = window.location.protocol + "//" + window.location.host + window.location.pathname + "?run=" + run;
@@ -286,7 +286,7 @@
         return;
       }
       var result = xhr.response;
-      var selectedRun = result.log_dir.replace("logs_", "");
+      var selectedRun = result.log_dir;
       var refresh = window.location.protocol + "//" + window.location.host + window.location.pathname + "?run=" + selectedRun;
       window.history.pushState(null, null, refresh);
       process(result);
@@ -301,7 +301,7 @@
     // if the request used a specific run (like ?run=123), then
     // load that specifc one
     selectedRun = queryParams.get("run")
-    load("logs_" + selectedRun);
+    load(selectedRun);
   } else {
     load("latest");
   }
@@ -319,7 +319,7 @@
     var s = document.createElement("select");
     xhr.response.reverse().forEach(function(el) {
       var opt = document.createElement("option");
-      opt.innerHTML = el.replace("logs_", "");
+      opt.innerHTML = el;
       opt.value = el;
       s.appendChild(opt);
     });
@@ -330,7 +330,7 @@
     if (selectedRun != null) {
       // just set the selected run, no need to trigger "change"
       // event here
-      s.value = "logs_" + selectedRun;
+      s.value = selectedRun;
     }
   };
   xhr.send();
