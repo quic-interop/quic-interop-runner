@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-import argparse
 import sys
+import argparse
 from typing import List, Tuple
 
 import testcases
@@ -36,9 +36,7 @@ def main():
             default=False,
             help="turn on debug logs",
         )
-        parser.add_argument(
-            "-s", "--server", help="server implementations (comma-separated)"
-        )
+        parser.add_argument("-s", "--server", help="server implementations (comma-separated)")
         parser.add_argument(
             "-c", "--client", help="client implementations (comma-separated)"
         )
