@@ -155,23 +155,25 @@ def main():
     ) -> Tuple[List[testcase.TestCase], List[testcase.TestCase]]:
         if protocol == "quic":
             testcases = TESTCASES_QUIC
+            measurements = MEASUREMENTS
         elif protocol == "webtransport":
             testcases = TESTCASES_WEBTRANSPORT
+            measurements = []  # no measurements in webtransport mode
         if arg is None:
-            return testcases, MEASUREMENTS
+            return testcases, measurements
         elif arg == "onlyTests":
             return testcases, []
         elif arg == "onlyMeasurements":
-            return [], MEASUREMENTS
+            return [], measurements
         elif not arg:
             return []
         tests = []
-        measurements = []
+        chosen_measurements = []
         for t in arg.split(","):
             if t in [tc.name() for tc in testcases]:
                 tests += [tc for tc in testcases if tc.name() == t]
-            elif t in [tc.name() for tc in MEASUREMENTS]:
-                measurements += [tc for tc in MEASUREMENTS if tc.name() == t]
+            elif t in [tc.name() for tc in measurements]:
+                chosen_measurements += [tc for tc in measurements if tc.name() == t]
             else:
                 print(
                     (
@@ -181,11 +183,11 @@ def main():
                     ).format(
                         t,
                         ", ".join([t.name() for t in testcases]),
-                        ", ".join([t.name() for t in MEASUREMENTS]),
+                        ", ".join([t.name() for t in measurements]),
                     )
                 )
                 sys.exit()
-        return tests, measurements
+        return tests, chosen_measurements
 
     t = get_tests_and_measurements(get_args().test)
     clients = get_impls(get_args().client, client_implementations, "Client")
