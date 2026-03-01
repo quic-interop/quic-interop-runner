@@ -111,7 +111,8 @@ jobs:
     with:
       server: ${{ matrix.server }}
       clients: ${{ needs.config.outputs.clients }}
-      logname: ${{ needs.config.outputs.logname }} 
+      logname: ${{ needs.config.outputs.logname }}
+    secrets: inherit
   aggregate:
     needs: [ config, tests ]
     runs-on: ubuntu-latest
