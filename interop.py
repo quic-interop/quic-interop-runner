@@ -305,7 +305,6 @@ class InteropRunner:
                 }
                 for x in self._tests + self._measurements
             },
-            "quic_draft": testcases.QUIC_DRAFT,
             "quic_version": testcases.QUIC_VERSION,
             "results": [],
             "measurements": [],
