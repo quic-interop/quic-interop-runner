@@ -29,7 +29,6 @@ from result import TestResult
 KB = 1 << 10
 MB = 1 << 20
 
-QUIC_DRAFT = 34  # draft-34
 QUIC_VERSION = hex(0x1)
 
 
