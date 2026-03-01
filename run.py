@@ -16,8 +16,22 @@ from testcases_webtransport import TESTCASES_WEBTRANSPORT
 
 
 def main():
+    def bullet_list(testcases: List[testcase.TestCase]) -> str:
+        """Format test cases as one bullet per line."""
+        return "\n".join("  - " + tc.name() for tc in testcases)
+
     def get_args():
-        parser = argparse.ArgumentParser()
+        test_help = "test cases (comma-separated).\n" "  QUIC:\n" + bullet_list(
+            TESTCASES_QUIC
+        ) + "\n  Measurements (QUIC only):\n" + bullet_list(
+            MEASUREMENTS
+        ) + "\n  WebTransport:\n" + bullet_list(
+            TESTCASES_WEBTRANSPORT
+        )
+
+        parser = argparse.ArgumentParser(
+            formatter_class=argparse.RawTextHelpFormatter,
+        )
         parser.add_argument(
             "-p",
             "--protocol",
@@ -41,8 +55,7 @@ def main():
         parser.add_argument(
             "-t",
             "--test",
-            help="test cases (comma-separatated). Valid test cases are: "
-            + ", ".join([x.name() for x in TESTCASES_QUIC + MEASUREMENTS]),
+            help=test_help,
         )
         parser.add_argument(
             "-r",
