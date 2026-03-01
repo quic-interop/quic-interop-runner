@@ -32,7 +32,8 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - $WWW:/www:ro
+      - $SERVER_WWW:/www:ro
+      - $SERVER_DOWNLOADS:/downloads:delegated
       - $CERTS:/certs:ro
     environment:
       - CRON=$CRON
@@ -41,6 +42,8 @@ services:
       - SSLKEYLOGFILE=/logs/keys.log
       - QLOGDIR=/logs/qlog/
       - TESTCASE=$TESTCASE_SERVER
+      - REQUESTS=$REQUESTS_SERVER
+      - PROTOCOLS=$PROTOCOLS_SERVER
     depends_on:
       - sim
     cap_add:
@@ -63,7 +66,8 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - $DOWNLOADS:/downloads:delegated
+      - $CLIENT_WWW:/www:ro
+      - $CLIENT_DOWNLOADS:/downloads:delegated
       - $CERTS:/certs:ro
     environment:
       - CRON=$CRON
@@ -72,7 +76,8 @@ services:
       - SSLKEYLOGFILE=/logs/keys.log
       - QLOGDIR=/logs/qlog/
       - TESTCASE=$TESTCASE_CLIENT
-      - REQUESTS=$REQUESTS
+      - REQUESTS=$REQUESTS_CLIENT
+      - PROTOCOLS=$PROTOCOLS_CLIENT
     depends_on:
       - sim
     cap_add:

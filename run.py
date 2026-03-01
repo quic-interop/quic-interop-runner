@@ -4,30 +4,40 @@ import argparse
 import sys
 from typing import List, Tuple
 
-import testcases
-from implementations import IMPLEMENTATIONS, Role
+import testcase
+from implementations import (
+    Role,
+    get_quic_implementations,
+    get_webtransport_implementations,
+)
 from interop import InteropRunner
-from testcases import MEASUREMENTS, TESTCASES
-
-implementations = {
-    name: {"image": value["image"], "url": value["url"]}
-    for name, value in IMPLEMENTATIONS.items()
-}
-client_implementations = [
-    name
-    for name, value in IMPLEMENTATIONS.items()
-    if value["role"] == Role.BOTH or value["role"] == Role.CLIENT
-]
-server_implementations = [
-    name
-    for name, value in IMPLEMENTATIONS.items()
-    if value["role"] == Role.BOTH or value["role"] == Role.SERVER
-]
+from testcases_quic import MEASUREMENTS, TESTCASES_QUIC
+from testcases_webtransport import TESTCASES_WEBTRANSPORT
 
 
 def main():
+    def bullet_list(testcases: List[testcase.TestCase]) -> str:
+        """Format test cases as one bullet per line."""
+        return "\n".join("  - " + tc.name() for tc in testcases)
+
     def get_args():
-        parser = argparse.ArgumentParser()
+        test_help = "test cases (comma-separated).\n" "  QUIC:\n" + bullet_list(
+            TESTCASES_QUIC
+        ) + "\n  Measurements (QUIC only):\n" + bullet_list(
+            MEASUREMENTS
+        ) + "\n  WebTransport:\n" + bullet_list(
+            TESTCASES_WEBTRANSPORT
+        )
+
+        parser = argparse.ArgumentParser(
+            formatter_class=argparse.RawTextHelpFormatter,
+        )
+        parser.add_argument(
+            "-p",
+            "--protocol",
+            default="quic",
+            help="quic / webtransport",
+        )
         parser.add_argument(
             "-d",
             "--debug",
@@ -45,8 +55,7 @@ def main():
         parser.add_argument(
             "-t",
             "--test",
-            help="test cases (comma-separatated). Valid test cases are: "
-            + ", ".join([x.name() for x in TESTCASES + MEASUREMENTS]),
+            help=test_help,
         )
         parser.add_argument(
             "-r",
@@ -85,6 +94,29 @@ def main():
         )
         return parser.parse_args()
 
+    protocol = get_args().protocol
+    if protocol == "quic":
+        impls = get_quic_implementations()
+    elif protocol == "webtransport":
+        impls = get_webtransport_implementations()
+    else:
+        sys.exit("Unknown protocol: " + protocol)
+
+    implementations_all = {
+        name: {"image": value["image"], "url": value["url"]}
+        for name, value in impls.items()
+    }
+    client_implementations = [
+        name
+        for name, value in impls.items()
+        if value["role"] == Role.BOTH or value["role"] == Role.CLIENT
+    ]
+    server_implementations = [
+        name
+        for name, value in impls.items()
+        if value["role"] == Role.BOTH or value["role"] == Role.SERVER
+    ]
+
     replace_arg = get_args().replace
     if replace_arg:
         for s in replace_arg.split(","):
@@ -92,9 +124,9 @@ def main():
             if len(pair) != 2:
                 sys.exit("Invalid format for replace")
             name, image = pair[0], pair[1]
-            if name not in IMPLEMENTATIONS:
+            if name not in impls:
                 sys.exit("Implementation " + name + " not found.")
-            implementations[name]["image"] = image
+            implementations_all[name]["image"] = image
 
     def get_impls(arg, availableImpls, role) -> List[str]:
         if not arg:
@@ -120,22 +152,28 @@ def main():
 
     def get_tests_and_measurements(
         arg,
-    ) -> Tuple[List[testcases.TestCase], List[testcases.TestCase]]:
+    ) -> Tuple[List[testcase.TestCase], List[testcase.TestCase]]:
+        if protocol == "quic":
+            testcases = TESTCASES_QUIC
+            measurements = MEASUREMENTS
+        elif protocol == "webtransport":
+            testcases = TESTCASES_WEBTRANSPORT
+            measurements = []  # no measurements in webtransport mode
         if arg is None:
-            return TESTCASES, MEASUREMENTS
+            return testcases, measurements
         elif arg == "onlyTests":
-            return TESTCASES, []
+            return testcases, []
         elif arg == "onlyMeasurements":
-            return [], MEASUREMENTS
+            return [], measurements
         elif not arg:
             return []
         tests = []
-        measurements = []
+        chosen_measurements = []
         for t in arg.split(","):
-            if t in [tc.name() for tc in TESTCASES]:
-                tests += [tc for tc in TESTCASES if tc.name() == t]
-            elif t in [tc.name() for tc in MEASUREMENTS]:
-                measurements += [tc for tc in MEASUREMENTS if tc.name() == t]
+            if t in [tc.name() for tc in testcases]:
+                tests += [tc for tc in testcases if tc.name() == t]
+            elif t in [tc.name() for tc in measurements]:
+                chosen_measurements += [tc for tc in measurements if tc.name() == t]
             else:
                 print(
                     (
@@ -144,12 +182,12 @@ def main():
                         "Available measurements: {}"
                     ).format(
                         t,
-                        ", ".join([t.name() for t in TESTCASES]),
-                        ", ".join([t.name() for t in MEASUREMENTS]),
+                        ", ".join([t.name() for t in testcases]),
+                        ", ".join([t.name() for t in measurements]),
                     )
                 )
                 sys.exit()
-        return tests, measurements
+        return tests, chosen_measurements
 
     t = get_tests_and_measurements(get_args().test)
     clients = get_impls(get_args().client, client_implementations, "Client")
@@ -160,7 +198,7 @@ def main():
         if len(kind) == 1:
             no_auto_unsupported.add(kind[0])
     return InteropRunner(
-        implementations=implementations,
+        implementations=implementations_all,
         client_server_pairs=get_impl_pairs(clients, servers, get_args().must_include),
         tests=t[0],
         measurements=t[1],
