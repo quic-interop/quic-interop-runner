@@ -101,7 +101,7 @@ jobs:
           path: ${{ matrix.image }}.tar.gz
           if-no-files-found: error
   tests:
-    uses: ./.github/workflows/test.yml
+    uses: ./.github/workflows/interop-test.yml
     needs: [ config, docker-pull-tools, docker-pull-images ]
     strategy:
       fail-fast: false
