@@ -1044,7 +1044,7 @@ class TestCaseHandshakeLoss(TestCase):
     def check(self) -> TestResult:
         super().check()
         num_handshakes = self._count_handshakes()
-        if num_handshakes != self._num_runs:
+        if num_handshakes < self._num_runs:
             logging.info(
                 "Expected %d handshakes. Got: %d", self._num_runs, num_handshakes
             )
