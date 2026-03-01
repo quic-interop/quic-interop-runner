@@ -1,9 +1,9 @@
 name: interop
 on:
   schedule:
-   # Every 8h, at 15 minutes past the hour
+   # Every 12h, at 15 minutes past the hour
    # This makes sure that the cleanup cron job can run first.
-  - cron: "15 */8 * * *"
+  - cron: "15 */12 * * *"
 
 jobs:
   config:
