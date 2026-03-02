@@ -1,7 +1,8 @@
 name: cleanup
 on:
   schedule:
-  - cron: "0 */8 * * *" # every 8h
+    # Every 12h, at 03:00 and 15:00 UTC
+    - cron: "0 3,15 * * *"
 
 jobs:
   cleanup:
