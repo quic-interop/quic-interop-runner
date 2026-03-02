@@ -1,40 +1,35 @@
-import abc
-import filecmp
 import logging
-import os
-import random
-from unique_random_slugs import generate_slug
-import re
-import shutil
-import string
-import subprocess
-import sys
 import tempfile
 from datetime import timedelta
-from enum import Enum, IntEnum
+from enum import IntEnum
+import random
+import string
 from trace import (
     QUIC_V2,
     Direction,
     PacketType,
-    TraceAnalyzer,
     get_direction,
     get_packet_type,
 )
 from typing import List, Tuple
 
-from Crypto.Cipher import AES
-
 from result import TestResult
+from testcase import (
+    QUIC_VERSION,
+    Measurement,
+    Perspective,
+    TestCase,
+    generate_cert_chain,
+)
 
 KB = 1 << 10
 MB = 1 << 20
 
-QUIC_VERSION = hex(0x1)
 
-
-class Perspective(Enum):
-    SERVER = "server"
-    CLIENT = "client"
+def random_string(length: int):
+    """Generate a random string of fixed length"""
+    letters = string.ascii_lowercase
+    return "".join(random.choice(letters) for i in range(length))
 
 
 class ECN(IntEnum):
@@ -44,287 +39,20 @@ class ECN(IntEnum):
     CE = 3
 
 
-def random_string(length: int):
-    """Generate a random string of fixed length"""
-    letters = string.ascii_lowercase
-    return "".join(random.choice(letters) for i in range(length))
-
-
-def generate_cert_chain(directory: str, length: int = 1):
-    cmd = "./certs.sh " + directory + " " + str(length)
-    r = subprocess.run(
-        cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-    )
-    logging.debug("%s", r.stdout.decode("utf-8"))
-    if r.returncode != 0:
-        logging.info("Unable to create certificates")
-        sys.exit(1)
-
-
-class TestCase(abc.ABC):
-    _files = []
-    _www_dir = None
-    _client_keylog_file = None
-    _server_keylog_file = None
-    _download_dir = None
-    _sim_log_dir = None
-    _cert_dir = None
-    _cached_server_trace = None
-    _cached_client_trace = None
-
-    def __init__(
-        self,
-        sim_log_dir: tempfile.TemporaryDirectory,
-        client_keylog_file: str,
-        server_keylog_file: str,
-    ):
-        self._server_keylog_file = server_keylog_file
-        self._client_keylog_file = client_keylog_file
-        self._files = []
-        self._sim_log_dir = sim_log_dir
-
-    @abc.abstractmethod
-    def name(self):
-        pass
-
-    @abc.abstractmethod
-    def desc(self):
-        pass
-
-    def __str__(self):
-        return self.name()
-
-    def testname(self, p: Perspective):
-        """The name of testcase presented to the endpoint Docker images"""
-        return self.name()
-
-    @staticmethod
-    def scenario() -> str:
-        """Scenario for the ns3 simulator"""
-        return "simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25"
-
-    @staticmethod
-    def timeout() -> int:
-        """timeout in s"""
-        return 60
-
-    @staticmethod
-    def urlprefix() -> str:
-        """URL prefix"""
-        return "https://server4:443/"
-
-    @staticmethod
-    def additional_envs() -> List[str]:
-        return [""]
-
-    @staticmethod
-    def additional_containers() -> List[str]:
-        return [""]
-
-    def www_dir(self):
-        if not self._www_dir:
-            self._www_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="www_")
-        return self._www_dir.name + "/"
-
-    def download_dir(self):
-        if not self._download_dir:
-            self._download_dir = tempfile.TemporaryDirectory(
-                dir="/tmp", prefix="download_"
-            )
-        return self._download_dir.name + "/"
-
-    def certs_dir(self):
-        if not self._cert_dir:
-            self._cert_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="certs_")
-            generate_cert_chain(self._cert_dir.name)
-        return self._cert_dir.name + "/"
-
-    def _is_valid_keylog(self, filename) -> bool:
-        if not os.path.isfile(filename) or os.path.getsize(filename) == 0:
-            return False
-        with open(filename, "r") as file:
-            if not re.search(
-                r"^SERVER_HANDSHAKE_TRAFFIC_SECRET", file.read(), re.MULTILINE
-            ):
-                logging.info("Key log file %s is using incorrect format.", filename)
-                return False
-        return True
-
-    def _keylog_file(self) -> str:
-        if self._is_valid_keylog(self._client_keylog_file):
-            logging.debug("Using the client's key log file.")
-            return self._client_keylog_file
-        elif self._is_valid_keylog(self._server_keylog_file):
-            logging.debug("Using the server's key log file.")
-            return self._server_keylog_file
-        logging.debug("No key log file found.")
-
-    def _inject_keylog_if_possible(self, trace: str):
-        """
-        Inject the keylog file into the pcap file if it is available and valid.
-        """
-        keylog = self._keylog_file()
-        if keylog is None:
-            return
-
-        with tempfile.NamedTemporaryFile() as tmp:
-            r = subprocess.run(
-                f"editcap --inject-secrets tls,{keylog} {trace} {tmp.name}",
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-            )
-            logging.debug("%s", r.stdout.decode("utf-8"))
-            if r.returncode != 0:
-                return
-            shutil.copy(tmp.name, trace)
-
-    def _client_trace(self):
-        if self._cached_client_trace is None:
-            trace = self._sim_log_dir.name + "/trace_node_left.pcap"
-            self._inject_keylog_if_possible(trace)
-            self._cached_client_trace = TraceAnalyzer(trace, self._keylog_file())
-        return self._cached_client_trace
-
-    def _server_trace(self):
-        if self._cached_server_trace is None:
-            trace = self._sim_log_dir.name + "/trace_node_right.pcap"
-            self._inject_keylog_if_possible(trace)
-            self._cached_server_trace = TraceAnalyzer(trace, self._keylog_file())
-        return self._cached_server_trace
-
-    def _generate_random_file(self, size: int, filename: str = None) -> str:
-        if filename is None:
-            filename = generate_slug()
-        # see https://www.stefanocappellini.it/generate-pseudorandom-bytes-with-python/ for benchmarks
-        enc = AES.new(os.urandom(32), AES.MODE_OFB, b"a" * 16)
-        f = open(self.www_dir() + filename, "wb")
-        f.write(enc.encrypt(b" " * size))
-        f.close()
-        logging.debug("Generated random file: %s of size: %d", filename, size)
-        return filename
-
-    def _retry_sent(self) -> bool:
-        return len(self._client_trace().get_retry()) > 0
-
-    def _check_version_and_files(self) -> bool:
-        versions = [hex(int(v, 0)) for v in self._get_versions()]
-        if len(versions) != 1:
-            logging.info("Expected exactly one version. Got %s", versions)
-            return False
-        if QUIC_VERSION not in versions:
-            logging.info("Wrong version. Expected %s, got %s", QUIC_VERSION, versions)
-            return False
-        return self._check_files()
-
+class TestCaseQuic(TestCase):
     def _check_files(self) -> bool:
-        if len(self._files) == 0:
-            raise Exception("No test files generated.")
-        files = [
-            n
-            for n in os.listdir(self.download_dir())
-            if os.path.isfile(os.path.join(self.download_dir(), n))
-        ]
-        too_many = [f for f in files if f not in self._files]
-        if len(too_many) != 0:
-            logging.info("Found unexpected downloaded files: %s", too_many)
-        too_few = [f for f in self._files if f not in files]
-        if len(too_few) != 0:
-            logging.info("Missing files: %s", too_few)
-        if len(too_many) != 0 or len(too_few) != 0:
-            return False
-        for f in self._files:
-            fp = self.download_dir() + f
-            if not os.path.isfile(fp):
-                logging.info("File %s does not exist.", fp)
-                return False
-            try:
-                size = os.path.getsize(self.www_dir() + f)
-                downloaded_size = os.path.getsize(fp)
-                if size != downloaded_size:
-                    logging.info(
-                        "File size of %s doesn't match. Original: %d bytes, downloaded: %d bytes.",
-                        fp,
-                        size,
-                        downloaded_size,
-                    )
-                    return False
-                if not filecmp.cmp(self.www_dir() + f, fp, shallow=False):
-                    logging.info("File contents of %s do not match.", fp)
-                    return False
-            except Exception as exception:
-                logging.info(
-                    "Could not compare files %s and %s: %s",
-                    self.www_dir() + f,
-                    fp,
-                    exception,
-                )
-                return False
-        logging.debug("Check of downloaded files succeeded.")
-        return True
+        return super()._check_files(
+            download_dir=self.client_download_dir(), files=self._files
+        )
 
-    def _count_handshakes(self) -> int:
-        """Count the number of QUIC handshakes"""
-        tr = self._server_trace()
-        # Determine the number of handshakes by looking at Initial packets.
-        # This is easier, since the SCID of Initial packets doesn't changes.
-        return len(set([p.scid for p in tr.get_initial(Direction.FROM_SERVER)]))
-
-    def _get_versions(self) -> set:
-        """Get the QUIC versions"""
-        tr = self._server_trace()
-        return set([p.version for p in tr.get_initial(Direction.FROM_SERVER)])
-
-    def _payload_size(self, packets: List) -> int:
-        """Get the sum of the payload sizes of all packets"""
-        size = 0
-        for p in packets:
-            if hasattr(p, "long_packet_type") or hasattr(p, "long_packet_type_v2"):
-                if hasattr(p, "payload"):  # when keys are available
-                    size += len(p.payload.split(":"))
-                else:
-                    size += len(p.remaining_payload.split(":"))
-            else:
-                if hasattr(p, "protected_payload"):
-                    size += len(p.protected_payload.split(":"))
-        return size
-
-    def cleanup(self):
-        if self._www_dir:
-            self._www_dir.cleanup()
-            self._www_dir = None
-        if self._download_dir:
-            self._download_dir.cleanup()
-            self._download_dir = None
-
-    @abc.abstractmethod
     def get_paths(self):
-        pass
+        return [self.urlprefix() + p for p in self.get_paths_raw()]
 
-    @abc.abstractmethod
-    def check(self) -> TestResult:
-        self._client_trace()
-        self._server_trace()
-        pass
+    def get_paths_raw(self):
+        return super().get_paths_raw()
 
 
-class Measurement(TestCase):
-    @abc.abstractmethod
-    def result(self) -> float:
-        pass
-
-    @staticmethod
-    @abc.abstractmethod
-    def unit() -> str:
-        pass
-
-    @staticmethod
-    @abc.abstractmethod
-    def repetitions() -> int:
-        pass
-
-
-class TestCaseVersionNegotiation(TestCase):
+class TestCaseVersionNegotiation(TestCaseQuic):
     @staticmethod
     def name():
         return "versionnegotiation"
@@ -337,7 +65,7 @@ class TestCaseVersionNegotiation(TestCase):
     def desc():
         return "A version negotiation packet is elicited and acted on."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         return [""]
 
     def check(self) -> TestResult:
@@ -359,7 +87,7 @@ class TestCaseVersionNegotiation(TestCase):
         return TestResult.FAILED
 
 
-class TestCaseHandshake(TestCase):
+class TestCaseHandshake(TestCaseQuic):
     @staticmethod
     def name():
         return "handshake"
@@ -372,7 +100,7 @@ class TestCaseHandshake(TestCase):
     def desc():
         return "Handshake completes successfully."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [self._generate_random_file(1 * KB)]
         return self._files
 
@@ -437,7 +165,7 @@ class TestCaseLongRTT(TestCaseHandshake):
         return TestResult.SUCCEEDED
 
 
-class TestCaseTransfer(TestCase):
+class TestCaseTransfer(TestCaseQuic):
     @staticmethod
     def name():
         return "transfer"
@@ -450,7 +178,7 @@ class TestCaseTransfer(TestCase):
     def desc():
         return "Stream data is being sent and received correctly. Connection close completes with a zero error code."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [
             self._generate_random_file(2 * MB),
             self._generate_random_file(3 * MB),
@@ -469,7 +197,7 @@ class TestCaseTransfer(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseChaCha20(TestCase):
+class TestCaseChaCha20(TestCaseQuic):
     @staticmethod
     def name():
         return "chacha20"
@@ -486,7 +214,7 @@ class TestCaseChaCha20(TestCase):
     def desc():
         return "Handshake completes using ChaCha20."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [self._generate_random_file(3 * MB)]
         return self._files
 
@@ -513,7 +241,7 @@ class TestCaseChaCha20(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseMultiplexing(TestCase):
+class TestCaseMultiplexing(TestCaseQuic):
     @staticmethod
     def name():
         return "multiplexing"
@@ -530,7 +258,7 @@ class TestCaseMultiplexing(TestCase):
     def desc():
         return "Thousands of files are transferred over a single connection, and server increased stream limits to accomodate client requests."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         for _ in range(1, 2000):
             self._files.append(self._generate_random_file(32))
         return self._files
@@ -564,7 +292,7 @@ class TestCaseMultiplexing(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseRetry(TestCase):
+class TestCaseRetry(TestCaseQuic):
     @staticmethod
     def name():
         return "retry"
@@ -577,7 +305,7 @@ class TestCaseRetry(TestCase):
     def desc():
         return "Server sends a Retry, and a subsequent connection using the Retry token completes successfully."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [
             self._generate_random_file(10 * KB),
         ]
@@ -630,7 +358,7 @@ class TestCaseRetry(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseResumption(TestCase):
+class TestCaseResumption(TestCaseQuic):
     @staticmethod
     def name():
         return "resumption"
@@ -643,7 +371,7 @@ class TestCaseResumption(TestCase):
     def desc():
         return "Connection is established using TLS Session Resumption."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [
             self._generate_random_file(5 * KB),
             self._generate_random_file(10 * KB),
@@ -688,7 +416,7 @@ class TestCaseResumption(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseZeroRTT(TestCase):
+class TestCaseZeroRTT(TestCaseQuic):
     NUM_FILES = 40
     FILESIZE = 32  # in bytes
     FILENAMELEN = 250
@@ -705,7 +433,7 @@ class TestCaseZeroRTT(TestCase):
     def desc():
         return "0-RTT data is being sent and acted on."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         for _ in range(self.NUM_FILES):
             filename = random_string(self.FILENAMELEN)
             self._files.append(self._generate_random_file(self.FILESIZE, filename))
@@ -733,7 +461,7 @@ class TestCaseZeroRTT(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseHTTP3(TestCase):
+class TestCaseHTTP3(TestCaseQuic):
     @staticmethod
     def name():
         return "http3"
@@ -746,7 +474,7 @@ class TestCaseHTTP3(TestCase):
     def desc():
         return "An H3 transaction succeeded."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [
             self._generate_random_file(5 * KB),
             self._generate_random_file(10 * KB),
@@ -765,7 +493,7 @@ class TestCaseHTTP3(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseAmplificationLimit(TestCase):
+class TestCaseAmplificationLimit(TestCaseQuic):
     @staticmethod
     def name():
         return "amplificationlimit"
@@ -794,7 +522,7 @@ class TestCaseAmplificationLimit(TestCase):
         # Let the ClientHello pass, but drop a bunch of retransmissions afterwards.
         return "droplist --delay=15ms --bandwidth=10Mbps --queue=25 --drops_to_server=2,3,4,5,6,7"
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [self._generate_random_file(5 * KB)]
         return self._files
 
@@ -884,7 +612,7 @@ class TestCaseAmplificationLimit(TestCase):
         return res
 
 
-class TestCaseBlackhole(TestCase):
+class TestCaseBlackhole(TestCaseQuic):
     @staticmethod
     def name():
         return "blackhole"
@@ -906,7 +634,7 @@ class TestCaseBlackhole(TestCase):
         """Scenario for the ns3 simulator"""
         return "blackhole --delay=15ms --bandwidth=10Mbps --queue=25 --on=5s --off=2s"
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [self._generate_random_file(10 * MB)]
         return self._files
 
@@ -940,7 +668,7 @@ class TestCaseKeyUpdate(TestCaseHandshake):
     def desc():
         return "One of the two endpoints updates keys and the peer responds correctly."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [self._generate_random_file(3 * MB)]
         return self._files
 
@@ -1007,7 +735,7 @@ class TestCaseKeyUpdate(TestCaseHandshake):
         return TestResult.SUCCEEDED
 
 
-class TestCaseHandshakeLoss(TestCase):
+class TestCaseHandshakeLoss(TestCaseQuic):
     _num_runs = 50
 
     @staticmethod
@@ -1035,7 +763,7 @@ class TestCaseHandshakeLoss(TestCase):
         """Scenario for the ns3 simulator"""
         return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=30 --rate_to_client=30 --burst_to_server=3 --burst_to_client=3"
 
-    def get_paths(self):
+    def get_paths_raw(self):
         for _ in range(self._num_runs):
             self._files.append(self._generate_random_file(1 * KB))
         return self._files
@@ -1053,7 +781,7 @@ class TestCaseHandshakeLoss(TestCase):
         return TestResult.SUCCEEDED
 
 
-class TestCaseTransferLoss(TestCase):
+class TestCaseTransferLoss(TestCaseQuic):
     @staticmethod
     def name():
         return "transferloss"
@@ -1075,7 +803,7 @@ class TestCaseTransferLoss(TestCase):
         """Scenario for the ns3 simulator"""
         return "drop-rate --delay=15ms --bandwidth=10Mbps --queue=25 --rate_to_server=2 --rate_to_client=2 --burst_to_server=3 --burst_to_client=3"
 
-    def get_paths(self):
+    def get_paths_raw(self):
         # At a packet loss rate of 2% and a MTU of 1500 bytes, we can expect 27 dropped packets.
         self._files = [self._generate_random_file(2 * MB)]
         return self._files
@@ -1138,7 +866,7 @@ class TestCaseECN(TestCaseHandshake):
     def abbreviation():
         return "E"
 
-    def get_paths(self):
+    def get_paths_raw(self):
         # Transfer a bit more data, so that QUIC implementations that do ECN validation after the
         # handshake have a chance to ACK some ECN marked packets.
         self._files = [self._generate_random_file(100 * KB)]
@@ -1239,7 +967,7 @@ class TestCasePortRebinding(TestCaseTransfer):
     def desc():
         return "Transfer completes under frequent port rebindings on the client side."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [
             self._generate_random_file(10 * MB),
         ]
@@ -1406,7 +1134,7 @@ class TestCaseIPv6(TestCaseTransfer):
     def desc():
         return "A transfer across an IPv6-only network succeeded."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [
             self._generate_random_file(5 * KB),
             self._generate_random_file(10 * KB),
@@ -1459,7 +1187,7 @@ class TestCaseConnectionMigration(TestCasePortRebinding):
         """URL prefix"""
         return "https://server46:443/"
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [
             self._generate_random_file(2 * MB),
         ]
@@ -1507,7 +1235,7 @@ class TestCaseConnectionMigration(TestCasePortRebinding):
         return TestResult.SUCCEEDED
 
 
-class TestCaseV2(TestCase):
+class TestCaseV2(TestCaseQuic):
     @staticmethod
     def name():
         return "v2"
@@ -1520,7 +1248,7 @@ class TestCaseV2(TestCase):
     def desc():
         return "Server should select QUIC v2 in compatible version negotiation."
 
-    def get_paths(self):
+    def get_paths_raw(self):
         self._files = [self._generate_random_file(1 * KB)]
         return self._files
 
@@ -1625,6 +1353,9 @@ class MeasurementGoodput(Measurement):
         return 5
 
     def get_paths(self):
+        return [self.urlprefix() + p for p in self.get_paths_raw()]
+
+    def get_paths_raw(self):
         self._files = [self._generate_random_file(self.FILESIZE)]
         return self._files
 
@@ -1686,7 +1417,7 @@ class MeasurementCrossTraffic(MeasurementGoodput):
         return ["iperf_server", "iperf_client"]
 
 
-TESTCASES = [
+TESTCASES_QUIC = [
     TestCaseHandshake,
     TestCaseTransfer,
     TestCaseLongRTT,

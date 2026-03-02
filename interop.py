@@ -10,13 +10,12 @@ import sys
 import tempfile
 from datetime import datetime
 from typing import Callable, List, Tuple
-
 import prettytable
 from termcolor import colored
 
-import testcases
+import testcases_quic
 from result import TestResult
-from testcases import Perspective
+from testcase import Perspective, QUIC_VERSION
 
 
 class MeasurementResult:
@@ -50,8 +49,8 @@ class InteropRunner:
         self,
         implementations: dict,
         client_server_pairs: List[Tuple[str, str]],
-        tests: List[testcases.TestCase],
-        measurements: List[testcases.Measurement],
+        tests: List[testcases_quic.TestCase],
+        measurements: List[testcases_quic.Measurement],
         output: str,
         markdown: bool,
         debug: bool,
@@ -111,13 +110,22 @@ class InteropRunner:
         self.compliant.setdefault(name, {})
 
         client_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_client_")
-        www_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="compliance_www_")
         certs_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="compliance_certs_")
-        downloads_dir = tempfile.TemporaryDirectory(
-            dir="/tmp", prefix="compliance_downloads_"
+
+        client_www_dir = tempfile.TemporaryDirectory(
+            dir="/tmp", prefix="compliance_client_www_"
+        )
+        client_downloads_dir = tempfile.TemporaryDirectory(
+            dir="/tmp", prefix="compliance_client_downloads_"
+        )
+        server_www_dir = tempfile.TemporaryDirectory(
+            dir="/tmp", prefix="compliance_server_www_"
+        )
+        server_downloads_dir = tempfile.TemporaryDirectory(
+            dir="/tmp", prefix="compliance_server_downloads_"
         )
 
-        testcases.generate_cert_chain(certs_dir.name)
+        testcases_quic.generate_cert_chain(certs_dir.name)
 
         if role == Perspective.CLIENT:
             # check that the client is capable of returning UNSUPPORTED
@@ -127,8 +135,10 @@ class InteropRunner:
                 "TESTCASE_CLIENT=" + generate_slug() + " "
                 "SERVER_LOGS=/dev/null "
                 "CLIENT_LOGS=" + client_log_dir.name + " "
-                "WWW=" + www_dir.name + " "
-                "DOWNLOADS=" + downloads_dir.name + " "
+                "CLIENT_WWW=" + client_www_dir.name + " "
+                "CLIENT_DOWNLOADS=" + client_downloads_dir.name + " "
+                "SERVER_WWW=" + server_www_dir.name + " "
+                "SERVER_DOWNLOADS=" + server_downloads_dir.name + " "
                 'SCENARIO="simple-p2p --delay=15ms --bandwidth=10Mbps --queue=25" '
                 "CLIENT=" + self._implementations[name]["image"] + " "
                 "SERVER="
@@ -156,8 +166,10 @@ class InteropRunner:
                 "TESTCASE_SERVER=" + generate_slug() + " "
                 "SERVER_LOGS=" + server_log_dir.name + " "
                 "CLIENT_LOGS=/dev/null "
-                "WWW=" + www_dir.name + " "
-                "DOWNLOADS=" + downloads_dir.name + " "
+                "CLIENT_WWW=" + client_www_dir.name + " "
+                "CLIENT_DOWNLOADS=" + client_downloads_dir.name + " "
+                "SERVER_WWW=" + server_www_dir.name + " "
+                "SERVER_DOWNLOADS=" + server_downloads_dir.name + " "
                 "CLIENT="
                 + self._implementations[name]["image"]
                 + " "  # only needed so docker compose doesn't complain
@@ -173,8 +185,6 @@ class InteropRunner:
                 self.compliant[name][role] = False
                 return False
             logging.debug("%s server compliant.", name)
-        else:
-            raise ValueError(f"Unknown perspective for compliance check: {role}")
 
         # remember compliance test outcome for this role
         self.compliant[name][role] = True
@@ -305,7 +315,7 @@ class InteropRunner:
                 }
                 for x in self._tests + self._measurements
             },
-            "quic_version": testcases.QUIC_VERSION,
+            "quic_version": QUIC_VERSION,
             "results": [],
             "measurements": [],
         }
@@ -366,7 +376,7 @@ class InteropRunner:
             )
 
     def _run_testcase(
-        self, server: str, client: str, test: Callable[[], testcases.TestCase]
+        self, server: str, client: str, test: Callable[[], testcases_quic.TestCase]
     ) -> TestResult:
         return self._run_test(server, client, None, test)[0]
 
@@ -375,7 +385,7 @@ class InteropRunner:
         server: str,
         client: str,
         log_dir_prefix: None,
-        test: Callable[[], testcases.TestCase],
+        fn: Callable[[], testcases_quic.TestCase],
     ) -> Tuple[TestResult, float]:
         start_time = datetime.now()
         sim_log_dir = tempfile.TemporaryDirectory(dir="/tmp", prefix="logs_sim_")
@@ -389,7 +399,7 @@ class InteropRunner:
         log_handler.setFormatter(formatter)
         logging.getLogger().addHandler(log_handler)
 
-        testcase = test(
+        test = fn(
             sim_log_dir=sim_log_dir,
             client_keylog_file=client_log_dir.name + "/keys.log",
             server_keylog_file=server_log_dir.name + "/keys.log",
@@ -400,30 +410,33 @@ class InteropRunner:
             + ". Client: "
             + client
             + ". Running test case: "
-            + str(testcase)
+            + str(test)
         )
 
-        reqs = " ".join([testcase.urlprefix() + p for p in testcase.get_paths()])
+        reqs = test.get_paths()
         logging.debug("Requests: %s", reqs)
         params = (
             "WAITFORSERVER=server:443 "
-            "CERTS=" + testcase.certs_dir() + " "
-            "TESTCASE_SERVER=" + testcase.testname(Perspective.SERVER) + " "
-            "TESTCASE_CLIENT=" + testcase.testname(Perspective.CLIENT) + " "
-            "WWW=" + testcase.www_dir() + " "
-            "DOWNLOADS=" + testcase.download_dir() + " "
+            "CERTS=" + test.certs_dir() + " "
+            "TESTCASE_SERVER=" + test.testname(Perspective.SERVER) + " "
+            "TESTCASE_CLIENT=" + test.testname(Perspective.CLIENT) + " "
+            "CLIENT_WWW=" + test.client_www_dir() + " "
+            "CLIENT_DOWNLOADS=" + test.client_download_dir() + " "
+            "SERVER_WWW=" + test.server_www_dir() + " "
+            "SERVER_DOWNLOADS=" + test.server_download_dir() + " "
             "SERVER_LOGS=" + server_log_dir.name + " "
             "CLIENT_LOGS=" + client_log_dir.name + " "
             'SCENARIO="{}" '
             "CLIENT=" + self._implementations[client]["image"] + " "
             "SERVER=" + self._implementations[server]["image"] + " "
-            'REQUESTS="' + reqs + '" '
-        ).format(testcase.scenario())
-        params += " ".join(testcase.additional_envs())
-        containers = "sim client server " + " ".join(testcase.additional_containers())
+            'REQUESTS_CLIENT="' + " ".join(reqs) + '" '
+            'REQUESTS_SERVER="' + " ".join(test.get_paths_server()) + '" '
+        ).format(test.scenario())
+        params += " ".join(test.additional_envs())
+        containers = "sim client server " + " ".join(test.additional_containers())
         cmd = (
             params
-            + " docker compose --env-file empty.env up --abort-on-container-exit --timeout 1 "
+            + " docker compose --env-file empty.env up --abort-on-container-exit --timeout 10 "
             + containers
         )
         logging.debug("Command: %s", cmd)
@@ -437,7 +450,7 @@ class InteropRunner:
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                timeout=testcase.timeout(),
+                timeout=test.timeout(),
             )
             output = r.stdout
         except subprocess.TimeoutExpired as ex:
@@ -447,7 +460,7 @@ class InteropRunner:
         logging.debug("%s", output.decode("utf-8", errors="replace"))
 
         if expired:
-            logging.debug("Test failed: took longer than %ds.", testcase.timeout())
+            logging.debug("Test failed: took longer than %ds.", test.timeout())
             r = subprocess.run(
                 "docker compose --env-file empty.env stop " + containers,
                 shell=True,
@@ -464,11 +477,22 @@ class InteropRunner:
 
         if not expired:
             lines = output.splitlines()
+            exit_lines = [
+                str(line) for line in lines if "exited with code" in str(line)
+            ]
+            if exit_lines:
+                logging.debug("Container exits: %s", " | ".join(exit_lines))
+            client_exited_ok = any(
+                "client exited with code 0" in str(line) for line in lines
+            )
+            server_exited_ok = any(
+                "server exited with code 0" in str(line) for line in lines
+            )
             if self._is_unsupported(lines):
                 status = TestResult.UNSUPPORTED
-            elif any("client exited with code 0" in str(line) for line in lines):
+            elif client_exited_ok or server_exited_ok:
                 try:
-                    status = testcase.check()
+                    status = test.check()
                 except FileNotFoundError as e:
                     logging.error(f"testcase.check() threw FileNotFoundError: {e}")
                     status = TestResult.FAILED
@@ -477,7 +501,7 @@ class InteropRunner:
         logging.getLogger().removeHandler(log_handler)
         log_handler.close()
         if status == TestResult.FAILED or status == TestResult.SUCCEEDED:
-            log_dir = self._log_dir + "/" + server + "_" + client + "/" + str(testcase)
+            log_dir = self._log_dir + "/" + server + "_" + client + "/" + str(test)
             if log_dir_prefix:
                 log_dir += "/" + log_dir_prefix
             shutil.copytree(server_log_dir.name, log_dir + "/server")
@@ -485,33 +509,52 @@ class InteropRunner:
             shutil.copytree(sim_log_dir.name, log_dir + "/sim")
             shutil.copyfile(log_file.name, log_dir + "/output.txt")
             if self._save_files and status == TestResult.FAILED:
-                shutil.copytree(testcase.www_dir(), log_dir + "/www")
                 try:
-                    shutil.copytree(testcase.download_dir(), log_dir + "/downloads")
+                    shutil.copytree(test.server_www_dir(), log_dir + "/server_www")
                 except Exception as exception:
-                    logging.info("Could not copy downloaded files: %s", exception)
+                    logging.info("Could not copy server www files: %s", exception)
+                try:
+                    shutil.copytree(
+                        test.client_download_dir(), log_dir + "/client_downloads"
+                    )
+                except Exception as exception:
+                    logging.info(
+                        "Could not copy client downloaded files: %s", exception
+                    )
+                try:
+                    shutil.copytree(test.client_www_dir(), log_dir + "/client_www")
+                except Exception as exception:
+                    logging.info("Could not copy client www files: %s", exception)
+                try:
+                    shutil.copytree(
+                        test.server_download_dir(), log_dir + "/server_downloads"
+                    )
+                except Exception as exception:
+                    logging.info(
+                        "Could not copy server downloaded files: %s", exception
+                    )
 
-        testcase.cleanup()
+        test.cleanup()
         server_log_dir.cleanup()
         client_log_dir.cleanup()
         sim_log_dir.cleanup()
         logging.debug(
             "Test: %s took %ss, status: %s",
-            str(testcase),
+            str(test),
             (datetime.now() - start_time).total_seconds(),
             str(status),
         )
 
         # measurements also have a value
-        if hasattr(testcase, "result"):
-            value = testcase.result()
+        if hasattr(test, "result"):
+            value = test.result()
         else:
             value = None
 
         return status, value
 
     def _run_measurement(
-        self, server: str, client: str, test: Callable[[], testcases.Measurement]
+        self, server: str, client: str, test: Callable[[], testcases_quic.Measurement]
     ) -> MeasurementResult:
         values = []
         for i in range(0, test.repetitions()):
