@@ -36,20 +36,20 @@ jobs:
         run: sudo modprobe ip6table_filter
       - run: docker image ls
       - name: Download quic-network-simulator image
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: images-quic-network-simulator
       - name: Download quic-interop-iperf-endpoint image
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: images-quic-interop-iperf-endpoint
       - name: Download ${{ inputs.server }} Docker image
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: image-${{ inputs.server }}
       - name: Download ${{ matrix.client }} Docker image
         if: ${{ inputs.server != matrix.client }}
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: image-${{ matrix.client }}
       - name: Load docker images
