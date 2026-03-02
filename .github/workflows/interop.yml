@@ -125,7 +125,7 @@ jobs:
         with:
           python-version: 3.8
       - name: Download results
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: results-*
       - name: Aggregate results
