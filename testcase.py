@@ -315,7 +315,7 @@ class TestCase(abc.ABC):
         if self._server_download_dir:
             self._server_download_dir.cleanup()
             self._server_download_dir = None
-        if hasattr(self, "_cert_dir") and self._cert_dir:
+        if self._cert_dir:
             self._cert_dir.cleanup()
             self._cert_dir = None
 
