@@ -54,10 +54,10 @@ jobs:
           name: image-${{ matrix.client }}
       - name: Load docker images
         run: |
-          docker load --input quic-network-simulator.tar.gz
-          docker load --input quic-interop-iperf-endpoint.tar.gz
-          docker load --input ${{ inputs.server }}.tar.gz
-          docker load --input ${{ matrix.client }}.tar.gz
+          docker load --input quic-network-simulator.tar.zst
+          docker load --input quic-interop-iperf-endpoint.tar.zst
+          docker load --input ${{ inputs.server }}.tar.zst
+          docker load --input ${{ matrix.client }}.tar.zst
       - run: docker image ls
       - name: Install Wireshark
         run: |
