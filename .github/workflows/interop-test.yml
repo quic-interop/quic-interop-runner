@@ -31,7 +31,7 @@ jobs:
           version: version=v28.3.0
       - uses: actions/setup-python@v6
         with:
-          python-version: 3.8
+          python-version: 3.12
       - name: Enable IPv6 support
         run: sudo modprobe ip6table_filter
       - run: docker image ls
