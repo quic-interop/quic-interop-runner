@@ -13,7 +13,10 @@ jobs:
       - name: run Black linter
         if: success() || failure() # run this step even if the previous one failed
         run: black --check --diff .
-      - name: check that implementations.json is valid
+      - name: check that QUIC implementations are valid
         if: success() || failure() # run this step even if the previous one failed
-        run: python implementations.py
+        run: python implementations.py -p quic
+      - name: check that WebTransport implementations are valid
+        if: success() || failure() # run this step even if the previous one failed
+        run: python implementations.py -p webtransport
       - uses: ludeeus/action-shellcheck@master
