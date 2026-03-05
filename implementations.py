@@ -1,4 +1,6 @@
+import argparse
 import json
+import sys
 from enum import Enum
 from typing import Dict
 
@@ -33,3 +35,27 @@ def get_implementations(filename: str) -> Dict[str, Dict[str, str | Role]]:
             else:
                 raise Exception("unknown role: " + role)
         return implementations
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-p",
+        "--protocol",
+        default="quic",
+        help="quic / webtransport",
+    )
+    args = parser.parse_args()
+
+    if args.protocol == "quic":
+        filename = "implementations_quic.json"
+        impls = get_quic_implementations()
+    elif args.protocol == "webtransport":
+        filename = "implementations_webtransport.json"
+        impls = get_webtransport_implementations()
+    else:
+        sys.exit("Unknown protocol: " + args.protocol)
+
+    print(f"{filename}:")
+    for name, data in impls.items():
+        print(f"  - {name} ({data['role'].value})")
