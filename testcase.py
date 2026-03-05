@@ -302,18 +302,27 @@ class TestCase(abc.ABC):
                     size += len(p.protected_payload.split(":"))
         return size
 
+    @staticmethod
+    def _cleanup_tempdir(td: tempfile.TemporaryDirectory):
+        """Remove a temp dir that may contain root-owned files from Docker containers."""
+        subprocess.run(
+            ["docker", "run", "--rm", "-v", td.name + ":/vol", "alpine", "rm", "-rf", "/vol"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        td.cleanup()
+
     def cleanup(self):
         if self._client_www_dir:
             self._client_www_dir.cleanup()
             self._client_www_dir = None
         if self._client_download_dir:
-            self._client_download_dir.cleanup()
+            self._cleanup_tempdir(self._client_download_dir)
             self._client_download_dir = None
         if self._server_www_dir:
             self._server_www_dir.cleanup()
             self._server_www_dir = None
         if self._server_download_dir:
-            self._server_download_dir.cleanup()
+            self._cleanup_tempdir(self._server_download_dir)
             self._server_download_dir = None
 
     def get_paths(self):
