@@ -24,7 +24,7 @@
     a.className = "btn btn-xs btn-" + color_type[res] + " " + res + " test-" + text.toLowerCase();
     var ttip_target = a;
     if (res !== "unsupported") {
-      a.href = "logs/" + log_dir + "/" + server + "_" + client + "/" + test;
+      a.href = "logs/quic/" + log_dir + "/" + server + "_" + client + "/" + test;
       a.target = "_blank";
       ttip += "<br><br>(Click for logs.)";
     } else {
@@ -272,7 +272,7 @@
     document.getElementById("run-selection-msg").innerHTML = "";
     var xhr = new XMLHttpRequest();
     xhr.responseType = 'json';
-    xhr.open('GET', 'logs/' + dir + '/result.json');
+    xhr.open('GET', 'logs/quic/' + dir + '/result.json');
     xhr.onreadystatechange = function() {
       if(xhr.readyState !== XMLHttpRequest.DONE) return;
       if(xhr.status !== 200) {
@@ -308,7 +308,7 @@
   // enable loading of old runs
   var xhr = new XMLHttpRequest();
   xhr.responseType = 'json';
-  xhr.open('GET', 'logs/logs.json');
+  xhr.open('GET', 'logs/quic/logs.json');
   xhr.onreadystatechange = function() {
     if(xhr.readyState !== XMLHttpRequest.DONE) return;
     if(xhr.status !== 200) {

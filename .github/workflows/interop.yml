@@ -150,7 +150,7 @@ jobs:
         with:
           switches: -avzr
           path: result.json
-          remote_path: ${{ vars.LOG_DIR }}/${{ needs.config.outputs.logname }}/
+          remote_path: ${{ vars.LOG_DIR_QUIC }}/${{ needs.config.outputs.logname }}/
           remote_host: interop.seemann.io
           remote_user: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
           remote_key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
@@ -163,7 +163,7 @@ jobs:
           key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
           envs: LOGNAME
           script: |
-            cd ${{ vars.LOG_DIR }}
+            cd ${{ vars.LOG_DIR_QUIC }}
             jq '. += [ "${{ needs.config.outputs.logname }}" ]' logs.json | sponge logs.json
             rm latest || true
             ln -s $LOGNAME latest
