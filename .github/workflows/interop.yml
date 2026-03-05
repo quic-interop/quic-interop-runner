@@ -34,19 +34,19 @@ jobs:
       - name: Determine servers
         id: set-servers
         run: |
-          SERVERS=$(jq -c 'with_entries(select(.value.role == "server" or .value.role == "both")) | keys_unsorted' implementations.json)
+          SERVERS=$(jq -c 'with_entries(select(.value.role == "server" or .value.role == "both")) | keys_unsorted' implementations_quic.json)
           echo $SERVERS
           echo "servers=$SERVERS" >> $GITHUB_OUTPUT
       - name: Determine clients
         id: set-clients
         run: |
-          CLIENTS=$(jq -c 'with_entries(select(.value.role == "client" or .value.role == "both")) | keys_unsorted' implementations.json)
+          CLIENTS=$(jq -c 'with_entries(select(.value.role == "client" or .value.role == "both")) | keys_unsorted' implementations_quic.json)
           echo $CLIENTS
           echo "clients=$CLIENTS" >> $GITHUB_OUTPUT
       - name: Determine Docker images
         id: set-images
         run: |
-          IMAGES=$(jq -c 'keys_unsorted' implementations.json)
+          IMAGES=$(jq -c 'keys_unsorted' implementations_quic.json)
           echo $IMAGES
           echo "images=$IMAGES" >> $GITHUB_OUTPUT
   docker-pull-tools:
@@ -84,7 +84,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: Run docker pull
         run: |
-          URL=$(jq -r '.["${{ matrix.image }}"].image' implementations.json)
+          URL=$(jq -r '.["${{ matrix.image }}"].image' implementations_quic.json)
           echo $URL
           docker pull $URL
           echo "URL=$URL" >> $GITHUB_ENV
