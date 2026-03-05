@@ -1,6 +1,5 @@
 import argparse
 import json
-import sys
 from enum import Enum
 from typing import Dict
 
@@ -43,6 +42,7 @@ if __name__ == "__main__":
         "-p",
         "--protocol",
         default="quic",
+        choices=["quic", "webtransport"],
         help="quic / webtransport",
     )
     args = parser.parse_args()
@@ -53,8 +53,6 @@ if __name__ == "__main__":
     elif args.protocol == "webtransport":
         filename = "implementations_webtransport.json"
         impls = get_webtransport_implementations()
-    else:
-        sys.exit("Unknown protocol: " + args.protocol)
 
     print(f"{filename}:")
     for name, data in impls.items():
