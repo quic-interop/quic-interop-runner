@@ -1,0 +1,15 @@
+name: WebTransport Interop
+on:
+  schedule:
+    # Every 12h at 09:15 UTC and 21:15 UTC.
+    - cron: "15 9,21 * * *"
+
+jobs:
+  run:
+    uses: ./.github/workflows/interop.yml
+    with:
+      protocol: webtransport
+      implementations_file: implementations_webtransport.json
+      upload_dir: ${{ vars.LOG_DIR_WEBTRANSPORT }}
+      run_measurements: false
+    secrets: inherit

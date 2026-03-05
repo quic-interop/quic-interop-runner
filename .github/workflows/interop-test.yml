@@ -2,9 +2,18 @@ name: Run Interop Tests
 on:
   workflow_call:
     inputs:
+      protocol:
+        required: true
+        type: string
       logname:
         required: true
         type: string
+      upload_dir:
+        required: true
+        type: string
+      run_measurements:
+        required: true
+        type: boolean
       server:
         required: true
         type: string
@@ -39,25 +48,26 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: images-quic-network-simulator
-      - name: Download quic-interop-iperf-endpoint image
-        uses: actions/download-artifact@v8
-        with:
-          name: images-quic-interop-iperf-endpoint
       - name: Download ${{ inputs.server }} Docker image
         uses: actions/download-artifact@v8
         with:
-          name: image-${{ inputs.server }}
+          name: image-${{ inputs.protocol }}-${{ inputs.server }}
       - name: Download ${{ matrix.client }} Docker image
         if: ${{ inputs.server != matrix.client }}
         uses: actions/download-artifact@v8
         with:
-          name: image-${{ matrix.client }}
+          name: image-${{ inputs.protocol }}-${{ matrix.client }}
       - name: Load docker images
         run: |
           docker load --input quic-network-simulator.tar.zst
-          docker load --input quic-interop-iperf-endpoint.tar.zst
           docker load --input ${{ inputs.server }}.tar.zst
           docker load --input ${{ matrix.client }}.tar.zst
+      - name: Download quic-interop-iperf-endpoint image
+        uses: actions/download-artifact@v8
+        with:
+          name: images-quic-interop-iperf-endpoint
+      - name: Load quic-interop-iperf-endpoint docker image
+        run: docker load --input quic-interop-iperf-endpoint.tar.zst
       - run: docker image ls
       - name: Install Wireshark
         run: |
@@ -72,14 +82,15 @@ jobs:
         env:
           CRON: "true"
         run: |
-          (python run.py --client ${{ matrix.client }} --server ${{ inputs.server }} --log-dir logs --json ${{ inputs.server }}_${{ matrix.client }}_results.json -t onlyTests || true) | tee output.txt
+          (python run.py --protocol ${{ inputs.protocol }} --client ${{ matrix.client }} --server ${{ inputs.server }} --log-dir logs --json ${{ inputs.server }}_${{ matrix.client }}_results.json -t onlyTests || true) | tee output.txt
           mkdir -p logs/${{ inputs.server }}_${{ matrix.client }}
           mv output.txt logs/${{ inputs.server }}_${{ matrix.client }}/
       - name: Run measurements
+        if: ${{ inputs.run_measurements }}
         env:
           CRON: "true"
         run: |
-          python run.py --client ${{ matrix.client }} --server ${{ inputs.server }} --log-dir logs_measurement --json ${{ inputs.server }}_${{ matrix.client }}_measurements.json -t onlyMeasurements || true
+          python run.py --protocol ${{ inputs.protocol }} --client ${{ matrix.client }} --server ${{ inputs.server }} --log-dir logs_measurement --json ${{ inputs.server }}_${{ matrix.client }}_measurements.json -t onlyMeasurements || true
           if [ ! -d "logs_measurement" ]; then exit 0; fi
           find logs_measurement -depth -name "sim" -type d -exec rm -r "{}" \;
           find logs_measurement -depth -name "client" -type d -exec rm -r "{}" \;
@@ -91,15 +102,21 @@ jobs:
         with:
           switches: -avzr --relative
           path: logs/./${{ inputs.server }}_${{ matrix.client }}/
-          remote_path: ${{ vars.LOG_DIR_QUIC }}/${{ inputs.logname }}
+          remote_path: ${{ inputs.upload_dir }}/${{ inputs.logname }}
           remote_host: interop.seemann.io
           remote_user: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
           remote_key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
       - name: Upload result
+        if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
-          name: results-${{ inputs.server }}-${{ matrix.client }}
+          name: results-${{ inputs.protocol }}-${{ inputs.server }}-${{ matrix.client }}-tests
           if-no-files-found: error
-          path: |
-            ${{ inputs.server }}_${{ matrix.client }}_results.json
-            ${{ inputs.server }}_${{ matrix.client }}_measurements.json
+          path: ${{ inputs.server }}_${{ matrix.client }}_results.json
+      - name: Upload measurement result
+        if: ${{ always() && inputs.run_measurements }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: results-${{ inputs.protocol }}-${{ inputs.server }}-${{ matrix.client }}-measurements
+          if-no-files-found: error
+          path: ${{ inputs.server }}_${{ matrix.client }}_measurements.json
