@@ -1,5 +1,6 @@
 name: interop
 on:
+  pull_request:
   schedule:
     # Every 12h, at 03:15 and 15:15 UTC
     # This makes sure that the cleanup cron job can run first.
