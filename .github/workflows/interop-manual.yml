@@ -1,0 +1,30 @@
+name: Interop Manual
+on:
+  workflow_dispatch:
+    inputs:
+      protocol:
+        description: Protocol to run
+        required: true
+        type: choice
+        options:
+          - quic
+          - webtransport
+      upload_results:
+        description: Upload results to interop.seemann.io
+        required: true
+        type: choice
+        options:
+          - "true"
+          - "false"
+        default: "false"
+
+jobs:
+  run:
+    uses: ./.github/workflows/interop.yml
+    with:
+      protocol: ${{ inputs.protocol }}
+      implementations_file: ${{ inputs.protocol == 'quic' && 'implementations_quic.json' || 'implementations_webtransport.json' }}
+      upload_dir: ${{ inputs.protocol == 'quic' && vars.LOG_DIR_QUIC || vars.LOG_DIR_WEBTRANSPORT }}
+      upload_results: ${{ inputs.upload_results == 'true' }}
+      run_measurements: ${{ inputs.protocol == 'quic' }}
+    secrets: inherit
