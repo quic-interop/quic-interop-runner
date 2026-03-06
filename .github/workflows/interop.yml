@@ -1,9 +1,22 @@
 name: interop
 on:
-  schedule:
-    # Every 12h, at 03:15 and 15:15 UTC
-    # This makes sure that the cleanup cron job can run first.
-    - cron: "15 3,15 * * *"
+  workflow_call:
+    inputs:
+      protocol:
+        required: true
+        type: string
+      implementations_file:
+        required: true
+        type: string
+      upload_dir:
+        required: true
+        type: string
+      upload_results:
+        required: true
+        type: boolean
+      run_measurements:
+        required: true
+        type: boolean
 
 jobs:
   config:
@@ -11,6 +24,10 @@ jobs:
     outputs:
       logname: ${{ steps.set-logname.outputs.logname }}
       starttime: ${{ steps.set-starttime.outputs.starttime }}
+      protocol: ${{ inputs.protocol }}
+      implementations_file: ${{ inputs.implementations_file }}
+      upload_dir: ${{ inputs.upload_dir }}
+      run_measurements: ${{ inputs.run_measurements }}
       servers: ${{ steps.set-servers.outputs.servers }}
       clients: ${{ steps.set-clients.outputs.clients }}
       images: ${{ steps.set-images.outputs.images }}
@@ -34,19 +51,19 @@ jobs:
       - name: Determine servers
         id: set-servers
         run: |
-          SERVERS=$(jq -c 'with_entries(select(.value.role == "server" or .value.role == "both")) | keys_unsorted' implementations_quic.json)
+          SERVERS=$(jq -c 'with_entries(select(.value.role == "server" or .value.role == "both")) | keys_unsorted' "${{ inputs.implementations_file }}")
           echo $SERVERS
           echo "servers=$SERVERS" >> $GITHUB_OUTPUT
       - name: Determine clients
         id: set-clients
         run: |
-          CLIENTS=$(jq -c 'with_entries(select(.value.role == "client" or .value.role == "both")) | keys_unsorted' implementations_quic.json)
+          CLIENTS=$(jq -c 'with_entries(select(.value.role == "client" or .value.role == "both")) | keys_unsorted' "${{ inputs.implementations_file }}")
           echo $CLIENTS
           echo "clients=$CLIENTS" >> $GITHUB_OUTPUT
       - name: Determine Docker images
         id: set-images
         run: |
-          IMAGES=$(jq -c 'keys_unsorted' implementations_quic.json)
+          IMAGES=$(jq -c 'keys_unsorted' "${{ inputs.implementations_file }}")
           echo $IMAGES
           echo "images=$IMAGES" >> $GITHUB_OUTPUT
   docker-pull-tools:
@@ -84,7 +101,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: Run docker pull
         run: |
-          URL=$(jq -r '.["${{ matrix.image }}"].image' implementations_quic.json)
+          URL=$(jq -r '.["${{ matrix.image }}"].image' "${{ needs.config.outputs.implementations_file }}")
           echo $URL
           docker pull $URL
           echo "URL=$URL" >> $GITHUB_ENV
@@ -97,7 +114,7 @@ jobs:
       - name: Upload result
         uses: actions/upload-artifact@v7
         with:
-          name: image-${{ matrix.image }}
+          name: image-${{ needs.config.outputs.protocol }}-${{ matrix.image }}
           path: ${{ matrix.image }}.tar.zst
           if-no-files-found: error
   tests:
@@ -109,16 +126,18 @@ jobs:
         server: ${{ fromJson(needs.config.outputs.servers) }}
     name: "server: ${{ matrix.server }}"
     with:
+      protocol: ${{ needs.config.outputs.protocol }}
       server: ${{ matrix.server }}
       clients: ${{ needs.config.outputs.clients }}
       logname: ${{ needs.config.outputs.logname }}
+      upload_dir: ${{ needs.config.outputs.upload_dir }}
+      upload_results: ${{ inputs.upload_results }}
+      run_measurements: ${{ needs.config.outputs.run_measurements == 'true' }}
     secrets: inherit
   aggregate:
     needs: [ config, tests ]
     runs-on: ubuntu-latest
     if: always()
-    env:
-      LOGNAME: ${{ needs.config.outputs.logname }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -135,7 +154,7 @@ jobs:
             --start-time ${{ needs.config.outputs.starttime }} \
             --server ${{ join(fromJson(needs.config.outputs.servers), ',') }} \
             --client ${{ join(fromJson(needs.config.outputs.clients), ',') }} \
-            --log-dir=$LOGNAME \
+            --log-dir=${{ needs.config.outputs.logname }} \
             --output result.json
       - name: Print result
         run: jq '.' result.json
@@ -146,24 +165,23 @@ jobs:
           path: result.json
       - name: Upload logs to interop.seemann.io
         uses: burnett01/rsync-deployments@dc0d5d44c4728aad3f02154a87309809e62a960f # v8.0.4
-        if: ${{ github.event_name == 'schedule' }}
+        if: ${{ inputs.upload_results }}
         with:
           switches: -avzr
           path: result.json
-          remote_path: ${{ vars.LOG_DIR_QUIC }}/${{ needs.config.outputs.logname }}/
+          remote_path: ${{ needs.config.outputs.upload_dir }}/${{ needs.config.outputs.logname }}/
           remote_host: interop.seemann.io
           remote_user: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
           remote_key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
       - name: Point interop.seemann.io to the latest result
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
-        if: ${{ github.event_name == 'schedule' }}
+        if: ${{ inputs.upload_results }}
         with:
           host: interop.seemann.io
           username: ${{ secrets.INTEROP_SEEMANN_IO_USER }}
           key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
-          envs: LOGNAME
           script: |
-            cd ${{ vars.LOG_DIR_QUIC }}
+            cd ${{ needs.config.outputs.upload_dir }}
             jq '. += [ "${{ needs.config.outputs.logname }}" ]' logs.json | sponge logs.json
             rm latest || true
-            ln -s $LOGNAME latest
+            ln -s ${{ needs.config.outputs.logname }} latest

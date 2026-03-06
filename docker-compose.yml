@@ -29,6 +29,7 @@ services:
     image: $SERVER
     container_name: server
     hostname: server
+    user: "${DOCKER_UID}:${DOCKER_GID}"
     stdin_open: true
     tty: true
     volumes:
@@ -63,6 +64,7 @@ services:
     image: $CLIENT
     container_name: client
     hostname: client
+    user: "${DOCKER_UID}:${DOCKER_GID}"
     stdin_open: true
     tty: true
     volumes:
