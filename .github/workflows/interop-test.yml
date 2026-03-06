@@ -38,6 +38,10 @@ jobs:
       - uses: docker/setup-docker-action@v4
         with:
           version: version=v28.3.0
+      - name: Set DOCKER_UID/DOCKER_GID for compose
+        run: |
+          echo "DOCKER_UID=$(id -u)" >> $GITHUB_ENV
+          echo "DOCKER_GID=$(id -g)" >> $GITHUB_ENV
       - uses: actions/setup-python@v6
         with:
           python-version: 3.12
