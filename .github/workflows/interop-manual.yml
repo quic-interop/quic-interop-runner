@@ -11,12 +11,8 @@ on:
           - webtransport
       upload_results:
         description: Upload results to interop.seemann.io
-        required: true
-        type: choice
-        options:
-          - "true"
-          - "false"
-        default: "false"
+        type: boolean
+        default: false
 
 jobs:
   run:
@@ -25,6 +21,6 @@ jobs:
       protocol: ${{ inputs.protocol }}
       implementations_file: ${{ inputs.protocol == 'quic' && 'implementations_quic.json' || 'implementations_webtransport.json' }}
       upload_dir: ${{ inputs.protocol == 'quic' && vars.LOG_DIR_QUIC || vars.LOG_DIR_WEBTRANSPORT }}
-      upload_results: ${{ inputs.upload_results == 'true' }}
+      upload_results: ${{ inputs.upload_results }}
       run_measurements: ${{ inputs.protocol == 'quic' }}
     secrets: inherit
