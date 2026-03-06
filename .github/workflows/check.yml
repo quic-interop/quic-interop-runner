@@ -6,6 +6,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
+        with:
+          python-version: 3.12
       - name: install tools
         run: pip install flake8 black
       - name: enforce coding styles using flake8
