@@ -11,6 +11,9 @@ on:
       upload_dir:
         required: true
         type: string
+      upload_results:
+        required: true
+        type: boolean
       run_measurements:
         required: true
         type: boolean
@@ -102,7 +105,7 @@ jobs:
           mv logs_measurement/${{ inputs.server }}_${{ matrix.client }}/* logs/${{ inputs.server }}_${{ matrix.client }}/
       - name: Upload logs to interop.seemann.io
         uses: burnett01/rsync-deployments@dc0d5d44c4728aad3f02154a87309809e62a960f # v8.0.4
-        if: ${{ always() && github.event_name == 'schedule' }}
+        if: ${{ always() && inputs.upload_results }}
         with:
           switches: -avzr --relative
           path: logs/./${{ inputs.server }}_${{ matrix.client }}/

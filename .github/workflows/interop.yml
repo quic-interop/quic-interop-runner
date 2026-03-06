@@ -11,6 +11,9 @@ on:
       upload_dir:
         required: true
         type: string
+      upload_results:
+        required: true
+        type: boolean
       run_measurements:
         required: true
         type: boolean
@@ -128,6 +131,7 @@ jobs:
       clients: ${{ needs.config.outputs.clients }}
       logname: ${{ needs.config.outputs.logname }}
       upload_dir: ${{ needs.config.outputs.upload_dir }}
+      upload_results: ${{ inputs.upload_results }}
       run_measurements: ${{ needs.config.outputs.run_measurements == 'true' }}
     secrets: inherit
   aggregate:
@@ -161,7 +165,7 @@ jobs:
           path: result.json
       - name: Upload logs to interop.seemann.io
         uses: burnett01/rsync-deployments@dc0d5d44c4728aad3f02154a87309809e62a960f # v8.0.4
-        if: ${{ github.event_name == 'schedule' }}
+        if: ${{ inputs.upload_results }}
         with:
           switches: -avzr
           path: result.json
@@ -171,7 +175,7 @@ jobs:
           remote_key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
       - name: Point interop.seemann.io to the latest result
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
-        if: ${{ github.event_name == 'schedule' }}
+        if: ${{ inputs.upload_results }}
         with:
           host: interop.seemann.io
           username: ${{ secrets.INTEROP_SEEMANN_IO_USER }}

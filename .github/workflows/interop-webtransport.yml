@@ -11,5 +11,6 @@ jobs:
       protocol: webtransport
       implementations_file: implementations_webtransport.json
       upload_dir: ${{ vars.LOG_DIR_WEBTRANSPORT }}
+      upload_results: true
       run_measurements: false
     secrets: inherit

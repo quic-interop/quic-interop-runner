@@ -11,5 +11,6 @@ jobs:
       protocol: quic
       implementations_file: implementations_quic.json
       upload_dir: ${{ vars.LOG_DIR_QUIC }}
+      upload_results: true
       run_measurements: true
     secrets: inherit
