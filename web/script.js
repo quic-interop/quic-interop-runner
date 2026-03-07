@@ -298,9 +298,9 @@
   var queryParams = (new URL(document.location)).searchParams;
   if (queryParams.has("run") === true) {
     // if the request used a specific run (like ?run=123), then
-    // load that specifc one
+    // load that specific one
     selectedRun = queryParams.get("run")
-    load("logs_" + selectedRun);
+    load(selectedRun);
   } else {
     load("latest");
   }
