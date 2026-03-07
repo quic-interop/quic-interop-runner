@@ -18,6 +18,37 @@ from result import TestResult
 QUIC_VERSION = hex(0x1)
 
 
+def docker_cleanup_dir(directory: str):
+    """Remove root-owned files from a directory using an Alpine Docker container.
+
+    Docker containers run as root and create files owned by root in mounted
+    volumes. Python's TemporaryDirectory.cleanup() can't remove these files.
+    This function mounts the directory into an Alpine container and removes
+    the contents as root before Python attempts cleanup.
+    """
+    try:
+        subprocess.run(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-v",
+                f"{directory}:/cleanup",
+                "alpine:3.18",
+                "sh",
+                "-c",
+                "rm -rf /cleanup/*",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        logging.debug("Docker cleanup of %s timed out", directory)
+    except Exception as e:
+        logging.debug("Docker cleanup of %s failed: %s", directory, e)
+
+
 class Perspective(Enum):
     SERVER = "server"
     CLIENT = "client"
@@ -303,6 +334,9 @@ class TestCase(abc.ABC):
         return size
 
     def cleanup(self):
+        for d in [self._client_download_dir, self._server_download_dir]:
+            if d:
+                docker_cleanup_dir(d.name)
         if self._client_www_dir:
             self._client_www_dir.cleanup()
             self._client_www_dir = None
