@@ -34,7 +34,7 @@ def docker_cleanup_dir(directory: str):
                 "--rm",
                 "-v",
                 f"{directory}:/cleanup",
-                "alpine",
+                "alpine:3.18",
                 "sh",
                 "-c",
                 "rm -rf /cleanup/*",
