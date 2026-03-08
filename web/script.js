@@ -4,6 +4,41 @@
   "use strict";
   const map = { client: {}, server: {}, test: {} };
   const color_type = { succeeded: "success", unsupported: "secondary disabled", failed: "danger"};
+  var currentProtocol = "quic";
+
+  function sanitizeProtocol(protocol) {
+    return protocol === "webtransport" ? "webtransport" : "quic";
+  }
+
+  function getCurrentParams() {
+    return new URLSearchParams(window.location.search);
+  }
+
+  function pushParams(params) {
+    const query = decodeURIComponent(params.toString());
+    var refresh = window.location.protocol + "//" + window.location.host + window.location.pathname + (query ? "?" + query : "");
+    window.history.pushState(null, null, refresh);
+  }
+
+  function updateRunQuery(run) {
+    var params = getCurrentParams();
+    if (run)
+      params.set("run", run);
+    else
+      params.delete("run");
+
+    if (currentProtocol === "quic")
+      params.delete("protocol");
+    else
+      params.set("protocol", currentProtocol);
+    pushParams(params);
+  }
+
+  function setMeasurementVisibility() {
+    var showMeasurements = currentProtocol !== "webtransport";
+    var measurementsSection = document.getElementById("measurements-section");
+    measurementsSection.style.display = showMeasurements ? "" : "none";
+  }
 
   // see https://stackoverflow.com/a/43466724/
   function formatTime(seconds) {
@@ -24,7 +59,7 @@
     a.className = "btn btn-xs btn-" + color_type[res] + " " + res + " test-" + text.toLowerCase();
     var ttip_target = a;
     if (res !== "unsupported") {
-      a.href = "logs/quic/" + log_dir + "/" + server + "_" + client + "/" + test;
+      a.href = "logs/" + currentProtocol + "/" + log_dir + "/" + server + "_" + client + "/" + test;
       a.target = "_blank";
       ttip += "<br><br>(Click for logs.)";
     } else {
@@ -109,6 +144,7 @@
   function fillMeasurementTable(result) {
     var t = document.getElementById("measurements");
     t.innerHTML = "";
+    if (!result.measurements) return;
     makeColumnHeaders(t, result);
     var tbody = t.createTBody();
     var index = 0;
@@ -155,7 +191,7 @@
   }
 
   function setButtonState() {
-    var params = new URLSearchParams(history.state ? history.state.path : window.location.search);
+    var params = getCurrentParams();
     var show = {};
     Object.keys(map).forEach(type => {
       map[type] = params.getAll(type).map(x => x.toLowerCase().split(",")).flat();
@@ -206,7 +242,7 @@
     const type = [...b.classList].filter(x => Object.keys(map).includes(x))[0];
     const which = b.id.replace(type + "-", "");
 
-    var params = new URLSearchParams(history.state ? history.state.path : window.location.search);
+    var params = getCurrentParams();
     if (params.has(type) && params.get(type))
       map[type] = params.get(type).split(",");
     else
@@ -217,9 +253,7 @@
     if (map[type].length === $("#" + type + " :button").length)
       params.delete(type);
 
-    const comp = decodeURIComponent(params.toString());
-    var refresh = window.location.protocol + "//" + window.location.host + window.location.pathname + (comp ? "?" + comp : "");
-    window.history.pushState(null, null, refresh);
+    pushParams(params);
 
     setButtonState();
     return false;
@@ -248,7 +282,7 @@
       $("#test").append(Object.keys(result.tests).map(e => makeButton("test", e, makeTooltip(result.tests[e].name, result.tests[e].desc))));
     else {
       // TODO: this else can eventually be removed, when all past runs have the test descriptions in the json
-      const tcases = result.results.concat(result.measurements).flat().map(x => [x.abbr, x.name]).filter((e, i, a) => a.map(x => x[0]).indexOf(e[0]) === i);
+      const tcases = result.results.concat(result.measurements || []).flat().map(x => [x.abbr, x.name]).filter((e, i, a) => a.map(x => x[0]).indexOf(e[0]) === i);
       $("#test").append(tcases.map(e => makeButton("test", e[0], makeTooltip(e[1]))));
     }
     setButtonState();
@@ -272,7 +306,7 @@
     document.getElementById("run-selection-msg").innerHTML = "";
     var xhr = new XMLHttpRequest();
     xhr.responseType = 'json';
-    xhr.open('GET', 'logs/quic/' + dir + '/result.json');
+    xhr.open('GET', 'logs/' + currentProtocol + '/' + dir + '/result.json');
     xhr.onreadystatechange = function() {
       if(xhr.readyState !== XMLHttpRequest.DONE) return;
       if(xhr.status !== 200) {
@@ -280,22 +314,72 @@
         var run = dir.replace("logs_", "");
         var errMsg = '<strong>Error: could not locate result for "' + run + '" run</strong>';
         document.getElementById("run-selection-msg").innerHTML = errMsg;
-        var refresh = window.location.protocol + "//" + window.location.host + window.location.pathname + "?run=" + run;
-        window.history.pushState(null, null, refresh);
+        updateRunQuery(run || null);
         return;
       }
       var result = xhr.response;
       var selectedRun = result.log_dir.replace("logs_", "");
-      var refresh = window.location.protocol + "//" + window.location.host + window.location.pathname + "?run=" + selectedRun;
-      window.history.pushState(null, null, refresh);
+      updateRunQuery(selectedRun);
       process(result);
       document.getElementsByTagName("body")[0].classList.remove("loading");
     };
     xhr.send();
   }
 
+  function loadAvailableRuns(selectedRun) {
+    var runs = document.getElementById("available-runs");
+    runs.innerHTML = "";
+    var xhr = new XMLHttpRequest();
+    xhr.responseType = 'json';
+    xhr.open('GET', 'logs/' + currentProtocol + '/logs.json');
+    xhr.onreadystatechange = function() {
+      if(xhr.readyState !== XMLHttpRequest.DONE) return;
+      if(xhr.status !== 200) {
+        console.log("Received status: ", xhr.status);
+        return;
+      }
+      var s = document.createElement("select");
+      xhr.response.reverse().forEach(function(el) {
+        var opt = document.createElement("option");
+        opt.innerHTML = el.replace("logs_", "");
+        opt.value = el;
+        s.appendChild(opt);
+      });
+      s.addEventListener("change", function(ev) {
+        load(ev.currentTarget.value);
+      });
+      runs.appendChild(s);
+      if (selectedRun != null)
+        s.value = "logs_" + selectedRun;
+    };
+    xhr.send();
+  }
+
+  var protocolSelect = document.getElementById("protocol-select");
+  if (!protocolSelect) {
+    protocolSelect = document.querySelector("#protocols select");
+  }
+  if (protocolSelect) {
+    Array.prototype.forEach.call(protocolSelect.options, function(option) {
+      if (!option.value) {
+        option.value = option.textContent.trim().toLowerCase() === "webtransport" ? "webtransport" : "quic";
+      }
+    });
+    protocolSelect.addEventListener("change", function(ev) {
+      currentProtocol = sanitizeProtocol(ev.currentTarget.value);
+      updateRunQuery(null);
+      setMeasurementVisibility();
+      load("latest");
+      loadAvailableRuns(null);
+    });
+  }
+
   var selectedRun = null;
-  var queryParams = (new URL(document.location)).searchParams;
+  var queryParams = getCurrentParams();
+  currentProtocol = sanitizeProtocol(queryParams.get("protocol"));
+  if (protocolSelect)
+    protocolSelect.value = currentProtocol;
+  setMeasurementVisibility();
   if (queryParams.has("run") === true) {
     // if the request used a specific run (like ?run=123), then
     // load that specific one
@@ -306,31 +390,5 @@
   }
 
   // enable loading of old runs
-  var xhr = new XMLHttpRequest();
-  xhr.responseType = 'json';
-  xhr.open('GET', 'logs/quic/logs.json');
-  xhr.onreadystatechange = function() {
-    if(xhr.readyState !== XMLHttpRequest.DONE) return;
-    if(xhr.status !== 200) {
-      console.log("Received status: ", xhr.status);
-      return;
-    }
-    var s = document.createElement("select");
-    xhr.response.reverse().forEach(function(el) {
-      var opt = document.createElement("option");
-      opt.innerHTML = el.replace("logs_", "");
-      opt.value = el;
-      s.appendChild(opt);
-    });
-    s.addEventListener("change", function(ev) {
-      load(ev.currentTarget.value);
-    });
-    document.getElementById("available-runs").appendChild(s);
-    if (selectedRun != null) {
-      // just set the selected run, no need to trigger "change"
-      // event here
-      s.value = "logs_" + selectedRun;
-    }
-  };
-  xhr.send();
+  loadAvailableRuns(selectedRun);
 })();
