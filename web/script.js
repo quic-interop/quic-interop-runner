@@ -24,8 +24,7 @@
   }
 
   function pushParams(params) {
-    params.delete("protocol");
-    const query = decodeURIComponent(params.toString());
+    const query = params.toString();
     var refresh = window.location.protocol + "//" + window.location.host + getProtocolPath(currentProtocol) + (query ? "?" + query : "");
     window.history.pushState(null, null, refresh);
   }
@@ -375,7 +374,7 @@
       currentProtocol = sanitizeProtocol(ev.currentTarget.value);
       var params = getCurrentParams();
       params.delete("run");
-      const query = decodeURIComponent(params.toString());
+      const query = params.toString();
       var target = getProtocolPath(currentProtocol) + (query ? "?" + query : "");
       window.location.assign(target);
     });
@@ -383,8 +382,9 @@
 
   var protocolInPath = window.location.pathname.match(/^\/(quic|webtransport)\/?$/);
   if (!protocolInPath) {
-    var normalizedQuery = window.location.search || "";
-    window.location.replace("/quic" + normalizedQuery);
+    var normalizedParams = getCurrentParams();
+    var normalizedQuery = normalizedParams.toString();
+    window.location.replace("/quic" + (normalizedQuery ? "?" + normalizedQuery : ""));
     return;
   }
 
