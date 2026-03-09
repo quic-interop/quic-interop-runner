@@ -1,4 +1,4 @@
-/* globals document, window, console, URLSearchParams, XMLHttpRequest, $, history */
+/* globals document, window, console, URLSearchParams, XMLHttpRequest, $ */
 
 (function() {
   "use strict";
@@ -10,13 +10,23 @@
     return protocol === "webtransport" ? "webtransport" : "quic";
   }
 
+  function getProtocolFromPathname(pathname) {
+    var segment = (pathname || "/").split("/")[1];
+    return sanitizeProtocol(segment);
+  }
+
+  function getProtocolPath(protocol) {
+    return "/" + sanitizeProtocol(protocol);
+  }
+
   function getCurrentParams() {
     return new URLSearchParams(window.location.search);
   }
 
   function pushParams(params) {
+    params.delete("protocol");
     const query = decodeURIComponent(params.toString());
-    var refresh = window.location.protocol + "//" + window.location.host + window.location.pathname + (query ? "?" + query : "");
+    var refresh = window.location.protocol + "//" + window.location.host + getProtocolPath(currentProtocol) + (query ? "?" + query : "");
     window.history.pushState(null, null, refresh);
   }
 
@@ -27,10 +37,6 @@
     else
       params.delete("run");
 
-    if (currentProtocol === "quic")
-      params.delete("protocol");
-    else
-      params.set("protocol", currentProtocol);
     pushParams(params);
   }
 
@@ -367,16 +373,24 @@
     });
     protocolSelect.addEventListener("change", function(ev) {
       currentProtocol = sanitizeProtocol(ev.currentTarget.value);
-      updateRunQuery(null);
-      setMeasurementVisibility();
-      load("latest");
-      loadAvailableRuns(null);
+      var params = getCurrentParams();
+      params.delete("run");
+      const query = decodeURIComponent(params.toString());
+      var target = getProtocolPath(currentProtocol) + (query ? "?" + query : "");
+      window.location.assign(target);
     });
+  }
+
+  var protocolInPath = window.location.pathname.match(/^\/(quic|webtransport)\/?$/);
+  if (!protocolInPath) {
+    var normalizedQuery = window.location.search || "";
+    window.location.replace("/quic" + normalizedQuery);
+    return;
   }
 
   var selectedRun = null;
   var queryParams = getCurrentParams();
-  currentProtocol = sanitizeProtocol(queryParams.get("protocol"));
+  currentProtocol = getProtocolFromPathname(window.location.pathname);
   if (protocolSelect)
     protocolSelect.value = currentProtocol;
   setMeasurementVisibility();
