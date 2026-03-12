@@ -13,5 +13,10 @@
     "image": "martenseemann/firefox-webtransport-interop-runner",
     "url": "https://github.com/quic-interop/browser-webtransport-interop-runner",
     "role": "client"
+  },
+  "flupke-webtransport": {
+    "image": "peterdoornbosch/flupke-webtransport-interop",
+    "url": "https://github.com/ptrd/flupke",
+    "role": "server"
   }
 }
