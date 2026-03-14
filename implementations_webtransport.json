@@ -18,5 +18,10 @@
     "image": "peterdoornbosch/flupke-webtransport-interop",
     "url": "https://github.com/ptrd/flupke",
     "role": "server"
+  },
+  "quic-zig": {
+    "image": "ghcr.io/endel/quic-zig:latest",
+    "url": "https://github.com/endel/quic-zig",
+    "role": "both"
   }
 }
