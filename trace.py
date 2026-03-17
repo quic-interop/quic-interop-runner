@@ -1,7 +1,29 @@
+import asyncio
 import datetime
 import logging
 from enum import Enum
 from typing import List, Optional, Tuple
+
+# Workaround for pyshark compatibility with Python 3.14+.
+# Child watcher APIs were removed in Python 3.14.
+if not hasattr(asyncio, "SafeChildWatcher"):
+
+    class _DummyChildWatcher:
+        def attach_loop(self, loop):
+            pass
+
+        def close(self):
+            pass
+
+    asyncio.SafeChildWatcher = _DummyChildWatcher
+    asyncio.set_child_watcher = lambda w: None
+    asyncio.get_child_watcher = _DummyChildWatcher
+
+# Ensure an event loop exists for pyshark (required for Python 3.10+).
+try:
+    asyncio.get_running_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
 
 import pyshark
 
