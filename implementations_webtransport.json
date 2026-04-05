@@ -17,7 +17,7 @@
   "flupke-webtransport": {
     "image": "peterdoornbosch/flupke-webtransport-interop",
     "url": "https://github.com/ptrd/flupke",
-    "role": "server"
+    "role": "both"
   },
   "ngtcp2": {
     "image": "ghcr.io/ngtcp2/ngtcp2-interop-webtransport:latest",
