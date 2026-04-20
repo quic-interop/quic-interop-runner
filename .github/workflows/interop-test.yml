@@ -100,7 +100,7 @@ jobs:
           find logs_measurement -depth -name "server" -type d -exec rm -r "{}" \;
           mv logs_measurement/${{ inputs.server }}_${{ matrix.client }}/* logs/${{ inputs.server }}_${{ matrix.client }}/
       - name: Upload logs to interop.seemann.io
-        uses: burnett01/rsync-deployments@dc0d5d44c4728aad3f02154a87309809e62a960f # v8.0.4
+        uses: burnett01/rsync-deployments@66257cad6bfeb2171d3b6bfa6c9a22279dd9c3a1 # v8.0.5
         if: ${{ always() && inputs.upload_results }}
         with:
           switches: -avzr --relative
