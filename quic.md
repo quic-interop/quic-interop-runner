@@ -51,3 +51,5 @@ Unless noted otherwise, test cases use HTTP/0.9 for file transfers. The name in 
 * **Address Rebinding** (`rebind-addr`): A NAT is simulated that changes the client's IP address after the handshake. The server should perform path validation.
 
 * **Connection Migration** (`connectionmigration`): The server provides its preferred addresses to the client during the handshake. The client performs active migration to one of those addresses.
+
+* **Post-quantum** (`post-quantum`): Tests the ability for the client to send a ClientHello that spans at least 2 packets. The client is expected to establish a single QUIC connection to the server with a ClientHello that spanning at least 2 packets, and download one or multiple small files. Servers should not send a Retry packet in this test case.
