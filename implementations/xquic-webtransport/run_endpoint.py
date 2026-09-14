@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""QUIC Interop Runner entry point for WebTransport H and UR."""
+"""Map runner environment variables to the XQUIC WebTransport demo."""
 
 import os
 import subprocess
@@ -58,7 +58,16 @@ def endpoint_command(env):
         if not parts[0] or parts[0] in {".", ".."}:
             raise ValueError("REQUESTS must identify a session endpoint")
         session_url = f"https://{first.netloc}/{parts[0]}"
-        args += ["-U", session_url, "-J", f"{certs}/ca.pem", "-K", "45"]
+        args += [
+            "-U",
+            session_url,
+            "-p",
+            str(first.port or 443),
+            "-J",
+            f"{certs}/ca.pem",
+            "-K",
+            "45",
+        ]
     return args
 
 

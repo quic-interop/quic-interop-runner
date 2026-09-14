@@ -19,7 +19,7 @@ concurrency:
 
 env:
   # Tested, identical alibaba/xquic and Yanmei-Liu/xquic source commit.
-  XQUIC_REVISION: 7bdfacfc9d22b04a684a7351c1d53c91d881354d
+  XQUIC_REVISION: bb279ae5c42f448f15c00d409369a2c0556a5c83
   XQUIC_BRANCH: feat/webtrans-interop
   IMAGE_NAME: ghcr.io/yanmei-liu/xquic-webtransport-interop
 
@@ -37,10 +37,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Test the adapter's build and runner helpers
-        run: |
-          python3 implementations/xquic-webtransport/test_build_image.py
-          python3 implementations/xquic-webtransport/test_runner.py
+      - name: Test the endpoint environment mapping
+        run: python3 implementations/xquic-webtransport/test_endpoint.py
 
       - name: Verify the upstream and fork source branches
         shell: bash
@@ -70,11 +68,14 @@ jobs:
 
       - name: Build and test the amd64 endpoint
         run: |
-          python3 implementations/xquic-webtransport/build_image.py \
-            --xquic xquic-source \
+          docker buildx build --load \
+            --build-context xquic=./xquic-source \
             --platform linux/amd64 \
-            --source-url "https://github.com/${GITHUB_REPOSITORY}" \
-            --image "${IMAGE_NAME}:sha-${GITHUB_SHA}"
+            --build-arg "IMAGE_SOURCE=https://github.com/${GITHUB_REPOSITORY}" \
+            --build-arg "XQUIC_REVISION=${XQUIC_REVISION}" \
+            --build-arg "RUNNER_REVISION=${GITHUB_SHA}" \
+            --tag "${IMAGE_NAME}:sha-${GITHUB_SHA}" \
+            implementations/xquic-webtransport
 
       - name: Sign in to the GitHub Container registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
