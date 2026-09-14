@@ -1,0 +1,101 @@
+name: Publish XQUIC WebTransport image
+
+on:
+  push:
+    branches:
+      - master
+      - codex/xquic-webtransport-interop
+    paths:
+      - .github/workflows/xquic-webtransport-image.yml
+      - implementations/xquic-webtransport/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xquic-webtransport-image
+  cancel-in-progress: false
+
+env:
+  # Tested, identical alibaba/xquic and Yanmei-Liu/xquic source commit.
+  XQUIC_REVISION: 7bdfacfc9d22b04a684a7351c1d53c91d881354d
+  XQUIC_BRANCH: feat/webtrans-interop
+  IMAGE_NAME: ghcr.io/yanmei-liu/xquic-webtransport-interop
+
+jobs:
+  publish:
+    if: github.repository == 'Yanmei-Liu/quic-interop-runner'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out the runner adapter
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Test the adapter's build and runner helpers
+        run: |
+          python3 implementations/xquic-webtransport/test_build_image.py
+          python3 implementations/xquic-webtransport/test_runner.py
+
+      - name: Verify the upstream and fork source branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$XQUIC_REVISION" =~ ^[0-9a-f]{40}$ ]]; then
+            echo 'XQUIC_REVISION must be a tested full commit SHA.' >&2
+            exit 1
+          fi
+          for repository in alibaba/xquic Yanmei-Liu/xquic; do
+            revision="$(git ls-remote --exit-code \
+              "https://github.com/${repository}.git" \
+              "refs/heads/${XQUIC_BRANCH}" | awk '{print $1}')"
+            if [[ "$revision" != "$XQUIC_REVISION" ]]; then
+              echo "${repository}:${XQUIC_BRANCH} is ${revision}, expected ${XQUIC_REVISION}." >&2
+              exit 1
+            fi
+          done
+
+      - name: Check out the pinned XQUIC source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: Yanmei-Liu/xquic
+          ref: ${{ env.XQUIC_REVISION }}
+          path: xquic-source
+          persist-credentials: false
+
+      - name: Build and test the amd64 endpoint
+        run: |
+          python3 implementations/xquic-webtransport/build_image.py \
+            --xquic xquic-source \
+            --platform linux/amd64 \
+            --source-url "https://github.com/${GITHUB_REPOSITORY}" \
+            --image "${IMAGE_NAME}:sha-${GITHUB_SHA}"
+
+      - name: Sign in to the GitHub Container registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish the commit tag and latest alias
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="${IMAGE_NAME}:sha-${GITHUB_SHA}"
+          docker push "$image"
+          docker tag "$image" "${IMAGE_NAME}:latest"
+          docker push "${IMAGE_NAME}:latest"
+          digest="$(docker image inspect "$image" \
+            --format '{{index .RepoDigests 0}}')"
+          {
+            echo "XQUIC revision: ${XQUIC_REVISION}"
+            echo "Runner revision: ${GITHUB_SHA}"
+            echo "Commit tag: ${image}"
+            echo "Image digest: ${digest}"
+          } >> "$GITHUB_STEP_SUMMARY"
