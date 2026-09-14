@@ -25,7 +25,7 @@
     "role": "both"
   },
   "xquic": {
-    "image": "ghcr.io/yanmei-liu/xquic-webtransport-interop:latest",
+    "image": "ghcr.io/alibaba/xquic/xquic-webtransport-interop:latest",
     "url": "https://github.com/alibaba/xquic/tree/feat/webtrans-interop",
     "role": "both"
   }
