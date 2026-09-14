@@ -126,7 +126,7 @@ tested XQUIC commit SHA and synchronize the two source branches. The workflow
 compares both remote branch heads with that SHA before checking out the fork
 at the pinned revision. An unset pin, missing branch or differing head stops
 the build. Push adapter or workflow changes to
-`codex/xquic-webtransport-interop` or `master` in the runner fork to trigger it.
+`feat/xquic-webtransport-interop` or `master` in the runner fork to trigger it.
 GitHub supports [push-triggered workflows on feature branches](
 https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#push).
 An existing run can be retried with:

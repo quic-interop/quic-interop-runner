@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - master
-      - codex/xquic-webtransport-interop
+      - feat/xquic-webtransport-interop
     paths:
       - .github/workflows/xquic-webtransport-image.yml
       - implementations/xquic-webtransport/**
