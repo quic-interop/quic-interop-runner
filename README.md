@@ -57,9 +57,6 @@ See [quic.md](quic.md) and [webtransport.md](webtransport.md) for protocol-speci
 
 To add your implementation, create a Docker image following the instructions for [setting up an endpoint in the quic-network-simulator](https://github.com/quic-interop/quic-network-simulator), publish it on [Docker Hub](https://hub.docker.com) and add it to [implementations_quic.json](implementations_quic.json) or [implementations_webtransport.json](implementations_webtransport.json). Once your implementation is ready to interop, please send us a PR with this addition.
 
-The [XQUIC WebTransport adapter](implementations/xquic-webtransport/README.md)
-provides a locally buildable endpoint for handshake and unidirectional receive.
-
 ### Multi-Platform Builds
 
 The [online interop runner](https://interop.seemann.io/) requires `linux/amd64` images. If you build on a different architecture (e.g. Apple silicon), use `--platform linux/amd64` with `docker build`.
