@@ -85,7 +85,7 @@
     "role": "both"
   },
   "quephyr": {
-    "image": "fvinasucm/quephyr_interop",
+    "image": "fvinasucm/quephyr_interop:v1",
     "url": "https://codeberg.org/fvinasucm/quephyr",
     "role": "both"
   }
