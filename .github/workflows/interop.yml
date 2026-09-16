@@ -44,7 +44,7 @@ jobs:
           STARTTIME=$(date +%s)
           echo $STARTTIME
           echo "starttime=$STARTTIME" >> $GITHUB_OUTPUT
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: 3.12
@@ -72,7 +72,7 @@ jobs:
       matrix:
         image: [ 'quic-network-simulator', 'quic-interop-iperf-endpoint' ]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Pull
       run: |
         URL="martenseemann/${{ matrix.image }}"
@@ -98,7 +98,7 @@ jobs:
         image: ${{ fromJson(needs.config.outputs.images) }}
     name: Pull ${{ matrix.image }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Run docker pull
         run: |
           URL=$(jq -r '.["${{ matrix.image }}"].image' "${{ needs.config.outputs.implementations_file }}")
@@ -139,7 +139,7 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: 3.12

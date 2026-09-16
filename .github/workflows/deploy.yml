@@ -9,7 +9,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Upload website to interop.seemann.io
         uses: burnett01/rsync-deployments@dc0d5d44c4728aad3f02154a87309809e62a960f # v8.0.4
         with:
