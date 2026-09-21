@@ -77,6 +77,15 @@ jobs:
           sudo add-apt-repository ppa:wireshark-dev/nightly
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends tshark
+      - name: Install Linux QUIC module
+        if: ${{ matrix.client == 'linuxquic' || inputs.server == 'linuxquic' }}
+        run: |
+          [ -f /usr/include/linux/quic.h ] && exit 0
+          git clone https://github.com/lxin/quic.git
+          cd quic && sed -i '/LIBGNUTLS/d' configure.ac
+          ./autogen.sh && ./configure --prefix=/usr
+          sudo make -C modules install
+          cd ../ && rm -r quic
       - name: Install Python packages
         run: |
           pip install -U pip
