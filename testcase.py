@@ -309,10 +309,28 @@ class TestCase(abc.ABC):
 
     def _count_handshakes(self) -> int:
         """Count the number of QUIC handshakes"""
-        tr = self._server_trace()
-        # Determine the number of handshakes by looking at Initial packets.
-        # This is easier, since the SCID of Initial packets doesn't changes.
-        return len(set([p.scid for p in tr.get_initial(Direction.FROM_SERVER)]))
+        tr = self._client_trace()
+        # Each connection attempt sends the start of its ClientHello (CRYPTO offset 0) to an
+        # ID the client chose (RFC 9000, Section 7.2). Resends after the server's Initial or
+        # Retry go to the ID the server chose, so those IDs are left out.
+
+        def starts_client_hello(p) -> bool:
+            offsets = p.get_field("crypto_offset")
+            return offsets is not None and any(
+                f.get_default_value() == "0" for f in offsets.all_fields
+            )
+
+        server_chosen = set(
+            getattr(p, "scid", "")
+            for p in tr.get_initial(Direction.FROM_SERVER)
+            + tr.get_retry(Direction.FROM_SERVER)
+        )
+        client_chosen = set(
+            getattr(p, "dcid", "")
+            for p in tr.get_initial(Direction.FROM_CLIENT)
+            if starts_client_hello(p)
+        )
+        return len(client_chosen - server_chosen)
 
     def _get_versions(self) -> set:
         """Get the QUIC versions"""
