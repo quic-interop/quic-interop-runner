@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Callable, List, Tuple
 import prettytable
 from termcolor import colored
+import time
 
 import testcases_quic
 from result import TestResult
@@ -442,22 +443,28 @@ class InteropRunner:
         logging.debug("Command: %s", cmd)
 
         status = TestResult.FAILED
-        output = ""
         expired = False
+        lines = []
         try:
-            r = subprocess.run(
+            start = time.time()
+            r = subprocess.Popen(
                 cmd,
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                timeout=test.timeout(),
             )
-            output = r.stdout
+            while r.poll() is None:
+                if time.time() - start > test.timeout():
+                    raise subprocess.TimeoutExpired(cmd, test.timeout())
+                line = r.stdout.readline()
+                if line:
+                    logging.debug("| %s", line[:-1].decode("utf-8", errors="replace"))
+                    lines.append(line)
         except subprocess.TimeoutExpired as ex:
             output = ex.stdout
+            if output is not None:
+                logging.debug("%s", output.decode("utf-8", errors="replace"))
             expired = True
-
-        logging.debug("%s", output.decode("utf-8", errors="replace"))
 
         if expired:
             logging.debug("Test failed: took longer than %ds.", test.timeout())
@@ -476,7 +483,6 @@ class InteropRunner:
         self._copy_logs("server", server_log_dir)
 
         if not expired:
-            lines = output.splitlines()
             exit_lines = [
                 str(line) for line in lines if "exited with code" in str(line)
             ]
