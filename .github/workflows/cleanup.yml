@@ -16,7 +16,7 @@ jobs:
           key: ${{ secrets.INTEROP_SEEMANN_IO_SSH_KEY }}
           script: |
             delete_oldest_folder() {
-                OLDEST_DIR=$(find "${{ vars.LOG_DIR_QUIC }}" -mindepth 1 -maxdepth 1 -type d -printf '%T+ %p\n' | sort | head -n 1 | cut -d" " -f2-)
+                OLDEST_DIR=$(find "${{ vars.LOG_DIR_QUIC }}" "${{ vars.LOG_DIR_WEBTRANSPORT }}" -mindepth 1 -maxdepth 1 -type d -printf '%T+ %p\n' | sort | head -n 1 | cut -d" " -f2-)
                 if [[ -n "$OLDEST_DIR" ]]; then
                     echo "Deleting oldest directory: $OLDEST_DIR"
                     rm -rf "$OLDEST_DIR"
@@ -38,6 +38,8 @@ jobs:
             done
 
             TEMP_FILE=$(mktemp)
-            find "${{ vars.LOG_DIR_QUIC }}" -mindepth 1 -maxdepth 1 -type d -not -name 'lost+found' -exec basename {} \; | sort > "$TEMP_FILE"
-            jq -R -s 'split("\n") | map(select(. != ""))' "$TEMP_FILE" > "${{ vars.LOG_DIR_QUIC }}/logs.json"
+            for LOG_DIR in "${{ vars.LOG_DIR_QUIC }}" "${{ vars.LOG_DIR_WEBTRANSPORT }}"; do
+                find "$LOG_DIR" -mindepth 1 -maxdepth 1 -type d -not -name 'lost+found' -exec basename {} \; | sort > "$TEMP_FILE"
+                jq -R -s 'split("\n") | map(select(. != ""))' "$TEMP_FILE" > "$LOG_DIR/logs.json"
+            done
             rm -f "$TEMP_FILE"
