@@ -1,5 +1,6 @@
 name: cleanup
 on:
+  workflow_dispatch:
   schedule:
     # Every 12h, at 03:00 and 15:00 UTC
     - cron: "0 3,15 * * *"
