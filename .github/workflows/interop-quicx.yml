@@ -1,0 +1,336 @@
+name: QuicX Interop
+# Runs only the quicx-related combinations of the interop matrix
+# (quicx as server vs all clients + quicx as client vs all servers)
+# and publishes the results to caozhiyi.github.io.
+# This avoids the full N x N matrix, which would exceed GitHub's
+# 256-jobs-per-workflow-run limit (the reason the upstream repo
+# stopped accepting new implementations).
+on:
+  schedule:
+    # Every Monday at 03:30 UTC.
+    - cron: "30 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  config:
+    runs-on: ubuntu-latest
+    outputs:
+      logname: ${{ steps.set-logname.outputs.logname }}
+      starttime: ${{ steps.set-starttime.outputs.starttime }}
+      servers: ${{ steps.set-servers.outputs.servers }}
+      clients: ${{ steps.set-clients.outputs.clients }}
+      peer_servers: ${{ steps.set-peer-servers.outputs.peer_servers }}
+      images: ${{ steps.set-images.outputs.images }}
+    steps:
+      - name: Set log name
+        id: set-logname
+        run: |
+          LOGNAME=$(date -u +"%Y-%m-%dT%H:%M")
+          echo "logname=$LOGNAME" >> $GITHUB_OUTPUT
+      - name: Save start time
+        id: set-starttime
+        run: |
+          STARTTIME=$(date +%s)
+          echo "starttime=$STARTTIME" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v7
+      - name: Determine all servers (for the result table)
+        id: set-servers
+        run: |
+          SERVERS=$(jq -c 'with_entries(select(.value.role == "server" or .value.role == "both")) | keys_unsorted' implementations_quic.json)
+          echo "servers=$SERVERS" >> $GITHUB_OUTPUT
+      - name: Determine all clients (for the result table)
+        id: set-clients
+        run: |
+          CLIENTS=$(jq -c 'with_entries(select(.value.role == "client" or .value.role == "both")) | keys_unsorted' implementations_quic.json)
+          echo "clients=$CLIENTS" >> $GITHUB_OUTPUT
+      - name: Determine peer servers (servers excluding quicx)
+        id: set-peer-servers
+        run: |
+          PEER_SERVERS=$(jq -c 'with_entries(select(.value.role == "server" or .value.role == "both") | select(.key != "quicx")) | keys_unsorted' implementations_quic.json)
+          echo "peer_servers=$PEER_SERVERS" >> $GITHUB_OUTPUT
+      - name: Determine Docker images
+        id: set-images
+        run: |
+          IMAGES=$(jq -c 'keys_unsorted' implementations_quic.json)
+          echo "images=$IMAGES" >> $GITHUB_OUTPUT
+
+  pull-tools:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: [ 'quic-network-simulator', 'quic-interop-iperf-endpoint' ]
+    steps:
+      - name: Pull
+        run: |
+          URL="martenseemann/${{ matrix.image }}"
+          docker pull $URL
+          docker save $URL | zstd -8 > ${{ matrix.image }}.tar.zst
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-${{ matrix.image }}
+          path: ${{ matrix.image }}.tar.zst
+          if-no-files-found: error
+
+  pull-images:
+    needs: [ config ]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJson(needs.config.outputs.images) }}
+    name: Pull ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run docker pull
+        run: |
+          URL=$(jq -r '.["${{ matrix.image }}"].image' implementations_quic.json)
+          docker pull $URL
+          docker save $URL | zstd -8 > ${{ matrix.image }}.tar.zst
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-quic-${{ matrix.image }}
+          path: ${{ matrix.image }}.tar.zst
+          if-no-files-found: error
+
+  # quicx as server, matrix over all clients (includes the quicx-quicx self-test)
+  quicx-server:
+    needs: [ config, pull-tools, pull-images ]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        client: ${{ fromJson(needs.config.outputs.clients) }}
+    name: "server: quicx / client: ${{ matrix.client }}"
+    steps:
+      - uses: actions/checkout@v7
+      # Remove this when GitHub runner gets docker engine >= v28.1.0.
+      - uses: docker/setup-docker-action@v5
+        with:
+          version: version=v28.3.0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: 3.12
+      - name: Enable IPv6 support
+        run: sudo modprobe ip6table_filter
+      - name: Download quic-network-simulator image
+        uses: actions/download-artifact@v8
+        with:
+          name: image-quic-network-simulator
+      - name: Download quic-interop-iperf-endpoint image
+        uses: actions/download-artifact@v8
+        with:
+          name: image-quic-interop-iperf-endpoint
+      - name: Download quicx image
+        uses: actions/download-artifact@v8
+        with:
+          name: image-quic-quicx
+      - name: Download ${{ matrix.client }} image
+        if: matrix.client != 'quicx'
+        uses: actions/download-artifact@v8
+        with:
+          name: image-quic-${{ matrix.client }}
+      - name: Load docker images
+        run: |
+          docker load --input quic-network-simulator.tar.zst
+          docker load --input quic-interop-iperf-endpoint.tar.zst
+          docker load --input quicx.tar.zst
+          if [ -f "${{ matrix.client }}.tar.zst" ]; then
+            docker load --input ${{ matrix.client }}.tar.zst
+          fi
+      - name: Install Wireshark
+        run: |
+          sudo add-apt-repository ppa:wireshark-dev/nightly
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends tshark
+      - name: Install Python packages
+        run: |
+          pip install -U pip
+          pip install -r requirements.txt
+      - name: Run tests
+        env:
+          CRON: "true"
+        run: |
+          (python run.py --protocol quic --client ${{ matrix.client }} --server quicx --log-dir logs --json quicx_${{ matrix.client }}_results.json -t onlyTests || true) | tee output.txt
+          mkdir -p logs/quicx_${{ matrix.client }}
+          mv output.txt logs/quicx_${{ matrix.client }}/
+      - name: Run measurements
+        env:
+          CRON: "true"
+        run: |
+          python run.py --protocol quic --client ${{ matrix.client }} --server quicx --log-dir logs_measurement --json quicx_${{ matrix.client }}_measurements.json -t onlyMeasurements || true
+          if [ ! -d "logs_measurement" ]; then exit 0; fi
+          find logs_measurement -depth -name "sim" -type d -exec rm -r "{}" \;
+          find logs_measurement -depth -name "client" -type d -exec rm -r "{}" \;
+          find logs_measurement -depth -name "server" -type d -exec rm -r "{}" \;
+          mv logs_measurement/quicx_${{ matrix.client }}/* logs/quicx_${{ matrix.client }}/
+      - name: Strip packet captures (GitHub Pages size limit)
+        run: |
+          find logs -name "*.pcapng" -delete 2>/dev/null || true
+          find logs -name "*.pcap" -delete 2>/dev/null || true
+      - name: Upload logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: logs-quicx-${{ matrix.client }}
+          path: logs/
+          if-no-files-found: ignore
+      - name: Upload test result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: results-quic-quicx-${{ matrix.client }}-tests
+          if-no-files-found: error
+          path: quicx_${{ matrix.client }}_results.json
+      - name: Upload measurement result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: results-quic-quicx-${{ matrix.client }}-measurements
+          if-no-files-found: error
+          path: quicx_${{ matrix.client }}_measurements.json
+
+  # quicx as client, matrix over all peer servers
+  quicx-client:
+    needs: [ config, pull-tools, pull-images ]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        server: ${{ fromJson(needs.config.outputs.peer_servers) }}
+    name: "server: ${{ matrix.server }} / client: quicx"
+    steps:
+      - uses: actions/checkout@v7
+      # Remove this when GitHub runner gets docker engine >= v28.1.0.
+      - uses: docker/setup-docker-action@v5
+        with:
+          version: version=v28.3.0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: 3.12
+      - name: Enable IPv6 support
+        run: sudo modprobe ip6table_filter
+      - name: Download quic-network-simulator image
+        uses: actions/download-artifact@v8
+        with:
+          name: image-quic-network-simulator
+      - name: Download quic-interop-iperf-endpoint image
+        uses: actions/download-artifact@v8
+        with:
+          name: image-quic-interop-iperf-endpoint
+      - name: Download quicx image
+        uses: actions/download-artifact@v8
+        with:
+          name: image-quic-quicx
+      - name: Download ${{ matrix.server }} image
+        uses: actions/download-artifact@v8
+        with:
+          name: image-quic-${{ matrix.server }}
+      - name: Load docker images
+        run: |
+          docker load --input quic-network-simulator.tar.zst
+          docker load --input quic-interop-iperf-endpoint.tar.zst
+          docker load --input quicx.tar.zst
+          docker load --input ${{ matrix.server }}.tar.zst
+      - name: Install Wireshark
+        run: |
+          sudo add-apt-repository ppa:wireshark-dev/nightly
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends tshark
+      - name: Install Python packages
+        run: |
+          pip install -U pip
+          pip install -r requirements.txt
+      - name: Run tests
+        env:
+          CRON: "true"
+        run: |
+          (python run.py --protocol quic --client quicx --server ${{ matrix.server }} --log-dir logs --json ${{ matrix.server }}_quicx_results.json -t onlyTests || true) | tee output.txt
+          mkdir -p logs/${{ matrix.server }}_quicx
+          mv output.txt logs/${{ matrix.server }}_quicx/
+      - name: Run measurements
+        env:
+          CRON: "true"
+        run: |
+          python run.py --protocol quic --client quicx --server ${{ matrix.server }} --log-dir logs_measurement --json ${{ matrix.server }}_quicx_measurements.json -t onlyMeasurements || true
+          if [ ! -d "logs_measurement" ]; then exit 0; fi
+          find logs_measurement -depth -name "sim" -type d -exec rm -r "{}" \;
+          find logs_measurement -depth -name "client" -type d -exec rm -r "{}" \;
+          find logs_measurement -depth -name "server" -type d -exec rm -r "{}" \;
+          mv logs_measurement/${{ matrix.server }}_quicx/* logs/${{ matrix.server }}_quicx/
+      - name: Strip packet captures (GitHub Pages size limit)
+        run: |
+          find logs -name "*.pcapng" -delete 2>/dev/null || true
+          find logs -name "*.pcap" -delete 2>/dev/null || true
+      - name: Upload logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: logs-${{ matrix.server }}-quicx
+          path: logs/
+          if-no-files-found: ignore
+      - name: Upload test result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: results-quic-${{ matrix.server }}-quicx-tests
+          if-no-files-found: error
+          path: ${{ matrix.server }}_quicx_results.json
+      - name: Upload measurement result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: results-quic-${{ matrix.server }}-quicx-measurements
+          if-no-files-found: error
+          path: ${{ matrix.server }}_quicx_measurements.json
+
+  publish:
+    needs: [ config, quicx-server, quicx-client ]
+    runs-on: ubuntu-latest
+    if: ${{ always() && !cancelled() && needs.quicx-server.result != 'skipped' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: 3.12
+      - name: Download results
+        uses: actions/download-artifact@v8
+        with:
+          pattern: results-*
+      - name: Aggregate results
+        run: |
+          mv results-*/*.json .
+          python .github/workflows/aggregate.py \
+            --start-time ${{ needs.config.outputs.starttime }} \
+            --server ${{ join(fromJson(needs.config.outputs.servers), ',') }} \
+            --client ${{ join(fromJson(needs.config.outputs.clients), ',') }} \
+            --log-dir=logs_${{ needs.config.outputs.logname }} \
+            --output result.json
+          jq '.' result.json
+      - name: Checkout website repository
+        uses: actions/checkout@v7
+        with:
+          repository: caozhiyi/caozhiyi.github.io
+          token: ${{ secrets.SITE_DEPLOY_TOKEN }}
+          ref: main
+          path: website
+      - name: Publish results and logs to the website repository
+        run: |
+          python .github/workflows/publish_site.py \
+            --run-name logs_${{ needs.config.outputs.logname }} \
+            --result result.json \
+            --site-dir website \
+            --keep-runs 30
+      - name: Commit and push
+        run: |
+          cd website
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/interop
+          git commit -m "interop: update results for logs_${{ needs.config.outputs.logname }}" || echo "nothing to commit"
+          git push
