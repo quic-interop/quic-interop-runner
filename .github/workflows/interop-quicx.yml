@@ -302,10 +302,6 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           pattern: results-*
-      - name: Download logs
-        uses: actions/download-artifact@v8
-        with:
-          pattern: logs-*
       - name: Aggregate results
         run: |
           mv results-*/*.json .
@@ -328,7 +324,6 @@ jobs:
           python .github/workflows/publish_site.py \
             --run-name logs_${{ needs.config.outputs.logname }} \
             --result result.json \
-            --logs-glob "logs-*" \
             --site-dir website \
             --keep-runs 30
       - name: Commit and push
