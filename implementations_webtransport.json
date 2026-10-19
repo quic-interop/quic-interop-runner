@@ -28,5 +28,10 @@
     "image": "ghcr.io/alibaba/xquic/xquic-webtransport-interop:latest",
     "url": "https://github.com/alibaba/xquic/tree/main",
     "role": "both"
+  },
+  "aiopquic": {
+    "image": "ghcr.io/gmarzot/aiopquic-wt-interop:latest",
+    "url": "https://github.com/gmarzot/aiopquic",
+    "role": "both"
   }
 }
