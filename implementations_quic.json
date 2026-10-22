@@ -83,5 +83,10 @@
     "image": "us-central1-docker.pkg.dev/golang-interop-testing/quic/go-x-net:latest",
     "url": "https://pkg.go.dev/golang.org/x/net/internal/quic",
     "role": "both"
+  },
+  "linuxquic": {
+    "image": "quay.io/lxin/linuxquic-interop:latest",
+    "url": "https://github.com/lxin/quic",
+    "role": "both"
   }
 }

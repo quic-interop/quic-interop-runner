@@ -2,6 +2,7 @@ import argparse
 import json
 from enum import Enum
 from typing import Dict
+import os
 
 
 class Role(Enum):
@@ -23,6 +24,8 @@ def get_implementations(filename: str) -> Dict[str, Dict[str, str | Role]]:
     with open(filename, "r") as f:
         data = json.load(f)
         for name, val in data.items():
+            if name == "linuxquic" and not os.path.exists("/usr/include/linux/quic.h"):
+                continue
             implementations[name] = {"image": val["image"], "url": val["url"]}
             role = val["role"]
             if role == "server":
