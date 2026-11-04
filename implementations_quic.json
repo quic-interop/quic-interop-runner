@@ -10,7 +10,7 @@
     "role": "both"
   },
   "mvfst": {
-    "image": "ghcr.io/facebook/proxygen/mvfst-interop:latest",
+    "image": "ghcr.io/meta/proxygen/mvfst-interop:latest",
     "url": "https://github.com/facebookincubator/mvfst",
     "role": "both"
   },
