@@ -1324,6 +1324,70 @@ class TestCaseV2(TestCaseQuic):
         return set([hex(int(p.version, 0)) for p in packets])
 
 
+class TestCasePostQuantum(TestCaseQuic):
+    @staticmethod
+    def name():
+        return "post-quantum"
+
+    @staticmethod
+    def abbreviation():
+        return "PQ"
+    
+    @staticmethod
+    def desc():
+        return "Client should send a ClientHello in two frames or more."
+    
+    def get_paths_raw(self):
+        self._files = [self._generate_random_file(1 * KB)]
+        return self._files
+
+    def check(self) -> TestResult:
+        super().check()
+        if not self._check_version_and_files():
+            return TestResult.FAILED
+        if self._retry_sent():
+            logging.info("Didn't expect a Retry to be sent.")
+            return TestResult.FAILED
+        num_handshakes = self._count_handshakes()
+        if num_handshakes != 1:
+            logging.info("Expected exactly 1 handshake. Got: %d", num_handshakes)
+            return TestResult.FAILED
+
+        initial_packets = self._client_trace().get_initial(Direction.FROM_CLIENT)
+        client_hello = []
+        for p in initial_packets:
+            if hasattr(p, "tls_handshake") and "Client Hello" in p.tls_handshake:
+                client_hello.append({"start":int(p.crypto_offset), "end":int(p.crypto_offset) + int(p.crypto_length), "packet_number":int(p.packet_number)})
+        client_hello.sort(key=lambda x : x["start"])
+
+        i = 0
+        client_hello_agregated = [dic.copy() for dic in client_hello]
+        while i < len(client_hello_agregated):
+            client_hello_agregated[i]["of_different_packet"] = False
+            for j in range(i + 1, len(client_hello_agregated)):
+                if client_hello_agregated[i]["end"] == client_hello_agregated[j]["start"]:
+                    client_hello_agregated[i]["end"] = client_hello_agregated[j]["end"]
+                    client_hello_agregated[i]["of_different_packet"] =      \
+                        client_hello_agregated[i]["of_different_packet"] or \
+                        client_hello_agregated[i]["packet_number"] != client_hello_agregated[j]["packet_number"]
+                    client_hello_agregated.pop(j)
+                    break
+            i += 1
+
+        if len(client_hello_agregated) != 1:
+            logging.info(
+                "Expected exactly one Client Hello in client Handshake. Got %s", client_hello
+            )
+            return TestResult.FAILED
+
+        if not client_hello_agregated[0]["of_different_packet"]:
+            logging.info(
+                "Expected that the Client Hello is separated between different packets. Got %s", client_hello
+            )
+            return TestResult.FAILED
+        return TestResult.SUCCEEDED
+
+
 class MeasurementGoodput(Measurement):
     FILESIZE = 10 * MB
     _result = 0.0
@@ -1440,6 +1504,7 @@ TESTCASES_QUIC = [
     TestCasePortRebinding,
     TestCaseAddressRebinding,
     TestCaseConnectionMigration,
+    TestCasePostQuantum,
 ]
 
 MEASUREMENTS = [
