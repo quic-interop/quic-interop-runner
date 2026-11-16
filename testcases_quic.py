@@ -1010,7 +1010,8 @@ class TestCasePortRebinding(TestCaseTransfer):
         cur = None
         last = None
         paths = set()
-        challenges = set()
+        # The PATH_CHALLENGE data the server sent on each new path.
+        challenges = {}
         for p in tr_server:
             cur = self._path(p)
             if last is None:
@@ -1028,8 +1029,9 @@ class TestCasePortRebinding(TestCaseTransfer):
                     )
                     logging.info(p["quic"])
                     return TestResult.FAILED
-                else:
-                    challenges.add(getattr(p["quic"], "path_challenge.data"))
+                challenges[cur] = set()
+            if cur in challenges and hasattr(p["quic"], "path_challenge.data"):
+                challenges[cur].add(getattr(p["quic"], "path_challenge.data"))
         paths.add(cur)
 
         logging.info("Server saw these paths used: %s", paths)
@@ -1041,17 +1043,24 @@ class TestCasePortRebinding(TestCaseTransfer):
             self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
         )
 
-        responses = list(
-            set(
-                getattr(p["quic"], "path_response.data")
-                for p in tr_client
-                if hasattr(p["quic"], "path_response.data")
-            )
+        responses = set(
+            getattr(p["quic"], "path_response.data")
+            for p in tr_client
+            if hasattr(p["quic"], "path_response.data")
         )
 
-        unresponded = [c for c in challenges if c not in responses]
-        if unresponded != []:
-            logging.info("PATH_CHALLENGE without a PATH_RESPONSE: %s", unresponded)
+        # A new path is validated once the client answers any PATH_CHALLENGE sent on
+        # it. A lost PATH_CHALLENGE is followed by one with new data (RFC 9000, Section
+        # 13.3), so the first one on a path need not be the one answered.
+        unresponded = {
+            path: sorted(sent)
+            for path, sent in challenges.items()
+            if sent.isdisjoint(responses)
+        }
+        if unresponded != {}:
+            logging.info(
+                "PATH_CHALLENGE without a PATH_RESPONSE on a new path: %s", unresponded
+            )
             return TestResult.FAILED
 
         return TestResult.SUCCEEDED
