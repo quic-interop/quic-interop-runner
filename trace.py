@@ -1,5 +1,6 @@
 import datetime
 import logging
+import asyncio
 from enum import Enum
 from typing import List, Optional, Tuple
 
@@ -98,6 +99,8 @@ class TraceAnalyzer:
             return f
 
     def _get_packets(self, f: str) -> List:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         override_prefs = {}
         if self._keylog_file is not None:
             override_prefs["tls.keylog_file"] = self._keylog_file
@@ -107,6 +110,7 @@ class TraceAnalyzer:
             override_prefs=override_prefs,
             disable_protocol="http3",  # see https://github.com/quic-interop/quic-interop-runner/pull/179
             decode_as={"udp.port==443": "quic"},
+            eventloop = loop,
         )
         packets = []
         # If the pcap has been cut short in the middle of the packet, pyshark will crash.
