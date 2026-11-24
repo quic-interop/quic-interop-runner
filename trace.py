@@ -1,6 +1,7 @@
+import asyncio
 import datetime
 import logging
-import asyncio
+import subprocess
 from enum import Enum
 from typing import List, Optional, Tuple
 
@@ -110,7 +111,7 @@ class TraceAnalyzer:
             override_prefs=override_prefs,
             disable_protocol="http3",  # see https://github.com/quic-interop/quic-interop-runner/pull/179
             decode_as={"udp.port==443": "quic"},
-            eventloop = loop,
+            eventloop=loop,
         )
         packets = []
         # If the pcap has been cut short in the middle of the packet, pyshark will crash.
@@ -141,15 +142,7 @@ class TraceAnalyzer:
 
     def get_1rtt(self, direction: Direction = Direction.ALL) -> List:
         """Get all QUIC packets, one or both directions."""
-        packets, _, _ = self.get_1rtt_sniff_times(direction)
-        return packets
-
-    def get_1rtt_sniff_times(
-        self, direction: Direction = Direction.ALL
-    ) -> Tuple[List, datetime.datetime, datetime.datetime]:
-        """Get all QUIC packets, one or both directions, and first and last sniff times."""
         packets = []
-        first, last = 0, 0
         for packet in self._get_packets(
             self._get_direction_filter(direction) + "quic.header_form==0"
         ):
@@ -159,11 +152,45 @@ class TraceAnalyzer:
                     and not hasattr(layer, "long_packet_type")
                     and not hasattr(layer, "long_packet_type_v2")
                 ):
-                    if first == 0:
-                        first = packet.sniff_time
-                    last = packet.sniff_time
                     packets.append(layer)
-        return packets, first, last
+        return packets
+
+    def get_1rtt_sniff_times(
+        self, direction: Direction = Direction.ALL
+    ) -> Optional[Tuple[datetime.datetime, datetime.datetime]]:
+        """
+        Get the sniff times of the first and last 1-RTT packets, one or both directions.
+
+        Only the timestamps are read, as parsing every packet with pyshark can take
+        minutes for the large captures of the measurements.
+        """
+        cmd = ["tshark", "-n", "-r", self._filename]
+        if self._keylog_file is not None:
+            cmd += ["-o", "tls.keylog_file:" + self._keylog_file]
+        cmd += [
+            "--disable-protocol",
+            "http3",  # see https://github.com/quic-interop/quic-interop-runner/pull/179
+            "-d",
+            "udp.port==443,quic",
+            "-Y",
+            self._get_direction_filter(direction) + "quic.header_form==0",
+            "-T",
+            "fields",
+            "-e",
+            "frame.time_epoch",
+        ]
+        r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # If the pcap has been cut short in the middle of a packet, tshark still
+        # prints the packets before it.
+        if r.returncode != 0:
+            logging.debug("tshark: %s", r.stderr.decode("utf-8", errors="replace"))
+        times = r.stdout.split()
+        if not times:
+            return None
+        return (
+            datetime.datetime.fromtimestamp(float(times[0])),
+            datetime.datetime.fromtimestamp(float(times[-1])),
+        )
 
     def get_vnp(self, direction: Direction = Direction.ALL) -> List:
         return self._get_packets(
