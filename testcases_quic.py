@@ -167,6 +167,7 @@ class TestCaseLongRTT(TestCaseHandshake):
             # for details.
             elif "quic.retransmission" in p or "quic.overlap" in p:
                 num_ch += 1
+        logging.debug("Client sent %d ClientHellos.", num_ch)
         if num_ch < 2:
             logging.info("Expected at least 2 ClientHellos. Got: %d", num_ch)
             return TestResult.FAILED
