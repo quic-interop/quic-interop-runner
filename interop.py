@@ -436,7 +436,8 @@ class InteropRunner:
         containers = "sim client server " + " ".join(test.additional_containers())
         cmd = (
             params
-            + " docker compose --env-file empty.env up --abort-on-container-exit --timeout 10 "
+            # The shutdown timeout comes from each service's stop_grace_period.
+            + " docker compose --env-file empty.env up --abort-on-container-exit "
             + containers
         )
         logging.debug("Command: %s", cmd)
