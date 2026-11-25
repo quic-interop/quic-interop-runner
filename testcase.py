@@ -10,12 +10,17 @@ import os
 import re
 from enum import Enum
 from Crypto.Cipher import AES
-from trace import Direction, TraceAnalyzer
+from trace import Direction, Fields, TraceAnalyzer
 from typing import List
 
 from result import TestResult
 
-QUIC_VERSION = hex(0x1)
+QUIC_VERSION = 0x1
+
+
+def format_versions(versions: set) -> str:
+    """Format QUIC versions in hex, for the messages of the checks."""
+    return str(set(hex(v) for v in versions))
 
 
 def docker_cleanup_dir(directory: str):
@@ -241,12 +246,18 @@ class TestCase(abc.ABC):
         return len(self._client_trace().get_retry()) > 0
 
     def _check_version_and_files(self) -> bool:
-        versions = [hex(int(v, 0)) for v in self._get_versions()]
+        versions = self._get_versions()
         if len(versions) != 1:
-            logging.info("Expected exactly one version. Got %s", versions)
+            logging.info(
+                "Expected exactly one version. Got %s", format_versions(versions)
+            )
             return False
         if QUIC_VERSION not in versions:
-            logging.info("Wrong version. Expected %s, got %s", QUIC_VERSION, versions)
+            logging.info(
+                "Wrong version. Expected %s, got %s",
+                hex(QUIC_VERSION),
+                format_versions(versions),
+            )
             return False
         return self._check_files()
 
@@ -312,25 +323,25 @@ class TestCase(abc.ABC):
         tr = self._server_trace()
         # Determine the number of handshakes by looking at Initial packets.
         # This is easier, since the SCID of Initial packets doesn't changes.
-        return len(set([p.scid for p in tr.get_initial(Direction.FROM_SERVER)]))
+        return len(set([p["quic.scid"] for p in tr.get_initial(Direction.FROM_SERVER)]))
 
     def _get_versions(self) -> set:
         """Get the QUIC versions"""
         tr = self._server_trace()
-        return set([p.version for p in tr.get_initial(Direction.FROM_SERVER)])
+        return set([p["quic.version"] for p in tr.get_initial(Direction.FROM_SERVER)])
 
-    def _payload_size(self, packets: List) -> int:
+    def _payload_size(self, packets: List[Fields]) -> int:
         """Get the sum of the payload sizes of all packets"""
         size = 0
         for p in packets:
-            if hasattr(p, "long_packet_type") or hasattr(p, "long_packet_type_v2"):
-                if hasattr(p, "payload"):  # when keys are available
-                    size += len(p.payload.split(":"))
+            if "quic.long.packet_type" in p or "quic.long.packet_type_v2" in p:
+                if "quic.payload" in p:  # when keys are available
+                    size += len(p["quic.payload"])
                 else:
-                    size += len(p.remaining_payload.split(":"))
+                    size += len(p["quic.remaining_payload"])
             else:
-                if hasattr(p, "protected_payload"):
-                    size += len(p.protected_payload.split(":"))
+                if "quic.protected_payload" in p:
+                    size += len(p["quic.protected_payload"])
         return size
 
     def cleanup(self):

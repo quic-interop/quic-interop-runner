@@ -7,6 +7,7 @@ import string
 from trace import (
     QUIC_V2,
     Direction,
+    Fields,
     PacketType,
     get_direction,
     get_packet_type,
@@ -19,6 +20,7 @@ from testcase import (
     Measurement,
     Perspective,
     TestCase,
+    format_versions,
     generate_cert_chain,
 )
 
@@ -37,6 +39,10 @@ class ECN(IntEnum):
     ECT1 = 1
     ECT0 = 2
     CE = 3
+
+
+# The fields the ECN check reads in each datagram.
+ECN_FIELDS = ["ip.dsfield.ecn", "quic.ack.ect0_count"]
 
 
 class TestCaseQuic(TestCase):
@@ -71,17 +77,19 @@ class TestCaseVersionNegotiation(TestCaseQuic):
     def check(self) -> TestResult:
         super().check()
         tr = self._client_trace()
-        initials = tr.get_initial(Direction.FROM_CLIENT)
-        dcid = ""
-        for p in initials:
-            dcid = p.dcid
-            break
-        if dcid == "":
+        # Wireshark does not dissect the packet type of an unknown version.
+        initials = tr.get_fields(
+            fields=["quic.dcid"],
+            direction=Direction.FROM_CLIENT,
+            display_filter="quic.header_form==1",
+        )
+        if not initials or "quic.dcid" not in initials[0]:
             logging.info("Didn't find an Initial / a DCID.")
             return TestResult.FAILED
-        vnps = tr.get_vnp()
+        dcid = initials[0]["quic.dcid"]
+        vnps = tr.get_fields(fields=["quic.scid"], display_filter="quic.version==0")
         for p in vnps:
-            if p.scid == dcid:
+            if dcid in p.get_all("quic.scid"):
                 return TestResult.SUCCEEDED
         logging.info("Didn't find a Version Negotiation Packet with matching SCID.")
         return TestResult.FAILED
@@ -150,14 +158,14 @@ class TestCaseLongRTT(TestCaseHandshake):
             return TestResult.FAILED
         num_ch = 0
         for p in self._client_trace().get_initial(Direction.FROM_CLIENT):
-            if hasattr(p, "tls_handshake_type"):
-                if p.tls_handshake_type == "1":
+            if "tls.handshake.type" in p:
+                if p["tls.handshake.type"] == 1:
                     num_ch += 1
             # Retransmitted ClientHello does not have
-            # tls_handshake_type attribute.  See
+            # tls.handshake.type field.  See
             # https://gitlab.com/wireshark/wireshark/-/issues/18696
             # for details.
-            elif hasattr(p, "retransmission") or hasattr(p, "overlap"):
+            elif "quic.retransmission" in p or "quic.overlap" in p:
                 num_ch += 1
         if num_ch < 2:
             logging.info("Expected at least 2 ClientHellos. Got: %d", num_ch)
@@ -226,14 +234,12 @@ class TestCaseChaCha20(TestCaseQuic):
             return TestResult.FAILED
         ciphersuites = []
         for p in self._client_trace().get_initial(Direction.FROM_CLIENT):
-            if hasattr(p, "tls_handshake_ciphersuite"):
-                ciphersuites.append(p.tls_handshake_ciphersuite)
-        if len(set(ciphersuites)) != 1 or (
-            ciphersuites[0] != "4867" and ciphersuites[0] != "0x1303"
-        ):
+            if "tls.handshake.ciphersuite" in p:
+                ciphersuites.append(p["tls.handshake.ciphersuite"])
+        if len(set(ciphersuites)) != 1 or ciphersuites[0] != 0x1303:
             logging.info(
                 "Expected only ChaCha20 cipher suite to be offered. Got: %s",
-                set(ciphersuites),
+                set(hex(c) for c in ciphersuites),
             )
             return TestResult.FAILED
         if not self._check_version_and_files():
@@ -277,11 +283,9 @@ class TestCaseMultiplexing(TestCaseQuic):
         # Check that the server set a bidirectional stream limit <= 1000
         checked_stream_limit = False
         for p in self._client_trace().get_handshake(Direction.FROM_SERVER):
-            if hasattr(p, "tls.quic.parameter.initial_max_streams_bidi"):
+            if "tls.quic.parameter.initial_max_streams_bidi" in p:
                 checked_stream_limit = True
-                stream_limit = int(
-                    getattr(p, "tls.quic.parameter.initial_max_streams_bidi")
-                )
+                stream_limit = p["tls.quic.parameter.initial_max_streams_bidi"]
                 logging.debug("Server set bidirectional stream limit: %d", stream_limit)
                 if stream_limit > 1000:
                     logging.info("Server set a stream limit > 1000.")
@@ -317,11 +321,11 @@ class TestCaseRetry(TestCaseQuic):
         tokens = []
         retries = tr.get_retry(Direction.FROM_SERVER)
         for p in retries:
-            if not hasattr(p, "retry_token"):
+            if "quic.retry_token" not in p:
                 logging.info("Retry packet doesn't have a retry_token")
                 logging.info(p)
                 return False
-            tokens += [p.retry_token.replace(":", "")]
+            tokens += [p["quic.retry_token"]]
         if len(tokens) == 0:
             logging.info("Didn't find any Retry packets.")
             return False
@@ -329,8 +333,8 @@ class TestCaseRetry(TestCaseQuic):
         # check that an Initial packet uses a token sent in the Retry packet(s)
         highest_pn_before_retry = -1
         for p in tr.get_initial(Direction.FROM_CLIENT):
-            pn = int(p.packet_number)
-            if p.token_length == "0":
+            pn = p["quic.packet_number"]
+            if p["quic.token_length"] == 0:
                 highest_pn_before_retry = max(highest_pn_before_retry, pn)
                 continue
             if pn <= highest_pn_before_retry:
@@ -338,9 +342,9 @@ class TestCaseRetry(TestCaseQuic):
                     "Client reset the packet number. Check failed for PN %d", pn
                 )
                 return False
-            token = p.token.replace(":", "")
+            token = p["quic.token"]
             if token in tokens:
-                logging.debug("Check of Retry succeeded. Token used: %s", token)
+                logging.debug("Check of Retry succeeded. Token used: %s", token.hex())
                 return True
         logging.info("Didn't find any Initial packet using a Retry token.")
         return False
@@ -389,14 +393,14 @@ class TestCaseResumption(TestCaseQuic):
             return TestResult.FAILED
 
         handshake_packets = self._client_trace().get_handshake(Direction.FROM_SERVER)
-        cids = [p.scid for p in handshake_packets]
+        cids = [p["quic.scid"] for p in handshake_packets]
         first_handshake_has_cert = False
         for p in handshake_packets:
-            if p.scid == cids[0]:
-                if hasattr(p, "tls_handshake_certificates_length"):
+            if p["quic.scid"] == cids[0]:
+                if "tls.handshake.certificates_length" in p:
                     first_handshake_has_cert = True
-            elif p.scid == cids[len(cids) - 1]:  # second handshake
-                if hasattr(p, "tls_handshake_certificates_length"):
+            elif p["quic.scid"] == cids[len(cids) - 1]:  # second handshake
+                if "tls.handshake.certificates_length" in p:
                     logging.info(
                         "Server sent a Certificate message in the second handshake."
                     )
@@ -541,9 +545,10 @@ class TestCaseAmplificationLimit(TestCaseQuic):
         # This way we can make sure that it actually used the provided cert chain.
         max_handshake_offset = 0
         for p in self._server_trace().get_handshake(Direction.FROM_SERVER):
-            if hasattr(p, "crypto_offset"):
+            if "quic.crypto.offset" in p:
                 max_handshake_offset = max(
-                    max_handshake_offset, int(p.crypto_offset) + int(p.crypto_length)
+                    max_handshake_offset,
+                    p["quic.crypto.offset"] + p["quic.crypto.length"],
                 )
         if max_handshake_offset < 7500:
             logging.info(
@@ -567,7 +572,7 @@ class TestCaseAmplificationLimit(TestCaseQuic):
             if packet_type == PacketType.VERSIONNEGOTIATION:
                 logging.info("Didn't expect a Version Negotiation packet.")
                 return TestResult.FAILED
-            packet_size = int(p.udp.length) - 8  # subtract the UDP header length
+            packet_size = p["udp.length"] - 8  # subtract the UDP header length
             if packet_type == PacketType.INVALID:
                 logging.debug("Couldn't determine packet type.")
                 return TestResult.FAILED
@@ -687,27 +692,25 @@ class TestCaseKeyUpdate(TestCaseHandshake):
 
         client = {0: 0, 1: 0}
         server = {0: 0, 1: 0}
-        try:
-
-            def _get_key_phase(pkt) -> int:
-                kp: str = pkt.key_phase.raw_value
-                # when key_phase bit is set in a QUIC packet, certain versions
-                # of wireshark (4.0.11, for example) have been seen to return the string value
-                # "1" and certain other versions of wireshark return the string value "True".
-                # here we deal with such values and return the integer value 1 for either of those.
-                return 1 if kp in ["1", "True"] else 0
-
-            for p in self._client_trace().get_1rtt(Direction.FROM_CLIENT):
-                key_phase = _get_key_phase(p)
-                client[key_phase] += 1
-            for p in self._server_trace().get_1rtt(Direction.FROM_SERVER):
-                key_phase = _get_key_phase(p)
-                server[key_phase] += 1
-        except Exception:
-            logging.info(
-                "Failed to read key phase bits. Potentially incorrect SSLKEYLOG?"
-            )
-            return TestResult.FAILED
+        for counts, trace, direction in [
+            (client, self._client_trace(), Direction.FROM_CLIENT),
+            (server, self._server_trace(), Direction.FROM_SERVER),
+        ]:
+            # A datagram contains at most one 1-RTT packet, as it has no length.
+            for frame in trace.get_fields(
+                fields=["quic.key_phase"],
+                direction=direction,
+                display_filter="quic.header_form==0",
+            ):
+                # The key phase bit is header-protected, so it is absent if the
+                # packet could not be decrypted.
+                if "quic.key_phase" not in frame:
+                    logging.info(
+                        "Failed to read key phase bits. Potentially incorrect SSLKEYLOG?"
+                    )
+                    return TestResult.FAILED
+                key_phase = 1 if frame["quic.key_phase"] else 0
+                counts[key_phase] += 1
 
         succeeded = client[1] * server[1] > 0
 
@@ -875,7 +878,7 @@ class TestCaseECN(TestCaseHandshake):
     def _count_ecn(self, tr):
         ecn = [0] * (max(ECN) + 1)
         for p in tr:
-            e = int(getattr(p["ip"], "dsfield.ecn"))
+            e = p["ip.dsfield.ecn"]
             ecn[e] += 1
         for e in ECN:
             logging.debug("%s %d", e, ecn[e])
@@ -890,7 +893,7 @@ class TestCaseECN(TestCaseHandshake):
     def _check_ack_ecn(self, tr) -> bool:
         # NOTE: We only check whether the trace contains any ACK-ECN information, not whether it is valid
         for p in tr:
-            if hasattr(p["quic"], "ack.ect0_count"):
+            if "quic.ack.ect0_count" in p:
                 return True
         return False
 
@@ -904,16 +907,16 @@ class TestCaseECN(TestCaseHandshake):
         if result != TestResult.SUCCEEDED:
             return result
 
-        tr_client = self._client_trace()._get_packets(
-            self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
+        tr_client = self._client_trace().get_fields(
+            fields=ECN_FIELDS, direction=Direction.FROM_CLIENT
         )
         ecn = self._count_ecn(tr_client)
         ecn_client_any_marked = self._check_ecn_any(ecn)
         ecn_client_all_ok = self._check_ecn_marks(ecn)
         ack_ecn_client_ok = self._check_ack_ecn(tr_client)
 
-        tr_server = self._server_trace()._get_packets(
-            self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
+        tr_server = self._server_trace().get_fields(
+            fields=ECN_FIELDS, direction=Direction.FROM_SERVER
         )
         ecn = self._count_ecn(tr_server)
         ecn_server_any_marked = self._check_ecn_any(ecn)
@@ -978,19 +981,20 @@ class TestCasePortRebinding(TestCaseTransfer):
         """Scenario for the ns3 simulator"""
         return "rebind --delay=15ms --bandwidth=10Mbps --queue=25 --first-rebind=1s --rebind-freq=5s"
 
-    @staticmethod
-    def _addr(p: List, which: str) -> str:
-        return (
-            getattr(p["ipv6"], which)
-            if "IPV6" in str(p.layers)
-            else getattr(p["ip"], which)
-        )
+    PATH_FIELDS = [
+        "ip.src",
+        "ipv6.src",
+        "udp.srcport",
+        "ip.dst",
+        "ipv6.dst",
+        "udp.dstport",
+    ]
 
     @staticmethod
-    def _path(p: List) -> Tuple[str, int, str, int]:
+    def _path(frame: Fields) -> Tuple[Tuple[str, int], Tuple[str, int]]:
         return (
-            (TestCasePortRebinding._addr(p, "src"), int(getattr(p["udp"], "srcport"))),
-            (TestCasePortRebinding._addr(p, "dst"), int(getattr(p["udp"], "dstport"))),
+            (frame.get("ip.src") or frame["ipv6.src"], frame["udp.srcport"]),
+            (frame.get("ip.dst") or frame["ipv6.dst"], frame["udp.dstport"]),
         )
 
     def check(self) -> TestResult:
@@ -1003,16 +1007,17 @@ class TestCasePortRebinding(TestCaseTransfer):
         if result != TestResult.SUCCEEDED:
             return result
 
-        tr_server = self._server_trace()._get_packets(
-            self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
+        tr_server = self._server_trace().get_fields(
+            fields=self.PATH_FIELDS + ["quic.path_challenge.data"],
+            direction=Direction.FROM_SERVER,
         )
 
         cur = None
         last = None
         paths = set()
         challenges = set()
-        for p in tr_server:
-            cur = self._path(p)
+        for frame in tr_server:
+            cur = self._path(frame)
             if last is None:
                 last = cur
                 continue
@@ -1021,15 +1026,15 @@ class TestCasePortRebinding(TestCaseTransfer):
                 paths.add(last)
                 last = cur
                 # Packet on new path, should have a PATH_CHALLENGE frame
-                if hasattr(p["quic"], "path_challenge.data") is False:
+                if "quic.path_challenge.data" not in frame:
                     logging.info(
                         "First server packet on new path %s did not contain a PATH_CHALLENGE frame",
                         cur,
                     )
-                    logging.info(p["quic"])
+                    logging.info(frame)
                     return TestResult.FAILED
                 else:
-                    challenges.add(getattr(p["quic"], "path_challenge.data"))
+                    challenges.add(frame["quic.path_challenge.data"])
         paths.add(cur)
 
         logging.info("Server saw these paths used: %s", paths)
@@ -1037,21 +1042,25 @@ class TestCasePortRebinding(TestCaseTransfer):
             logging.info("Server saw only a single path in use; test broken?")
             return TestResult.FAILED
 
-        tr_client = self._client_trace()._get_packets(
-            self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
+        tr_client = self._client_trace().get_fields(
+            fields=["quic.path_response.data"],
+            direction=Direction.FROM_CLIENT,
         )
 
         responses = list(
             set(
-                getattr(p["quic"], "path_response.data")
-                for p in tr_client
-                if hasattr(p["quic"], "path_response.data")
+                frame["quic.path_response.data"]
+                for frame in tr_client
+                if "quic.path_response.data" in frame
             )
         )
 
         unresponded = [c for c in challenges if c not in responses]
         if unresponded != []:
-            logging.info("PATH_CHALLENGE without a PATH_RESPONSE: %s", unresponded)
+            logging.info(
+                "PATH_CHALLENGE without a PATH_RESPONSE: %s",
+                [c.hex() for c in unresponded],
+            )
             return TestResult.FAILED
 
         return TestResult.SUCCEEDED
@@ -1083,21 +1092,18 @@ class TestCaseAddressRebinding(TestCasePortRebinding):
         )
 
     def check(self) -> TestResult:
-        super().check()
         if not self._keylog_file():
             logging.info("Can't check test result. SSLKEYLOG required.")
             return TestResult.UNSUPPORTED
 
-        tr_server = self._server_trace()._get_packets(
-            self._server_trace()._get_direction_filter(Direction.FROM_SERVER) + " quic"
+        tr_server = self._server_trace().get_fields(
+            fields=["ip.dst", "ipv6.dst"],
+            direction=Direction.FROM_SERVER,
         )
 
         ips = set()
-        for p in tr_server:
-            ip_vers = "ip"
-            if "IPV6" in str(p.layers):
-                ip_vers = "ipv6"
-            ips.add(getattr(p[ip_vers], "dst"))
+        for frame in tr_server:
+            ips.add(frame.get("ip.dst") or frame["ipv6.dst"])
 
         logging.info("Server saw these client addresses: %s", ips)
         if len(ips) <= 1:
@@ -1147,9 +1153,10 @@ class TestCaseIPv6(TestCaseTransfer):
         if result != TestResult.SUCCEEDED:
             return result
 
-        tr_server = self._server_trace()._get_packets(
-            self._server_trace()._get_direction_filter(Direction.FROM_SERVER)
-            + " quic && ip"
+        tr_server = self._server_trace().get_fields(
+            fields=["frame.number"],
+            direction=Direction.FROM_SERVER,
+            display_filter="quic && ip",
         )
 
         if tr_server:
@@ -1201,35 +1208,39 @@ class TestCaseConnectionMigration(TestCasePortRebinding):
         if result != TestResult.SUCCEEDED:
             return result
 
-        tr_client = self._client_trace()._get_packets(
-            self._client_trace()._get_direction_filter(Direction.FROM_CLIENT) + " quic"
+        # Wireshark cannot read the DCID of a packet it does not match to the
+        # connection, so it cannot tell whether such a packet used a new one.
+        tr_client = self._client_trace().get_fields(
+            fields=self.PATH_FIELDS + ["quic.dcid"],
+            direction=Direction.FROM_CLIENT,
+            display_filter="quic.dcid",
         )
 
         last = None
         paths = set()
         dcid = None
-        for p in tr_client:
-            cur = self._path(p)
+        for frame in tr_client:
+            cur = self._path(frame)
             if last is None:
                 last = cur
-                dcid = getattr(p["quic"], "dcid")
+                dcid = frame["quic.dcid"]
                 continue
 
             if last != cur and cur not in paths:
                 paths.add(last)
                 last = cur
                 # packet to different IP/port, should have a new DCID
-                if dcid == getattr(p["quic"], "dcid"):
+                if dcid == frame["quic.dcid"]:
                     logging.info(
                         "First client packet during active migration to %s used previous DCID %s",
                         cur,
-                        dcid,
+                        dcid.hex(),
                     )
-                    logging.info(p["quic"])
+                    logging.info(frame)
                     return TestResult.FAILED
-                dcid = getattr(p["quic"], "dcid")
+                dcid = frame["quic.dcid"]
                 logging.info(
-                    "DCID changed to %s during active migration to %s", dcid, cur
+                    "DCID changed to %s during active migration to %s", dcid.hex(), cur
                 )
 
         return TestResult.SUCCEEDED
@@ -1262,8 +1273,8 @@ class TestCaseV2(TestCaseQuic):
         if QUIC_VERSION not in versions:
             logging.info(
                 "Wrong version in client Initial. Expected %s, got %s",
-                QUIC_VERSION,
-                versions,
+                hex(QUIC_VERSION),
+                format_versions(versions),
             )
             return TestResult.FAILED
 
@@ -1275,8 +1286,8 @@ class TestCaseV2(TestCaseQuic):
         if QUIC_V2 not in versions:
             logging.info(
                 "Wrong version in server Initial. Expected %s, got %s",
-                QUIC_V2,
-                versions,
+                hex(QUIC_V2),
+                format_versions(versions),
             )
             return TestResult.FAILED
 
@@ -1286,14 +1297,15 @@ class TestCaseV2(TestCaseQuic):
         )
         if len(versions) != 1:
             logging.info(
-                "Expected exactly one version in client Handshake. Got %s", versions
+                "Expected exactly one version in client Handshake. Got %s",
+                format_versions(versions),
             )
             return TestResult.FAILED
         if QUIC_V2 not in versions:
             logging.info(
                 "Wrong version in client Handshake. Expected %s, got %s",
-                QUIC_V2,
-                versions,
+                hex(QUIC_V2),
+                format_versions(versions),
             )
             return TestResult.FAILED
 
@@ -1303,14 +1315,15 @@ class TestCaseV2(TestCaseQuic):
         )
         if len(versions) != 1:
             logging.info(
-                "Expected exactly one version in server Handshake. Got %s", versions
+                "Expected exactly one version in server Handshake. Got %s",
+                format_versions(versions),
             )
             return TestResult.FAILED
         if QUIC_V2 not in versions:
             logging.info(
                 "Wrong version in server Handshake. Expected %s, got %s",
-                QUIC_V2,
-                versions,
+                hex(QUIC_V2),
+                format_versions(versions),
             )
             return TestResult.FAILED
 
@@ -1321,7 +1334,7 @@ class TestCaseV2(TestCaseQuic):
 
     def _get_packet_versions(self, packets: List) -> set:
         """Get a set of QUIC versions from packets."""
-        return set([hex(int(p.version, 0)) for p in packets])
+        return set([p["quic.version"] for p in packets])
 
 
 class MeasurementGoodput(Measurement):

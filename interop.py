@@ -315,7 +315,7 @@ class InteropRunner:
                 }
                 for x in self._tests + self._measurements
             },
-            "quic_version": QUIC_VERSION,
+            "quic_version": hex(QUIC_VERSION),
             "results": [],
             "measurements": [],
         }
