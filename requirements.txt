@@ -2,4 +2,3 @@ pycryptodome
 random-slugs
 termcolor
 prettytable
-pyshark
