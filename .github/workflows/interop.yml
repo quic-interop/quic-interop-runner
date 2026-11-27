@@ -45,7 +45,7 @@ jobs:
           echo $STARTTIME
           echo "starttime=$STARTTIME" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: 3.12
       - name: Determine servers
@@ -140,7 +140,7 @@ jobs:
     if: always()
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: 3.12
       - name: Download results
