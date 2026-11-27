@@ -560,7 +560,11 @@ class TestCaseAmplificationLimit(TestCaseQuic):
             "Server sent %d bytes in Handshake CRYPTO frames.", max_handshake_offset
         )
 
-        # Check that the server didn't send more than 3-4x what the client sent.
+        # Check that the server didn't send more than 3-4x what the client sent,
+        # until the client's address is validated (RFC 9000, Section 8.1): by a
+        # Handshake packet from the client, or by a client Initial packet sent to
+        # a connection ID of at least 8 bytes chosen by the server.
+        server_cids = set()
         allowed = 0
         allowed_with_tolerance = 0
         client_sent, server_sent = 0, 0  # only for debug messages
@@ -581,6 +585,15 @@ class TestCaseAmplificationLimit(TestCaseQuic):
                     res = TestResult.SUCCEEDED
                     break
                 if packet_type is PacketType.INITIAL:
+                    dcid = p.get("quic.dcid")
+                    if dcid in server_cids:
+                        log_output.append(
+                            "Received an Initial packet from the client for the server's connection ID {}.".format(
+                                dcid.hex()
+                            )
+                        )
+                        res = TestResult.SUCCEEDED
+                        break
                     client_sent += packet_size
                     allowed += 3 * packet_size
                     allowed_with_tolerance += 4 * packet_size
@@ -590,6 +603,9 @@ class TestCaseAmplificationLimit(TestCaseQuic):
                         )
                     )
             elif direction == Direction.FROM_SERVER:
+                server_cids.update(
+                    cid for cid in p.get_all("quic.scid") if len(cid) >= 8
+                )
                 server_sent += packet_size
                 log_output.append(
                     "Received a {} byte Handshake packet from the server. Total: {}".format(
