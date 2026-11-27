@@ -88,5 +88,10 @@
     "image": "glendc/rama-quic-interop:edge",
     "url": "https://github.com/plabayo/rama",
     "role": "both"
+  },
+  "kuicksilver": {
+    "image": "ghcr.io/kuicksilver/kuicksilver-interop:latest",
+    "url": "https://github.com/kuicksilver/kuicksilver",
+    "role": "both"
   }
 }
