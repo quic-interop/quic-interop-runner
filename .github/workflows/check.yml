@@ -22,3 +22,22 @@ jobs:
         if: success() || failure() # run this step even if the previous one failed
         run: python implementations.py -p webtransport
       - uses: ludeeus/action-shellcheck@master
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: 3.12
+      # Same as in interop-test.yml, so that the tests use the same Wireshark.
+      - name: Install Wireshark
+        run: |
+          sudo add-apt-repository ppa:wireshark-dev/nightly
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends tshark
+      - name: Install Python packages
+        run: |
+          pip install -U pip
+          pip install -r requirements.txt
+      - name: Run unit tests
+        run: python -m unittest -v
